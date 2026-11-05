@@ -3,8 +3,6 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,6 +16,13 @@ export async function POST(req) {
     if (!plan) {
       return new NextResponse("Plan required", { status: 400 });
     }
+
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+      return new NextResponse("Stripe is not configured", { status: 503 });
+    }
+
+    const stripe = new Stripe(stripeSecretKey);
 
     // Create Stripe Checkout Session
     const checkoutSession = await stripe.checkout.sessions.create({
