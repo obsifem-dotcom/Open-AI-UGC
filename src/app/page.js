@@ -285,18 +285,24 @@ export default function Home() {
     { id: "s3", label: "Escena 3 (Beneficios y CTA)", prompt: "", duration: 15, transition: "cut" },
   ]);
 
-  // AI Influencer & Promotion Studio state
+  // AI Influencer & Promotion Studio state (15 Influencers with Minimal Config presets)
   const [isInfluencerMode, setIsInfluencerMode] = useState(false);
+  const [isMinimalInfluencerConfig, setIsMinimalInfluencerConfig] =
+    useState(true);
   const [selectedInfluencer, setSelectedInfluencer] = useState(
     AI_INFLUENCERS[0]
   );
   const [useInfluencerReferenceImage, setUseInfluencerReferenceImage] =
     useState(true);
-  const [promoType, setPromoType] = useState("product"); // "product" | "service" | "video"
+  const [promoType, setPromoType] = useState(
+    AI_INFLUENCERS[0]?.defaultPromoType || "product"
+  ); // "product" | "service" | "video"
   const [promoName, setPromoName] = useState("");
   const [promoBenefit, setPromoBenefit] = useState("");
   const [promoCta, setPromoCta] = useState("");
-  const [promoStyle, setPromoStyle] = useState("showcase");
+  const [promoStyle, setPromoStyle] = useState(
+    AI_INFLUENCERS[0]?.defaultStyle || "showcase"
+  );
 
   // UGCore Studio v3.0 — Active Architectural Module Tab
   // null | "intelligence" | "ecommerce" | "timeline" | "consistency"
@@ -511,17 +517,38 @@ export default function Home() {
     }
   };
 
-  const applyInfluencerPromoToScript = () => {
+  const handleSelectInfluencer = (inf) => {
+    setSelectedInfluencer(inf);
+    setUcidCode(
+      inf.ucid || `UCID-${inf.id.split("-")[0].toUpperCase()}-01`
+    );
+    if (inf.defaultPromoType) {
+      setPromoType(inf.defaultPromoType);
+    }
+    if (inf.defaultStyle) {
+      setPromoStyle(inf.defaultStyle);
+    }
+    if (inf.defaultVoiceProfileId) {
+      setVoiceProfileId(inf.defaultVoiceProfileId);
+    }
+  };
+
+  const applyInfluencerPromoToScript = (overrideInfluencer = null) => {
+    const activeInf = overrideInfluencer || selectedInfluencer;
     const readyUploads = uploadedImages.filter((img) => img.status === "ready");
     const { singleScript, multiScenes } = buildInfluencerScript({
-      influencer: selectedInfluencer,
-      promoType,
+      influencer: activeInf,
+      promoType: overrideInfluencer
+        ? activeInf?.defaultPromoType || promoType
+        : promoType,
       name: promoName,
       benefit: promoBenefit,
       cta: promoCta,
-      style: promoStyle,
+      style: overrideInfluencer
+        ? activeInf?.defaultStyle || promoStyle
+        : promoStyle,
       useInfluencerAvatar:
-        useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
+        useInfluencerReferenceImage && Boolean(activeInf?.avatar),
       hasUploadedAsset: readyUploads.length > 0,
     });
 
@@ -677,7 +704,7 @@ export default function Home() {
     } else if (prompt.trim().length > 0) {
       return true;
     }
-    if (isInfluencerMode && (promoName.trim() || promoBenefit.trim())) {
+    if (isInfluencerMode && selectedInfluencer) {
       return true;
     }
     return false;
@@ -1014,8 +1041,8 @@ export default function Home() {
                   <FiUserCheck className="text-xs" />
                   <span>
                     {isInfluencerMode
-                      ? `Influencer IA: ${selectedInfluencer?.name || "Activo"}`
-                      : "🧑‍🎤 Influencer IA (Producto / Servicio / Video)"}
+                      ? `Influencer #${selectedInfluencer?.number || 1}: ${selectedInfluencer?.name || "Activo"}`
+                      : `🧑‍🎤 ${AI_INFLUENCERS.length} Influencers IA (Config. Mínima 1-Click)`}
                   </span>
                 </button>
               </div>
@@ -1464,7 +1491,7 @@ export default function Home() {
               )}
             </AnimatePresence>
 
-            {/* AI Influencer & Promotion Studio Panel */}
+            {/* AI Influencer & Promotion Studio Panel (15 Influencers • Minimal Config) */}
             <AnimatePresence>
               {isInfluencerMode && (
                 <motion.div
@@ -1473,59 +1500,82 @@ export default function Home() {
                   exit={{ opacity: 0, height: 0 }}
                   className="border-b border-glass-border bg-bg-card/50 p-4 space-y-3 overflow-hidden"
                 >
-                  {/* Row 1: Influencer Roster */}
+                  {/* Row 1: 15 AI Influencers Roster */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black uppercase tracking-wider text-muted">
-                        1. Elige tu Influencer IA Presentador:
-                      </span>
-                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-secondary-text cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={useInfluencerReferenceImage}
-                          onChange={(e) =>
-                            setUseInfluencerReferenceImage(e.target.checked)
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-muted">
+                          1. Catálogo de {AI_INFLUENCERS.length} Influencers IA
+                          (Configuración Mínima 1-Click):
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-500 text-[9px] font-black uppercase">
+                          Preset #{selectedInfluencer?.number || 1} •{" "}
+                          {selectedInfluencer?.ucid || "UCID-01"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-secondary-text cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={useInfluencerReferenceImage}
+                            onChange={(e) =>
+                              setUseInfluencerReferenceImage(e.target.checked)
+                            }
+                            className="rounded accent-emerald-500"
+                          />
+                          <span>Rostro @image1 activo</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIsMinimalInfluencerConfig(
+                              !isMinimalInfluencerConfig
+                            )
                           }
-                          className="rounded accent-emerald-500"
-                        />
-                        <span>Usar foto de rostro del Influencer (@image1)</span>
-                      </label>
+                          className="px-2 py-0.5 rounded border border-glass-border bg-glass-bg text-[10px] font-bold text-secondary-text hover:text-foreground cursor-pointer"
+                        >
+                          {isMinimalInfluencerConfig
+                            ? "⚙️ Ver campos opcionales"
+                            : "⚡ Volver a Config. Mínima"}
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 max-h-44 overflow-y-auto pr-1">
                       {AI_INFLUENCERS.map((inf) => {
                         const isSelected = selectedInfluencer?.id === inf.id;
                         return (
                           <button
                             key={inf.id}
                             type="button"
-                            onClick={() => {
-                              setSelectedInfluencer(inf);
-                              setUcidCode(
-                                `UCID-${inf.id.split("-")[0].toUpperCase()}-01`
-                              );
-                            }}
-                            className={`flex items-center gap-2.5 p-2 rounded-lg border text-left transition-all flex-shrink-0 cursor-pointer ${
+                            onClick={() => handleSelectInfluencer(inf)}
+                            className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all cursor-pointer ${
                               isSelected
                                 ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
                                 : "border-glass-border bg-bg-card hover:border-primary/40"
                             }`}
                           >
-                            <img
-                              src={inf.avatar}
-                              alt={inf.name}
-                              className="w-10 h-10 rounded-full object-cover border border-white/20"
-                            />
-                            <div className="pr-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-foreground">
+                            <div className="relative flex-shrink-0">
+                              <img
+                                src={inf.avatar}
+                                alt={inf.name}
+                                className="w-9 h-9 rounded-full object-cover border border-white/20"
+                              />
+                              <span className="absolute -top-1 -left-1 px-1 rounded-full bg-black/80 text-white text-[8px] font-black">
+                                #{inf.number}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[11px] font-bold text-foreground truncate">
                                   {inf.name}
                                 </span>
-                                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 text-[9px] font-bold">
-                                  {inf.badge}
-                                </span>
                               </div>
-                              <p className="text-[10px] text-muted font-medium">
+                              <p className="text-[9px] text-emerald-500 font-bold truncate">
+                                {inf.badge}
+                              </p>
+                              <p className="text-[9px] text-muted truncate">
                                 {inf.niche}
                               </p>
                             </div>
@@ -1535,98 +1585,100 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Row 2: What to Promote (Product / Service / Video) */}
-                  <div className="space-y-2 pt-1 border-t border-glass-border/60">
+                  {/* Row 2: Minimal Configuration (1-Click or 1 Input) */}
+                  <div className="space-y-2 pt-2 border-t border-glass-border/60">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-black uppercase tracking-wider text-muted mr-1">
-                          2. ¿Qué va a promocionar?
+                      <div className="flex items-center flex-wrap gap-1.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
+                          2. Modo:
                         </span>
                         <button
                           type="button"
                           onClick={() => handlePromoTypeChange("product")}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                             promoType === "product"
                               ? "bg-primary text-white"
                               : "bg-glass-bg text-muted hover:text-foreground border border-glass-border"
                           }`}
                         >
-                          <FiShoppingBag size={12} />
-                          <span>Un Producto</span>
+                          <FiShoppingBag size={11} />
+                          <span>Producto</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handlePromoTypeChange("service")}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                             promoType === "service"
                               ? "bg-primary text-white"
                               : "bg-glass-bg text-muted hover:text-foreground border border-glass-border"
                           }`}
                         >
-                          <FiBriefcase size={12} />
-                          <span>Un Servicio</span>
+                          <FiBriefcase size={11} />
+                          <span>Servicio</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handlePromoTypeChange("video")}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
                             promoType === "video"
                               ? "bg-primary text-white"
                               : "bg-glass-bg text-muted hover:text-foreground border border-glass-border"
                           }`}
                         >
-                          <FiPlayCircle size={12} />
-                          <span>Un Video / Contenido</span>
+                          <FiPlayCircle size={11} />
+                          <span>Video</span>
                         </button>
                       </div>
 
-                      <select
-                        value={promoStyle}
-                        onChange={(e) => setPromoStyle(e.target.value)}
-                        className="px-2.5 py-1 rounded bg-bg-card border border-glass-border text-[11px] font-bold text-foreground outline-none"
-                      >
-                        {currentPromoCategory.styles.map((st) => (
-                          <option key={st.id} value={st.id}>
-                            Estilo: {st.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <input
-                        type="text"
-                        value={promoName}
-                        onChange={(e) => setPromoName(e.target.value)}
-                        placeholder={currentPromoCategory.namePlaceholder}
-                        className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
-                      />
-                      <input
-                        type="text"
-                        value={promoBenefit}
-                        onChange={(e) => setPromoBenefit(e.target.value)}
-                        placeholder={currentPromoCategory.benefitPlaceholder}
-                        className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
-                      />
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-xl">
                         <input
                           type="text"
-                          value={promoCta}
-                          onChange={(e) => setPromoCta(e.target.value)}
-                          placeholder={currentPromoCategory.ctaPlaceholder}
+                          value={promoName}
+                          onChange={(e) => setPromoName(e.target.value)}
+                          placeholder={`Opcional: Nombre (Preset activo: "${selectedInfluencer?.defaultName || " Automático"}")`}
                           className="flex-1 px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
                         />
                         <button
                           type="button"
-                          onClick={applyInfluencerPromoToScript}
+                          onClick={() => applyInfluencerPromoToScript()}
                           className="flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer shadow-sm"
-                          title="Generar guion publicitario con el Influencer seleccionado"
+                          title="Generar guion inmediato con configuración mínima"
                         >
                           <FiCheck size={13} />
-                          <span>Armar Guion</span>
+                          <span>⚡ Armar Guion 1-Click</span>
                         </button>
                       </div>
                     </div>
+
+                    {!isMinimalInfluencerConfig && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
+                        <select
+                          value={promoStyle}
+                          onChange={(e) => setPromoStyle(e.target.value)}
+                          className="px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-xs font-bold text-foreground outline-none"
+                        >
+                          {currentPromoCategory.styles.map((st) => (
+                            <option key={st.id} value={st.id}>
+                              Estilo: {st.label}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={promoBenefit}
+                          onChange={(e) => setPromoBenefit(e.target.value)}
+                          placeholder={`Beneficio (Preset: "${selectedInfluencer?.defaultBenefit || ""}")`}
+                          className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
+                        />
+                        <input
+                          type="text"
+                          value={promoCta}
+                          onChange={(e) => setPromoCta(e.target.value)}
+                          placeholder={`CTA (Preset: "${selectedInfluencer?.defaultCta || ""}")`}
+                          className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
+                        />
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
