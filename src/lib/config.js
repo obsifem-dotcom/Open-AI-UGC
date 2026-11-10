@@ -1,10 +1,6 @@
 const config = {
-  appName: "Open AI UGC",
+  appName: "UGCora Studio",
   auth: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    },
     secret: process.env.NEXTAUTH_SECRET,
     url: process.env.NEXTAUTH_URL || "http://localhost:3000",
     webhook_url: process.env.WEBHOOK_URL || process.env.NEXTAUTH_URL || "http://localhost:3000",
@@ -21,7 +17,7 @@ const config = {
     },
   },
   ai: {
-    apiKey: process.env.MUAPIAPP_API_KEY,
+    apiKey: process.env.UGC_API_KEY || process.env.MUAPIAPP_API_KEY,
     generationCost: 10,
     model: "gpt-4o",
   },

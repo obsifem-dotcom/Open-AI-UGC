@@ -1,11 +1,5 @@
-"use client";
-
-import { useSession } from "next-auth/react";
-import { useState } from "react";
 import Footer from "@/components/Footer";
 import { FaCheck, FaInfoCircle } from "react-icons/fa";
-import axios from "axios";
-import toast, { Toaster } from "react-hot-toast";
 
 const PLANS = [
   { id: "basic", name: "Basic Pack", price: "$5", credits: 100, description: "Perfect for testing custom prompts and exploring styles." },
@@ -15,45 +9,21 @@ const PLANS = [
 ];
 
 export default function Pricing() {
-  const { data: session, status } = useSession();
-  const [loadingPlan, setLoadingPlan] = useState(null);
-
-  const handleCheckout = async (planId) => {
-    if (status !== "authenticated") {
-      toast.error("You must sign in with Google to purchase credit packages.");
-      return;
-    }
-
-    setLoadingPlan(planId);
-    try {
-      const { data } = await axios.post("/api/checkout", { planId });
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No redirection URL returned");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.error || "Failed to trigger Stripe checkout session.");
-    } finally {
-      setLoadingPlan(null);
-    }
-  };
-
   return (
     <div className="flex min-h-dvh flex-col bg-bg-page select-none text-primary-text overflow-hidden">
-      <Toaster position="top-right" />
-
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-12 sm:px-6 lg:px-8 flex flex-col gap-10 overflow-y-auto scrollbar-subtle items-center">
         <div className="text-center space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full mb-1">
             <FaInfoCircle className="text-primary text-xs" />
             <span className="text-[10px] font-black text-primary uppercase tracking-widest">Pricing Plans</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">Buy Credits Packs</h1>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight uppercase">Credit Packages</h1>
           <p className="text-xs sm:text-sm text-secondary-text max-w-lg leading-relaxed">
-            Purchase flexible credit packages to perform high-resolution predictions. Keep all profits — we handle AI infrastructure.
+            Credit packages and online payments are coming soon. Use your own MuAPI key to generate videos in the meantime.
           </p>
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600">
+            Payments not enabled
+          </span>
         </div>
 
         {/* Pricing Cards Grid */}
@@ -100,13 +70,11 @@ export default function Pricing() {
               </div>
 
               <button
-                onClick={() => handleCheckout(plan.id)}
-                disabled={loadingPlan !== null}
-                className={`w-full py-3 rounded-full text-xs font-bold transition-all shadow-md cursor-pointer select-none active:scale-[0.98] ${
-                  plan.popular ? "bg-primary text-white hover:bg-primary-hover shadow-primary/15" : "bg-bg-page hover:bg-bg-card text-primary-text border border-divider"
-                }`}
+                type="button"
+                disabled
+                className="w-full cursor-not-allowed rounded-full border border-divider bg-bg-page/60 py-3 text-xs font-bold text-secondary-text opacity-70"
               >
-                {loadingPlan === plan.id ? "Loading checkout..." : "Purchase Credits"}
+                Coming soon
               </button>
             </div>
           ))}

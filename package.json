@@ -1,8 +1,8 @@
 {
-  "name": "open-ai-ugc",
+  "name": "ugcora-studio",
   "version": "0.1.0",
   "private": true,
-  "description": "Open AI UGC — an open-source alternative to Arcads and MakeUGC for generating AI UGC video ads with realistic actors, scripts, and voiceovers.",
+  "description": "UGCora Studio — an AI-powered UGC video studio for creating creator-style video ads.",
   "keywords": [
     "ai-ugc",
     "ugc-ads",

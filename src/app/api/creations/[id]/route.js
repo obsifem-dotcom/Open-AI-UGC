@@ -27,7 +27,7 @@ export async function GET(req, { params }) {
     // Active polling fallback in case webhook failed to deliver or wasn't set up
     const activeStatuses = ['processing', 'pending', 'starting', 'queued'];
     if (activeStatuses.includes(creation.status) && creation.requestId) {
-      const apiKey = process.env.UGC_API_KEY;
+      const apiKey = session.user.customApiKey || process.env.UGC_API_KEY || process.env.MUAPIAPP_API_KEY;
       if (apiKey) {
         try {
           const checkRes = await fetch(`https://api.muapi.ai/api/v1/predictions/${creation.requestId}/result`, {

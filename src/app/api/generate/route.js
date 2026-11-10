@@ -4,10 +4,25 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const MODEL_ENDPOINTS = {
-  "grok-video": "https://api.muapi.ai/api/v1/grok-imagine-image-to-video",
-  "veo-3-1": "https://api.muapi.ai/api/v1/veo3.1-image-to-video",
-  "happy-horse": "https://api.muapi.ai/api/v1/happy-horse-1-image-to-video-720p",
-  "seedance-2": "https://api.muapi.ai/api/v1/seedance-2-image-to-video"
+  "grok-video": {
+    imageToVideo: "/api/v1/grok-imagine-image-to-video",
+    textToVideo: "/api/v1/grok-imagine-text-to-video",
+    imageField: "images_list",
+  },
+  "veo-3-1": {
+    imageToVideo: "/api/v1/veo3.1-image-to-video",
+    textToVideo: "/api/v1/veo3.1-text-to-video",
+    imageField: "image_url",
+  },
+  "happy-horse": {
+    imageToVideo: "/api/v1/happy-horse-1-image-to-video-720p",
+    textToVideo: "/api/v1/happy-horse-1-text-to-video-720p",
+    imageField: "images_list",
+  },
+  "seedance-2": {
+    imageToVideo: "/api/v1/seedance-2-image-to-video",
+    imageField: "images_list",
+  },
 };
 
 export async function POST(req) {
@@ -19,20 +34,35 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { modelId, prompt, settings, images } = body;
+    const { modelId } = body;
+    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    const settings = body.settings && typeof body.settings === "object" ? body.settings : {};
+    const images = Array.isArray(body.images)
+      ? body.images.filter((image) => typeof image === "string" && image.trim())
+      : [];
 
     const headerApiKey = req.headers.get("x-custom-api-key");
     const customApiKey = headerApiKey || body.customApiKey || session.user.customApiKey || null;
     const isUsingCustomKey = Boolean(customApiKey && customApiKey.trim().length > 0);
 
-    const apiKey = isUsingCustomKey ? customApiKey.trim() : process.env.UGC_API_KEY;
+    const apiKey = isUsingCustomKey
+      ? customApiKey.trim()
+      : process.env.UGC_API_KEY || process.env.MUAPIAPP_API_KEY;
     if (!apiKey) {
       return new NextResponse("API Key not configured", { status: 500 });
     }
 
-    const endpoint = MODEL_ENDPOINTS[modelId];
-    if (!endpoint) {
+    const model = MODEL_ENDPOINTS[modelId];
+    if (!model) {
       return new NextResponse("Invalid model selected", { status: 400 });
+    }
+    if (!prompt) {
+      return new NextResponse("Prompt is required", { status: 400 });
+    }
+
+    const endpointPath = images.length ? model.imageToVideo : model.textToVideo;
+    if (!endpointPath) {
+      return new NextResponse("This model requires at least one reference image", { status: 400 });
     }
 
     // Calculate required credits
@@ -72,16 +102,21 @@ export async function POST(req) {
       }
     }
 
-    // Prepare payload based on MUAPI specs
+    const webhookBase = process.env.WEBHOOK_URL || process.env.NEXTAUTH_URL || new URL(req.url).origin;
+    const webhookUrl = new URL("/api/webhook/muapi", webhookBase).toString();
+    const endpoint = new URL(endpointPath, "https://api.muapi.ai");
+    if (new URL(webhookUrl).protocol === "https:") {
+      endpoint.searchParams.set("webhook", webhookUrl);
+    }
+
     const payload = {
       prompt,
-      images_list: images,
-      image_url: images && images.length > 0 ? images[0] : undefined, // Some models require image_url
-      webhook_url: `${process.env.WEBHOOK_URL}/api/webhook/muapi`,
-      ...settings
+      ...settings,
     };
+    if (images.length) {
+      payload[model.imageField] = model.imageField === "image_url" ? images[0] : images;
+    }
 
-    // Call MUAPI
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -97,6 +132,10 @@ export async function POST(req) {
     }
 
     const data = await response.json();
+    const requestId = data.request_id || data.id;
+    if (!requestId) {
+      throw new Error("MuAPI accepted no request ID for this generation");
+    }
 
     // Create entry in DB
     const creation = await prisma.creation.create({
@@ -105,7 +144,7 @@ export async function POST(req) {
         type: "video",
         title: prompt.substring(0, 50) + "...",
         prompt: prompt,
-        requestId: data.request_id || data.id,
+        requestId,
         status: "processing",
         modelId: modelId,
         aspectRatio: settings.aspect_ratio,

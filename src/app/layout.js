@@ -7,9 +7,9 @@ import config from "@/lib/config";
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata = {
-  title: "Open AI UGC — AI UGC Video Ads (Arcads & MakeUGC Alternative)",
+  title: "UGCora Studio — AI UGC Video Creator",
   description:
-    "Open AI UGC is an open-source alternative to Arcads and MakeUGC. Generate scroll-stopping AI UGC video ads with realistic AI actors, scripts, and voiceovers — powered by Veo 3.1, Seedance, Grok Video, and more.",
+    "Create creator-style UGC video ads with AI actors, scripts, and voiceovers in UGCora Studio. Turn product ideas into social-ready videos.",
   keywords: [
     "AI UGC",
     "UGC ads",
@@ -39,4 +39,3 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-

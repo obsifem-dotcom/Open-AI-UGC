@@ -3,7 +3,7 @@
 import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FaGoogle, FaKey, FaInfoCircle, FaArrowRight } from "react-icons/fa";
+import { FaGithub, FaKey, FaInfoCircle, FaArrowRight } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
 
 function LoginContent() {
@@ -11,8 +11,9 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("callbackUrl") || searchParams.get("next") || "/";
+  const githubAuthEnabled = Boolean(process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID);
 
-  const [activeTab, setActiveTab] = useState("google"); // "google" | "apikey"
+  const [activeTab, setActiveTab] = useState("github"); // "github" | "apikey"
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -64,9 +65,9 @@ function LoginContent() {
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-2xl text-primary font-black shadow-md shadow-primary/15">
             📹
           </div>
-          <h2 className="text-2xl font-black uppercase tracking-tight">Sign In to UGC Creator</h2>
+          <h2 className="text-2xl font-black uppercase tracking-tight">Sign In to UGCora Studio</h2>
           <p className="text-xs font-semibold text-secondary-text leading-relaxed px-2">
-            Choose your preferred sign-in method: Google Account or custom MuAPI Key.
+            Choose your preferred sign-in method: GitHub or a custom MuAPI Key.
           </p>
         </div>
 
@@ -74,15 +75,15 @@ function LoginContent() {
         <div className="flex bg-bg-page p-1 rounded-lg border border-divider/60">
           <button
             type="button"
-            onClick={() => setActiveTab("google")}
+            onClick={() => setActiveTab("github")}
             className={`flex-1 py-2 rounded-md text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-              activeTab === "google"
+              activeTab === "github"
                 ? "bg-bg-card text-white shadow-sm border border-divider/40"
                 : "text-secondary-text hover:text-white"
             }`}
           >
-            <FaGoogle className="text-red-400" />
-            <span>Google Account</span>
+            <FaGithub className="text-secondary-text" />
+            <span>GitHub</span>
           </button>
 
           <button
@@ -100,17 +101,21 @@ function LoginContent() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === "google" ? (
+        {activeTab === "github" ? (
           <div className="space-y-4 pt-2">
             <button
-              onClick={() => signIn("google", { callbackUrl: next })}
-              className="w-full py-3.5 bg-white text-neutral-900 rounded-full text-xs font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-md active:scale-[0.98] cursor-pointer"
+              type="button"
+              onClick={() => signIn("github", { callbackUrl: next })}
+              disabled={!githubAuthEnabled}
+              className="w-full py-3.5 bg-neutral-900 text-white rounded-full text-xs font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <FaGoogle className="text-sm text-red-500" />
-              <span>Continue with Google</span>
+              <FaGithub className="text-sm" />
+              <span>{githubAuthEnabled ? "Continue with GitHub" : "GitHub sign-in not configured"}</span>
             </button>
             <p className="text-[11px] text-center text-secondary-text">
-              Uses system credit balance. Ideal for credit pack purchases.
+              {githubAuthEnabled
+                ? "Uses system credit balance."
+                : "Set up GitHub OAuth credentials to enable social sign-in."}
             </p>
           </div>
         ) : (

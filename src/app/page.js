@@ -15,6 +15,7 @@ import {
   FiPlus,
   FiLoader,
   FiTrash2,
+  FiAlertCircle,
 } from "react-icons/fi";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,7 +31,7 @@ const MODELS = [
     icon: FiVideo,
     description:
       "xAI's Grok video generation model with text-to-video and image-to-video modes.",
-    api: "https://api.muapi.ai/api/v1/grok-imagine-image-to-video",
+    supportsTextToVideo: true,
     params: {
       aspect_ratio: {
         options: ["9:16", "16:9", "2:3", "3:2", "1:1"],
@@ -48,7 +49,7 @@ const MODELS = [
     icon: FiVideo,
     description:
       "Google's high-fidelity video generation model with realistic movement.",
-    api: "https://api.muapi.ai/api/v1/veo3.1-image-to-video",
+    supportsTextToVideo: true,
     params: {
       aspect_ratio: { options: ["16:9", "9:16"], default: "16:9" },
       duration: { options: [8], default: 8 },
@@ -61,7 +62,7 @@ const MODELS = [
     type: "MODEL",
     icon: FiZap,
     description: "Fast and expressive animation model for lifelike motion.",
-    api: "https://api.muapi.ai/api/v1/happy-horse-1-image-to-video-720p",
+    supportsTextToVideo: true,
     params: {
       aspect_ratio: {
         options: ["16:9", "9:16", "1:1", "4:3", "3:4"],
@@ -76,7 +77,7 @@ const MODELS = [
     type: "MODEL",
     icon: FiVideo,
     description: "Advanced video animation with character reference support.",
-    api: "https://api.muapi.ai/api/v1/seedance-2-image-to-video",
+    supportsTextToVideo: false,
     params: {
       aspect_ratio: {
         options: ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"],
@@ -86,6 +87,11 @@ const MODELS = [
     },
   }
 ];
+
+const getModelDefaults = (model) =>
+  Object.fromEntries(
+    Object.entries(model.params || {}).map(([key, parameter]) => [key, parameter.default])
+  );
 
 function CustomDropdown({ label, value, options, onChange, unit = "" }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -195,7 +201,7 @@ export default function Home() {
   const [isModelsModalOpen, setIsModelsModalOpen] = useState(false);
 
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
-  const [modelSettings, setModelSettings] = useState({});
+  const [modelSettings, setModelSettings] = useState(() => getModelDefaults(MODELS[0]));
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [prompt, setPrompt] = useState("");
@@ -227,16 +233,6 @@ export default function Home() {
     }
     return () => clearInterval(interval);
   }, [lastGeneration]);
-
-  useEffect(() => {
-    if (selectedModel.params) {
-      const defaults = {};
-      Object.keys(selectedModel.params).forEach((key) => {
-        defaults[key] = selectedModel.params[key].default;
-      });
-      setModelSettings(defaults);
-    }
-  }, [selectedModel]);
 
   const getRequiredCredits = () => {
     const duration = typeof modelSettings.duration === "number" ? modelSettings.duration : 5;
@@ -271,7 +267,7 @@ export default function Home() {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (uploadedImages.length + files.length > 7) {
-      alert("Maximum 7 images allowed for Grok.");
+      alert("Maximum 7 reference images allowed.");
       return;
     }
 
@@ -316,8 +312,12 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    if (uploadedImages.some(img => img.status === 'uploading')) {
-      alert("Please wait for images to finish uploading.");
+    if (uploadedImages.some((img) => img.status !== "ready")) {
+      alert("Wait for image uploads to finish or remove any failed uploads.");
+      return;
+    }
+    if (!uploadedImages.length && !selectedModel.supportsTextToVideo) {
+      alert("Seedance 2 requires at least one reference image.");
       return;
     }
 
@@ -362,6 +362,7 @@ export default function Home() {
 
   const handleModelSelect = (model) => {
     setSelectedModel(model);
+    setModelSettings(getModelDefaults(model));
     setIsModelsModalOpen(false);
   };
 
@@ -511,6 +512,11 @@ export default function Home() {
                 rows={1}
               />
             </div>
+            {!uploadedImages.length && !selectedModel.supportsTextToVideo && (
+              <p className="px-4 pt-2 text-[10px] text-amber-600">
+                Seedance 2 requires a reference image. Upload one to generate.
+              </p>
+            )}
 
             <input 
               type="file"
@@ -595,7 +601,12 @@ export default function Home() {
 
               <button 
                 onClick={handleGenerate}
-                disabled={isGenerating || !prompt.trim()}
+                disabled={
+                  isGenerating ||
+                  !prompt.trim() ||
+                  uploadedImages.some((img) => img.status !== "ready") ||
+                  (!uploadedImages.length && !selectedModel.supportsTextToVideo)
+                }
                 className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
               >
                 {isGenerating ? (
