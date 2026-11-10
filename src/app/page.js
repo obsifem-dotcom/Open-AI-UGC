@@ -32,6 +32,9 @@ import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
 import {
   AI_INFLUENCERS,
   INFLUENCER_LANGUAGES,
+  INFLUENCER_FACE_PRESETS,
+  INFLUENCER_PERSONA_STYLES,
+  INFLUENCER_WARDROBE_OPTIONS,
   PROMO_CATEGORIES,
   buildInfluencerScript,
 } from "@/lib/influencers";
@@ -305,6 +308,16 @@ export default function Home() {
     AI_INFLUENCERS[0]?.defaultStyle || "showcase"
   );
   const [influencerLanguage, setInfluencerLanguage] = useState("es-latam");
+  const [influencerFacePresetId, setInfluencerFacePresetId] =
+    useState("preset");
+  const [customFaceUrl, setCustomFaceUrl] = useState("");
+  const [isUploadingCustomFace, setIsUploadingCustomFace] = useState(false);
+  const [customFaceTrait, setCustomFaceTrait] = useState("");
+  const [influencerPersonaStyleId, setInfluencerPersonaStyleId] =
+    useState("preset");
+  const [influencerWardrobeId, setInfluencerWardrobeId] = useState("preset");
+  const [customWardrobeText, setCustomWardrobeText] = useState("");
+  const faceInputRef = useRef(null);
 
   // UGCore Studio v3.0 — Active Architectural Module Tab
   // null | "intelligence" | "ecommerce" | "timeline" | "consistency"
@@ -468,6 +481,10 @@ export default function Home() {
         setPredictiveHooks(data.hooks);
       }
 
+      const activeVoiceObj =
+        COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
+        COMMERCIAL_VOICE_PROFILES[0];
+
       // Build complete script automatically
       const { singleScript, multiScenes } = buildInfluencerScript({
         influencer: selectedInfluencer,
@@ -477,8 +494,15 @@ export default function Home() {
         cta: prod.cta,
         style: "showcase",
         language: influencerLanguage,
+        facePresetId: influencerFacePresetId,
+        customFaceTrait,
+        personaStyleId: influencerPersonaStyleId,
+        wardrobeId: influencerWardrobeId,
+        customWardrobeText,
+        voiceDirective: activeVoiceObj.directive,
         useInfluencerAvatar:
-          useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
+          useInfluencerReferenceImage &&
+          Boolean(getEffectiveInfluencerAvatar()),
         hasUploadedAsset: (prod.images?.length || 0) > 0,
       });
 
@@ -510,6 +534,44 @@ export default function Home() {
     setMicroExpressionIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const getEffectiveInfluencerAvatar = (inf = selectedInfluencer) => {
+    if (influencerFacePresetId === "custom-upload" && customFaceUrl) {
+      return customFaceUrl;
+    }
+    const facePreset = INFLUENCER_FACE_PRESETS.find(
+      (f) => f.id === influencerFacePresetId
+    );
+    if (facePreset?.avatar) {
+      return facePreset.avatar;
+    }
+    return inf?.avatar || null;
+  };
+
+  const handleCustomFaceUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingCustomFace(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("No se pudo subir la foto de rostro");
+      const data = await response.json();
+      setCustomFaceUrl(data.url);
+      setInfluencerFacePresetId("custom-upload");
+      setUseInfluencerReferenceImage(true);
+    } catch (error) {
+      console.error("Custom face upload error:", error);
+      alert("Error al subir la foto de rostro personalizada.");
+    } finally {
+      setIsUploadingCustomFace(false);
+      if (faceInputRef.current) faceInputRef.current.value = "";
+    }
   };
 
   const handlePromoTypeChange = (newType) => {
@@ -544,6 +606,11 @@ export default function Home() {
   const applyInfluencerPromoToScript = (overrideInfluencer = null) => {
     const activeInf = overrideInfluencer || selectedInfluencer;
     const readyUploads = uploadedImages.filter((img) => img.status === "ready");
+    const activeVoiceObj =
+      COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
+      COMMERCIAL_VOICE_PROFILES[0];
+    const effectiveAvatar = getEffectiveInfluencerAvatar(activeInf);
+
     const { singleScript, multiScenes } = buildInfluencerScript({
       influencer: activeInf,
       promoType: overrideInfluencer
@@ -556,8 +623,14 @@ export default function Home() {
         ? activeInf?.defaultStyle || promoStyle
         : promoStyle,
       language: influencerLanguage,
+      facePresetId: influencerFacePresetId,
+      customFaceTrait,
+      personaStyleId: influencerPersonaStyleId,
+      wardrobeId: influencerWardrobeId,
+      customWardrobeText,
+      voiceDirective: activeVoiceObj.directive,
       useInfluencerAvatar:
-        useInfluencerReferenceImage && Boolean(activeInf?.avatar),
+        useInfluencerReferenceImage && Boolean(effectiveAvatar),
       hasUploadedAsset: readyUploads.length > 0,
     });
 
@@ -725,7 +798,7 @@ export default function Home() {
     if (
       isInfluencerMode &&
       useInfluencerReferenceImage &&
-      selectedInfluencer?.avatar
+      getEffectiveInfluencerAvatar()
     ) {
       return true;
     }
@@ -758,14 +831,20 @@ export default function Home() {
         .filter((img) => img.status === "ready")
         .map((img) => img.url);
 
+      const effectiveAvatar = getEffectiveInfluencerAvatar();
       const combinedImageUrls = [
         ...(isInfluencerMode &&
         useInfluencerReferenceImage &&
-        selectedInfluencer?.avatar
-          ? [selectedInfluencer.avatar]
+        effectiveAvatar
+          ? [effectiveAvatar]
           : []),
         ...readyUserUrls,
       ].slice(0, 7);
+
+      // Module 4 + v3.5 Commercial Audio Synthesizer directive
+      const voiceObj =
+        COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
+        COMMERCIAL_VOICE_PROFILES[0];
 
       const autoBuilt = isInfluencerMode
         ? buildInfluencerScript({
@@ -776,16 +855,17 @@ export default function Home() {
             cta: promoCta,
             style: promoStyle,
             language: influencerLanguage,
+            facePresetId: influencerFacePresetId,
+            customFaceTrait,
+            personaStyleId: influencerPersonaStyleId,
+            wardrobeId: influencerWardrobeId,
+            customWardrobeText,
+            voiceDirective: voiceObj.directive,
             useInfluencerAvatar:
-              useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
+              useInfluencerReferenceImage && Boolean(effectiveAvatar),
             hasUploadedAsset: readyUserUrls.length > 0,
           })
         : null;
-
-      // Module 4 + v3.5 Commercial Audio Synthesizer directive
-      const voiceObj =
-        COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
-        COMMERCIAL_VOICE_PROFILES[0];
       const consistencyDirective = ucidLockEnabled
         ? `${buildCharacterConsistencyLock({
             ucid: ucidCode,
@@ -1595,9 +1675,118 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Row 2: Minimal Configuration (1-Click or 1 Input) */}
+                  {/* Row 2: Rostro, Estilo, Ropa, Voz & Idioma Customization */}
                   <div className="space-y-2 pt-2 border-t border-glass-border/60">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                      {/* 1. Elegir Rostro */}
+                      <div className="flex items-center gap-1.5">
+                        {getEffectiveInfluencerAvatar() && (
+                          <img
+                            src={getEffectiveInfluencerAvatar()}
+                            alt="Rostro activo"
+                            className="w-7 h-7 rounded-full object-cover border border-emerald-500 flex-shrink-0"
+                          />
+                        )}
+                        <select
+                          value={influencerFacePresetId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setInfluencerFacePresetId(val);
+                            if (val === "custom-upload" && !customFaceUrl) {
+                              faceInputRef.current?.click();
+                            }
+                          }}
+                          title="Elegir el rostro del Influencer o subir uno propio"
+                          className="flex-1 min-w-0 px-2 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                        >
+                          {INFLUENCER_FACE_PRESETS.map((fp) => (
+                            <option key={fp.id} value={fp.id}>
+                              {fp.label}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="file"
+                          ref={faceInputRef}
+                          onChange={handleCustomFaceUpload}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => faceInputRef.current?.click()}
+                          disabled={isUploadingCustomFace}
+                          title="Subir tu propia foto de rostro para el Influencer (@image1)"
+                          className="px-2 py-1.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-500 text-[10px] font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
+                        >
+                          {isUploadingCustomFace ? (
+                            <FiLoader className="animate-spin" size={11} />
+                          ) : (
+                            <FiImage size={11} />
+                          )}
+                          <span>Subir Rostro</span>
+                        </button>
+                      </div>
+
+                      {/* 2. Elegir Estilo del Influencer */}
+                      <select
+                        value={influencerPersonaStyleId}
+                        onChange={(e) =>
+                          setInfluencerPersonaStyleId(e.target.value)
+                        }
+                        title="Elegir el estilo visual y escenario del Influencer"
+                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                      >
+                        {INFLUENCER_PERSONA_STYLES.map((ps) => (
+                          <option key={ps.id} value={ps.id}>
+                            Estilo: {ps.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* 3. Elegir Ropa / Vestimenta */}
+                      <select
+                        value={influencerWardrobeId}
+                        onChange={(e) =>
+                          setInfluencerWardrobeId(e.target.value)
+                        }
+                        title="Elegir la ropa o vestimenta del Influencer"
+                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                      >
+                        {INFLUENCER_WARDROBE_OPTIONS.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            Ropa: {w.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* 4. Elegir Voz Comercial */}
+                      <select
+                        value={voiceProfileId}
+                        onChange={(e) => setVoiceProfileId(e.target.value)}
+                        title="Elegir el timbre y estilo de voz del Influencer"
+                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                      >
+                        {COMMERCIAL_VOICE_PROFILES.map((vp) => (
+                          <option key={vp.id} value={vp.id}>
+                            Voz: {vp.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {influencerWardrobeId === "custom" && (
+                      <input
+                        type="text"
+                        value={customWardrobeText}
+                        onChange={(e) => setCustomWardrobeText(e.target.value)}
+                        placeholder="Describe la ropa exacta (ej: chaqueta de cuero negra con camiseta blanca minimalista)"
+                        className="w-full px-3 py-1.5 rounded bg-bg-card border border-emerald-500/40 text-xs text-foreground placeholder-muted outline-none focus:border-emerald-500"
+                      />
+                    )}
+
+                    {/* Row 3: Modo (Producto / Servicio / Video), Idioma & 1-Click Script */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                       <div className="flex items-center flex-wrap gap-1.5">
                         <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
                           2. Modo:
@@ -1660,7 +1849,7 @@ export default function Home() {
                           type="text"
                           value={promoName}
                           onChange={(e) => setPromoName(e.target.value)}
-                          placeholder={`Opcional: Nombre (Preset activo: "${selectedInfluencer?.defaultName || " Automático"}")`}
+                          placeholder={`Opcional: Nombre (Preset activo: "${selectedInfluencer?.defaultName || "Automático"}")`}
                           className="flex-1 px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
                         />
                         <button
@@ -1676,7 +1865,7 @@ export default function Home() {
                     </div>
 
                     {!isMinimalInfluencerConfig && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-1">
                         <select
                           value={promoStyle}
                           onChange={(e) => setPromoStyle(e.target.value)}
@@ -1684,10 +1873,17 @@ export default function Home() {
                         >
                           {currentPromoCategory.styles.map((st) => (
                             <option key={st.id} value={st.id}>
-                              Estilo: {st.label}
+                              Acción: {st.label}
                             </option>
                           ))}
                         </select>
+                        <input
+                          type="text"
+                          value={customFaceTrait}
+                          onChange={(e) => setCustomFaceTrait(e.target.value)}
+                          placeholder="Rasgos faciales extra (ej: gafas, pecas, barba)"
+                          className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
+                        />
                         <input
                           type="text"
                           value={promoBenefit}

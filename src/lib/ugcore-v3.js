@@ -282,43 +282,79 @@ export const COMMERCIAL_COMPLIANCE_FRAMEWORK = {
 export const COMMERCIAL_VOICE_PROFILES = [
   {
     id: "es-latam-commercial",
-    label: "🇪🇸 Español Neutro Comercial (LATAM)",
+    label: "🎙️ Voz Femenina Cálida & Cercana (LATAM)",
     directive:
-      "Clear broadcast-quality Latin American Spanish voiceover with natural commercial cadence and accurate lip-sync",
+      "Warm charismatic female Latin American Spanish UGC creator voiceover with natural commercial cadence and accurate lip-sync",
+  },
+  {
+    id: "es-latam-female-viral",
+    label: "⚡ Voz Femenina Viral & Enérgica (TikTok LATAM)",
+    directive:
+      "High-energy enthusiastic female Latin American Spanish TikTok creator voiceover with fast-paced viral delivery and lip-sync",
+  },
+  {
+    id: "es-latam-male-dynamic",
+    label: "🎙️ Voz Masculina Dinámica & Persuasiva (LATAM)",
+    directive:
+      "Confident dynamic male Latin American Spanish creator voiceover with persuasive commercial inflection and lip-sync",
+  },
+  {
+    id: "es-latam-male-deep",
+    label: "🎬 Voz Masculina Profunda & Ejecutiva (LATAM)",
+    directive:
+      "Deep authoritative male Latin American Spanish executive voiceover with trustworthy studio tone and lip-sync",
   },
   {
     id: "es-es-commercial",
-    label: "🇪🇸 Español Peninsular (España)",
+    label: "🇪🇸 Voz Femenina Editorial (España)",
     directive:
-      "Crisp Castilian Spanish commercial voiceover with dynamic brand presenter intonation and lip-sync",
+      "Crisp Castilian Spanish female commercial voiceover with dynamic brand presenter intonation and lip-sync",
+  },
+  {
+    id: "es-es-male-pro",
+    label: "🇪🇸 Voz Masculina Presentador (España)",
+    directive:
+      "Articulate Castilian Spanish male presenter voiceover with modern commercial energy and lip-sync",
   },
   {
     id: "en-us-commercial",
-    label: "🇺🇸 English US (High-Converting Ad Voice)",
+    label: "🇺🇸 Female Creator Voice (English US)",
     directive:
-      "Native American English UGC creator voiceover with high-retention commercial inflection and lip-sync",
+      "Native American English female UGC creator voiceover with high-retention commercial inflection and lip-sync",
+  },
+  {
+    id: "en-us-male-pro",
+    label: "🇺🇸 Male Commercial Voice (English US)",
+    directive:
+      "Native American English male creator voiceover with confident persuasive delivery and lip-sync",
   },
   {
     id: "pt-br-commercial",
-    label: "🇧🇷 Português Brasil (Comercial)",
+    label: "🇧🇷 Voz Feminina Comercial (Português Brasil)",
     directive:
-      "Natural Brazilian Portuguese creator voiceover with warm commercial energy and lip-sync",
+      "Natural Brazilian Portuguese female creator voiceover with warm commercial energy and lip-sync",
+  },
+  {
+    id: "pt-br-male-dynamic",
+    label: "🇧🇷 Voz Masculina Dinâmica (Português Brasil)",
+    directive:
+      "Energetic Brazilian Portuguese male creator voiceover with engaging commercial cadence and lip-sync",
   },
   {
     id: "fr-fr-commercial",
-    label: "🇫🇷 Français (Comercial & Lifestyle)",
+    label: "🇫🇷 Voix Créateur (Français)",
     directive:
       "Natural native French UGC creator voiceover with expressive commercial intonation and lip-sync",
   },
   {
     id: "it-it-commercial",
-    label: "🇮🇹 Italiano (Comercial & Moda)",
+    label: "🇮🇹 Voce Creatore (Italiano)",
     directive:
       "Charismatic native Italian UGC creator voiceover with warm expressive cadence and lip-sync",
   },
   {
     id: "de-de-commercial",
-    label: "🇩🇪 Deutsch (Comercial & Tech)",
+    label: "🇩🇪 Creator-Stimme (Deutsch)",
     directive:
       "Clear confident native German UGC creator voiceover with trustworthy commercial delivery and lip-sync",
   },

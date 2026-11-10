@@ -331,6 +331,154 @@ export const INFLUENCER_LANGUAGES = [
   },
 ];
 
+export const INFLUENCER_FACE_PRESETS = [
+  {
+    id: "preset",
+    label: "👤 Rostro sugerido del Influencer (Por defecto)",
+    avatar: null,
+    traitPrompt: "",
+  },
+  {
+    id: "custom-upload",
+    label: "📸 Subir mi propio rostro / Foto personalizada",
+    avatar: null,
+    traitPrompt:
+      "exact facial identity and features matching the uploaded custom reference portrait @image1",
+  },
+  {
+    id: "alt-latina-youth",
+    label: "👩 Rostro Alternativo: Joven Latina Carismática (22 años)",
+    avatar:
+      "https://images.unsplash.com/photo-1517365830460-955ce3ccd263?auto=format&fit=crop&w=600&q=80",
+    traitPrompt:
+      "young charismatic Latina woman in her early 20s, warm brown eyes, wavy dark hair, radiant friendly smile",
+  },
+  {
+    id: "alt-euro-model",
+    label: "👱‍♀️ Rostro Alternativo: Europea Editorial (27 años)",
+    avatar:
+      "https://images.unsplash.com/photo-1548142813-c348350df52b?auto=format&fit=crop&w=600&q=80",
+    traitPrompt:
+      "European female creator in her late 20s, light eyes, sleek blonde-brown hair, refined editorial facial features",
+  },
+  {
+    id: "alt-male-exec",
+    label: "🧔 Rostro Alternativo: Ejecutivo / Emprendedor (34 años)",
+    avatar:
+      "https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?auto=format&fit=crop&w=600&q=80",
+    traitPrompt:
+      "charismatic male entrepreneur in his mid-30s, well-groomed short beard, confident trustworthy gaze",
+  },
+  {
+    id: "alt-male-genz",
+    label: "👦 Rostro Alternativo: Creador Gen-Z Viral (21 años)",
+    avatar:
+      "https://images.unsplash.com/photo-1463453091185-61582044d556?auto=format&fit=crop&w=600&q=80",
+    traitPrompt:
+      "expressive Gen-Z male creator in his early 20s, textured modern hairstyle, energetic relatable facial expressions",
+  },
+  {
+    id: "alt-mature-expert",
+    label: "👩‍💼 Rostro Alternativo: Mentora / Especialista Senior (42 años)",
+    avatar:
+      "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=600&q=80",
+    traitPrompt:
+      "distinguished female senior specialist in her early 40s, warm authoritative presence, poised and trustworthy",
+  },
+];
+
+export const INFLUENCER_PERSONA_STYLES = [
+  {
+    id: "preset",
+    label: "🎬 Estilo original del Influencer (Por defecto)",
+    directive: "",
+  },
+  {
+    id: "ugc-selfie",
+    label: "📱 Selfie Natural en Mano (TikTok / Reels Orgánico)",
+    directive:
+      "handheld smartphone front-camera selfie angle, authentic organic creator energy, natural daylight",
+  },
+  {
+    id: "studio-podcast",
+    label: "🎙️ Estudio Podcast / Creador Pro (Luz LED & Micrófono)",
+    directive:
+      "professional creator podcast studio setup with broadcast microphone in frame and warm rim LED lighting",
+  },
+  {
+    id: "luxury-editorial",
+    label: "✨ Editorial Premium & Lifestyle de Lujo",
+    directive:
+      "high-end luxury architectural interior, soft cinematic depth of field, polished editorial brand aesthetic",
+  },
+  {
+    id: "outdoor-urban",
+    label: "🌆 Exterior Urbano / Calle & Luz Natural",
+    directive:
+      "vibrant outdoor city street and café background during golden hour, dynamic walk-and-talk creator style",
+  },
+  {
+    id: "corporate-office",
+    label: "🏢 Oficina Ejecutiva / Corporativo Moderno",
+    directive:
+      "modern glass executive office environment, clean professional lighting, authoritative B2B spokesperson delivery",
+  },
+  {
+    id: "cozy-home",
+    label: "🏠 En Casa / Sala Cálida & Cercana",
+    directive:
+      "warm inviting home living room setting with indoor plants and soft natural window light, intimate relatable tone",
+  },
+];
+
+export const INFLUENCER_WARDROBE_OPTIONS = [
+  {
+    id: "preset",
+    label: "👕 Ropa sugerida del Influencer (Por defecto)",
+    directive: "",
+  },
+  {
+    id: "casual-chic",
+    label: "👗 Casual Chic / Urbano Minimalista",
+    directive: "wearing a stylish neutral casual-chic outfit with clean modern tailoring",
+  },
+  {
+    id: "business-blazer",
+    label: "🧥 Blazer Ejecutivo / Formal Elegante",
+    directive: "wearing a sharp tailored executive blazer over a crisp shirt",
+  },
+  {
+    id: "sport-fitness",
+    label: "🏃 Ropa Deportiva / Conjunto Fitness",
+    directive: "wearing fitted premium athletic sportswear and fitness attire",
+  },
+  {
+    id: "streetwear-hoodie",
+    label: "🧢 Urbano / Hoodie & Streetwear",
+    directive: "wearing trendy oversized streetwear hoodie and modern urban casual attire",
+  },
+  {
+    id: "medical-coat",
+    label: "🩺 Bata Blanca / Uniforme Clínico o Médico",
+    directive: "wearing a clean professional white clinical lab coat over specialist attire",
+  },
+  {
+    id: "summer-resort",
+    label: "🌴 Look Verano / Resort & Viajes",
+    directive: "wearing breezy linen summer resort wear with vibrant vacation style",
+  },
+  {
+    id: "gala-luxury",
+    label: "🥂 Gala / Alta Costura & Joyería",
+    directive: "wearing sophisticated evening luxury attire with subtle fine jewelry",
+  },
+  {
+    id: "custom",
+    label: "✏️ Personalizar ropa manualmente...",
+    directive: "",
+  },
+];
+
 export const PROMO_CATEGORIES = [
   {
     id: "product",
@@ -554,6 +702,12 @@ export function buildInfluencerScript({
   cta = "",
   style,
   language = "es-latam",
+  facePresetId = "preset",
+  customFaceTrait = "",
+  personaStyleId = "preset",
+  wardrobeId = "preset",
+  customWardrobeText = "",
+  voiceDirective = "",
   extraNotes = "",
   useInfluencerAvatar = true,
   hasUploadedAsset = false,
@@ -587,16 +741,55 @@ export function buildInfluencerScript({
     (isSpanish ? influencer?.defaultCta : "") ||
     tpl.defaults.cta;
 
-  const actorDescription = influencer
-    ? `${influencer.visualPrompt}.`
-    : "Realistic charismatic UGC creator speaking directly to the camera in a vertical 9:16 social media video.";
+  const facePresetObj = INFLUENCER_FACE_PRESETS.find(
+    (f) => f.id === facePresetId
+  );
+  const personaStyleObj = INFLUENCER_PERSONA_STYLES.find(
+    (ps) => ps.id === personaStyleId
+  );
+  const wardrobeObj = INFLUENCER_WARDROBE_OPTIONS.find(
+    (w) => w.id === wardrobeId
+  );
+
+  const customTraitFragments = [];
+  if (customFaceTrait.trim()) {
+    customTraitFragments.push(
+      `Custom facial traits: ${customFaceTrait.trim()}`
+    );
+  } else if (facePresetObj?.traitPrompt) {
+    customTraitFragments.push(`Facial appearance: ${facePresetObj.traitPrompt}`);
+  }
+  if (personaStyleObj?.directive) {
+    customTraitFragments.push(
+      `Environment & visual style: ${personaStyleObj.directive}`
+    );
+  }
+  if (wardrobeId === "custom" && customWardrobeText.trim()) {
+    customTraitFragments.push(
+      `Wardrobe/Clothing: wearing ${customWardrobeText.trim()}`
+    );
+  } else if (wardrobeObj?.directive) {
+    customTraitFragments.push(`Wardrobe/Clothing: ${wardrobeObj.directive}`);
+  }
+  if (voiceDirective.trim()) {
+    customTraitFragments.push(`Voice & tone: ${voiceDirective.trim()}`);
+  }
+
+  const baseActorPrompt = influencer
+    ? influencer.visualPrompt
+    : "Realistic charismatic UGC creator speaking directly to the camera in a vertical 9:16 social media video";
+
+  const actorDescription =
+    customTraitFragments.length > 0
+      ? `${baseActorPrompt}. ${customTraitFragments.join(". ")}.`
+      : `${baseActorPrompt}.`;
 
   const imageRefs = [];
-  if (useInfluencerAvatar && influencer) {
-    imageRefs.push("@image1 as the AI influencer character speaking to camera");
+  if (useInfluencerAvatar) {
+    imageRefs.push("@image1 as the AI influencer face and character speaking to camera");
   }
   if (hasUploadedAsset) {
-    const assetIdx = useInfluencerAvatar && influencer ? "@image2" : "@image1";
+    const assetIdx = useInfluencerAvatar ? "@image2" : "@image1";
     imageRefs.push(
       effectivePromoType === "product"
         ? `featuring and holding the product from ${assetIdx}`
