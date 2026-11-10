@@ -15,11 +15,21 @@ import {
   FiAlertCircle,
   FiFilm,
   FiList,
+  FiUserCheck,
+  FiShoppingBag,
+  FiBriefcase,
+  FiPlayCircle,
+  FiCheck,
 } from "react-icons/fi";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCoins } from "react-icons/fa";
 import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
+import {
+  AI_INFLUENCERS,
+  PROMO_CATEGORIES,
+  buildInfluencerScript,
+} from "@/lib/influencers";
 
 const MODELS = [
   {
@@ -251,9 +261,9 @@ export default function Home() {
     getModelDefaults(MODELS[0])
   );
 
-  // Video length mode: "short" (standard single clip) vs "long" (multi-scene long video)
+  // Video length mode: "short" vs "long"
   const [videoMode, setVideoMode] = useState("short");
-  // Inside "long" mode: "auto" (single script + total long duration) vs "scenes" (scene-by-scene builder)
+  // Inside "long" mode: "auto" vs "scenes"
   const [longSubMode, setLongSubMode] = useState("auto");
   const [longTotalDuration, setLongTotalDuration] = useState(60);
   const [scenes, setScenes] = useState([
@@ -262,11 +272,27 @@ export default function Home() {
     { id: "s3", label: "Escena 3 (Beneficios y CTA)", prompt: "", duration: 15 },
   ]);
 
+  // AI Influencer & Promotion Studio state
+  const [isInfluencerMode, setIsInfluencerMode] = useState(false);
+  const [selectedInfluencer, setSelectedInfluencer] = useState(
+    AI_INFLUENCERS[0]
+  );
+  const [useInfluencerReferenceImage, setUseInfluencerReferenceImage] =
+    useState(true);
+  const [promoType, setPromoType] = useState("product"); // "product" | "service" | "video"
+  const [promoName, setPromoName] = useState("");
+  const [promoBenefit, setPromoBenefit] = useState("");
+  const [promoCta, setPromoCta] = useState("");
+  const [promoStyle, setPromoStyle] = useState("showcase");
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [prompt, setPrompt] = useState("");
   const [lastGeneration, setLastGeneration] = useState(null);
   const fileInputRef = useRef(null);
+
+  const currentPromoCategory =
+    PROMO_CATEGORIES.find((c) => c.id === promoType) || PROMO_CATEGORIES[0];
 
   // Polling for last generation status
   useEffect(() => {
@@ -291,6 +317,44 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [lastGeneration]);
 
+  const handlePromoTypeChange = (newType) => {
+    setPromoType(newType);
+    const cat = PROMO_CATEGORIES.find((c) => c.id === newType);
+    if (cat && cat.styles.length > 0) {
+      setPromoStyle(cat.styles[0].id);
+    }
+  };
+
+  const applyInfluencerPromoToScript = () => {
+    const readyUploads = uploadedImages.filter((img) => img.status === "ready");
+    const { singleScript, multiScenes } = buildInfluencerScript({
+      influencer: selectedInfluencer,
+      promoType,
+      name: promoName,
+      benefit: promoBenefit,
+      cta: promoCta,
+      style: promoStyle,
+      useInfluencerAvatar: useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
+      hasUploadedAsset: readyUploads.length > 0,
+    });
+
+    if (videoMode === "long" && longSubMode === "scenes") {
+      const defaultDur =
+        selectedModel.fixedClipDuration ||
+        Math.min(15, selectedModel.maxClipDuration || 15);
+      setScenes(
+        multiScenes.map((ms, idx) => ({
+          id: `inf-scene-${idx + 1}`,
+          label: ms.label,
+          prompt: ms.prompt,
+          duration: defaultDur,
+        }))
+      );
+    } else {
+      setPrompt(singleScript);
+    }
+  };
+
   const getEffectiveTotalDuration = () => {
     if (videoMode === "short") {
       return typeof modelSettings.duration === "number"
@@ -308,7 +372,8 @@ export default function Home() {
     if (videoMode === "short") return 1;
     if (longSubMode === "scenes") {
       return scenes.reduce(
-        (sum, s) => sum + Math.max(1, Math.ceil((Number(s.duration) || maxClip) / maxClip)),
+        (sum, s) =>
+          sum + Math.max(1, Math.ceil((Number(s.duration) || maxClip) / maxClip)),
         0
       );
     }
@@ -392,7 +457,9 @@ export default function Home() {
 
   const addScene = () => {
     const nextNum = scenes.length + 1;
-    const defaultDur = selectedModel.fixedClipDuration || Math.min(15, selectedModel.maxClipDuration || 15);
+    const defaultDur =
+      selectedModel.fixedClipDuration ||
+      Math.min(15, selectedModel.maxClipDuration || 15);
     setScenes((prev) => [
       ...prev,
       {
@@ -415,21 +482,41 @@ export default function Home() {
     setScenes((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const isPromptValid = () => {
+  const hasEffectiveInput = () => {
     if (videoMode === "long" && longSubMode === "scenes") {
-      return scenes.some((s) => s.prompt.trim().length > 0);
+      if (scenes.some((s) => s.prompt.trim().length > 0)) return true;
+    } else if (prompt.trim().length > 0) {
+      return true;
     }
-    return prompt.trim().length > 0;
+    if (isInfluencerMode && (promoName.trim() || promoBenefit.trim())) {
+      return true;
+    }
+    return false;
+  };
+
+  const hasEffectiveReferenceImage = () => {
+    const readyUploads = uploadedImages.filter((img) => img.status === "ready");
+    if (readyUploads.length > 0) return true;
+    if (
+      isInfluencerMode &&
+      useInfluencerReferenceImage &&
+      selectedInfluencer?.avatar
+    ) {
+      return true;
+    }
+    return false;
   };
 
   const handleGenerate = async () => {
-    if (!isPromptValid()) return;
+    if (!hasEffectiveInput()) return;
     if (uploadedImages.some((img) => img.status !== "ready")) {
       alert("Wait for image uploads to finish or remove any failed uploads.");
       return;
     }
-    if (!uploadedImages.length && !selectedModel.supportsTextToVideo) {
-      alert("Seedance 2 requires at least one reference image.");
+    if (!hasEffectiveReferenceImage() && !selectedModel.supportsTextToVideo) {
+      alert(
+        "Seedance 2 requiere al menos una imagen de referencia (o activar el rostro del Influencer IA)."
+      );
       return;
     }
 
@@ -442,31 +529,83 @@ export default function Home() {
         duration: effectiveDuration,
       };
 
-      const activeScenes =
-        videoMode === "long" && longSubMode === "scenes"
-          ? scenes
-              .filter((s) => s.prompt.trim().length > 0)
-              .map((s) => ({
-                prompt: s.prompt.trim(),
-                duration: Number(s.duration) || selectedModel.minClipDuration || 8,
-              }))
-          : [];
+      const readyUserUrls = uploadedImages
+        .filter((img) => img.status === "ready")
+        .map((img) => img.url);
+
+      // Combine AI Influencer avatar reference (if Influencer mode is active) with user uploaded product/asset images
+      const combinedImageUrls = [
+        ...(isInfluencerMode &&
+        useInfluencerReferenceImage &&
+        selectedInfluencer?.avatar
+          ? [selectedInfluencer.avatar]
+          : []),
+        ...readyUserUrls,
+      ].slice(0, 7);
+
+      // Auto-build Influencer script if user filled Influencer promo fields without manually writing a prompt
+      const autoBuilt = isInfluencerMode
+        ? buildInfluencerScript({
+            influencer: selectedInfluencer,
+            promoType,
+            name: promoName,
+            benefit: promoBenefit,
+            cta: promoCta,
+            style: promoStyle,
+            useInfluencerAvatar:
+              useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
+            hasUploadedAsset: readyUserUrls.length > 0,
+          })
+        : null;
+
+      let activeScenes = [];
+      let finalPrompt = prompt.trim();
+
+      if (videoMode === "long" && longSubMode === "scenes") {
+        const userScenes = scenes.filter((s) => s.prompt.trim().length > 0);
+        if (userScenes.length > 0) {
+          activeScenes = userScenes.map((s) => ({
+            prompt:
+              isInfluencerMode && selectedInfluencer
+                ? `${selectedInfluencer.visualPrompt}. ${s.prompt.trim()}`
+                : s.prompt.trim(),
+            duration:
+              Number(s.duration) || selectedModel.minClipDuration || 8,
+          }));
+        } else if (autoBuilt) {
+          const defaultDur =
+            selectedModel.fixedClipDuration ||
+            Math.min(15, selectedModel.maxClipDuration || 15);
+          activeScenes = autoBuilt.multiScenes.map((ms) => ({
+            prompt: ms.prompt,
+            duration: defaultDur,
+          }));
+        }
+        finalPrompt = activeScenes
+          .map((s, i) => `[Escena ${i + 1}] ${s.prompt}`)
+          .join("\n");
+      } else {
+        if (!finalPrompt && autoBuilt) {
+          finalPrompt = autoBuilt.singleScript;
+        } else if (
+          isInfluencerMode &&
+          selectedInfluencer &&
+          !finalPrompt.includes(selectedInfluencer.visualPrompt)
+        ) {
+          finalPrompt = `${selectedInfluencer.visualPrompt}. ${finalPrompt}`;
+        }
+      }
 
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           modelId: selectedModel.id,
-          prompt:
-            activeScenes.length > 0
-              ? activeScenes.map((s, i) => `[Escena ${i + 1}] ${s.prompt}`).join("\n")
-              : prompt,
+          prompt: finalPrompt,
           settings: requestSettings,
           scenes: activeScenes,
           videoMode,
-          images: uploadedImages
-            .filter((img) => img.status === "ready")
-            .map((img) => img.url),
+          images: combinedImageUrls,
         }),
       });
 
@@ -476,10 +615,7 @@ export default function Home() {
       setLastGeneration({
         id: data.creationId,
         status: "processing",
-        prompt:
-          activeScenes.length > 0
-            ? activeScenes.map((s) => s.prompt).join(" • ")
-            : prompt,
+        prompt: finalPrompt,
         segmentsTotal: data.segmentsTotal || 1,
         segmentsCompleted: 0,
         duration: data.totalDuration || effectiveDuration,
@@ -526,7 +662,7 @@ export default function Home() {
     <div className="h-full flex flex-col relative overflow-hidden">
       <main className="flex-1 flex flex-col relative min-h-0">
         {/* Content Canvas */}
-        <div className="flex-1 p-6 relative flex flex-col items-center justify-center overflow-hidden">
+        <div className="flex-1 p-4 md:p-6 relative flex flex-col items-center justify-center overflow-hidden">
           <AnimatePresence mode="wait">
             {!lastGeneration ? (
               <motion.div
@@ -534,19 +670,25 @@ export default function Home() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="flex flex-col items-center justify-center text-center space-y-3 pointer-events-none"
+                className="flex flex-col items-center justify-center text-center space-y-2.5 pointer-events-none"
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-glass-bg border border-glass-border text-[11px] font-bold text-foreground">
+                <div className="inline-flex flex-wrap items-center justify-center gap-2 px-3 py-1 rounded-full bg-glass-bg border border-glass-border text-[11px] font-bold text-foreground">
                   <FiFilm className="text-primary" />
                   <span>
                     {videoMode === "long"
-                      ? `Modo Video Largo activo (${getEffectiveTotalDuration()}s • ${getEstimatedSceneCount()} escenas continuas)`
-                      : "Modo Video Corto activo (Clip directo)"}
+                      ? `Modo Video Largo (${getEffectiveTotalDuration()}s • ${getEstimatedSceneCount()} escenas)`
+                      : "Modo Video Corto"}
                   </span>
+                  {isInfluencerMode && selectedInfluencer && (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 text-[10px]">
+                      • Influencer IA: {selectedInfluencer.name}
+                    </span>
+                  )}
                 </div>
-                <p className="text-muted text-xs font-bold max-w-[260px] leading-relaxed">
-                  Usa @image1, @image2 en tu guion para referenciar rostros o
-                  productos subidos.
+                <p className="text-muted text-xs font-bold max-w-[320px] leading-relaxed">
+                  {isInfluencerMode
+                    ? "Selecciona tu Influencer IA abajo, elige Producto, Servicio o Video y genera tu anuncio promocional."
+                    : "Usa @image1, @image2 en tu guion o activa 'Influencer IA' para promocionar un producto, servicio o video."}
                 </p>
               </motion.div>
             ) : (
@@ -554,7 +696,7 @@ export default function Home() {
                 key={lastGeneration.id}
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="relative w-full max-w-lg aspect-[9/16] max-h-[56vh] bg-glass-bg rounded border border-glass-border shadow-2xl overflow-hidden flex flex-col items-center justify-center"
+                className="relative w-full max-w-lg aspect-[9/16] max-h-[52vh] bg-glass-bg rounded border border-glass-border shadow-2xl overflow-hidden flex flex-col items-center justify-center"
               >
                 {["processing", "pending", "starting", "queued"].includes(
                   lastGeneration.status
@@ -620,11 +762,11 @@ export default function Home() {
         </div>
 
         {/* Interaction Bar */}
-        <div className="p-4 flex-shrink-0 flex flex-col items-center justify-center">
+        <div className="p-3 md:p-4 flex-shrink-0 flex flex-col items-center justify-center">
           <div className="w-full max-w-4xl bg-glass-bg rounded border border-glass-border shadow-2xl relative backdrop-blur-3xl">
-            {/* Short Video vs Long Video Mode Selector */}
+            {/* Top Mode Selector Bar: Short Video | Long Video | AI Influencer Promo */}
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-glass-border bg-glass-bg/60">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setVideoMode("short")}
@@ -648,6 +790,25 @@ export default function Home() {
                 >
                   <FiFilm className="text-xs" />
                   <span>Video Largo (Multi-Escena)</span>
+                </button>
+
+                <div className="w-px h-4 bg-glass-border mx-1" />
+
+                <button
+                  type="button"
+                  onClick={() => setIsInfluencerMode(!isInfluencerMode)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                    isInfluencerMode
+                      ? "bg-emerald-500 text-white border-emerald-500 shadow-sm"
+                      : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  <FiUserCheck className="text-xs" />
+                  <span>
+                    {isInfluencerMode
+                      ? `Influencer IA: ${selectedInfluencer?.name || "Activo"}`
+                      : "🧑‍🎤 Influencer IA (Producto / Servicio / Video)"}
+                  </span>
                 </button>
               </div>
 
@@ -679,6 +840,169 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {/* AI Influencer & Promotion Studio Panel */}
+            <AnimatePresence>
+              {isInfluencerMode && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-b border-glass-border bg-bg-card/50 p-4 space-y-3 overflow-hidden"
+                >
+                  {/* Row 1: Influencer Roster */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-muted">
+                        1. Elige tu Influencer IA Presentador:
+                      </span>
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-secondary-text cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useInfluencerReferenceImage}
+                          onChange={(e) =>
+                            setUseInfluencerReferenceImage(e.target.checked)
+                          }
+                          className="rounded accent-emerald-500"
+                        />
+                        <span>Usar foto de rostro del Influencer (@image1)</span>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1">
+                      {AI_INFLUENCERS.map((inf) => {
+                        const isSelected = selectedInfluencer?.id === inf.id;
+                        return (
+                          <button
+                            key={inf.id}
+                            type="button"
+                            onClick={() => setSelectedInfluencer(inf)}
+                            className={`flex items-center gap-2.5 p-2 rounded-lg border text-left transition-all flex-shrink-0 cursor-pointer ${
+                              isSelected
+                                ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
+                                : "border-glass-border bg-bg-card hover:border-primary/40"
+                            }`}
+                          >
+                            <img
+                              src={inf.avatar}
+                              alt={inf.name}
+                              className="w-10 h-10 rounded-full object-cover border border-white/20"
+                            />
+                            <div className="pr-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-foreground">
+                                  {inf.name}
+                                </span>
+                                <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 text-[9px] font-bold">
+                                  {inf.badge}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-muted font-medium">
+                                {inf.niche}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Row 2: What to Promote (Product / Service / Video) */}
+                  <div className="space-y-2 pt-1 border-t border-glass-border/60">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-muted mr-1">
+                          2. ¿Qué va a promocionar?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handlePromoTypeChange("product")}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                            promoType === "product"
+                              ? "bg-primary text-white"
+                              : "bg-glass-bg text-muted hover:text-foreground border border-glass-border"
+                          }`}
+                        >
+                          <FiShoppingBag size={12} />
+                          <span>Un Producto</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePromoTypeChange("service")}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                            promoType === "service"
+                              ? "bg-primary text-white"
+                              : "bg-glass-bg text-muted hover:text-foreground border border-glass-border"
+                          }`}
+                        >
+                          <FiBriefcase size={12} />
+                          <span>Un Servicio</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePromoTypeChange("video")}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                            promoType === "video"
+                              ? "bg-primary text-white"
+                              : "bg-glass-bg text-muted hover:text-foreground border border-glass-border"
+                          }`}
+                        >
+                          <FiPlayCircle size={12} />
+                          <span>Un Video / Contenido</span>
+                        </button>
+                      </div>
+
+                      <select
+                        value={promoStyle}
+                        onChange={(e) => setPromoStyle(e.target.value)}
+                        className="px-2.5 py-1 rounded bg-bg-card border border-glass-border text-[11px] font-bold text-foreground outline-none"
+                      >
+                        {currentPromoCategory.styles.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            Estilo: {st.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        value={promoName}
+                        onChange={(e) => setPromoName(e.target.value)}
+                        placeholder={currentPromoCategory.namePlaceholder}
+                        className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
+                      />
+                      <input
+                        type="text"
+                        value={promoBenefit}
+                        onChange={(e) => setPromoBenefit(e.target.value)}
+                        placeholder={currentPromoCategory.benefitPlaceholder}
+                        className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={promoCta}
+                          onChange={(e) => setPromoCta(e.target.value)}
+                          placeholder={currentPromoCategory.ctaPlaceholder}
+                          className="flex-1 px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={applyInfluencerPromoToScript}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer shadow-sm"
+                          title="Generar guion publicitario con el Influencer seleccionado"
+                        >
+                          <FiCheck size={13} />
+                          <span>Armar Guion</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Image Preview List */}
             <AnimatePresence>
@@ -730,20 +1054,20 @@ export default function Home() {
 
             {/* Prompt Input OR Multi-Scene Builder */}
             {videoMode === "long" && longSubMode === "scenes" ? (
-              <div className="p-4 space-y-2.5 max-h-[220px] overflow-y-auto custom-scrollbar">
+              <div className="p-4 space-y-2.5 max-h-[200px] overflow-y-auto custom-scrollbar">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       className="p-1.5 rounded hover:bg-glass-hover text-muted hover:text-foreground transition-colors"
-                      title="Subir imagen de referencia"
+                      title="Subir foto del producto o referencia"
                     >
                       <FiImage size={18} />
                     </button>
                     <span className="text-[11px] font-bold text-muted">
-                      Escribe el guion de cada escena (se unirán en orden en un
-                      solo video largo de {getEffectiveTotalDuration()}s):
+                      Escenas del Video Largo ({getEffectiveTotalDuration()}s en
+                      total):
                     </span>
                   </div>
                   <button
@@ -771,10 +1095,10 @@ export default function Home() {
                       }
                       placeholder={
                         idx === 0
-                          ? "Ej: @image1 mirando a cámara con entusiasmo presentando el producto..."
+                          ? "Ej: Hook inicial del Influencer mirando a cámara presentando el producto/servicio..."
                           : idx === 1
-                            ? "Ej: Primer plano mostrando cómo se usa el producto y sus resultados..."
-                            : "Ej: Sonriendo con el producto en mano invitando a comprarlo hoy..."
+                            ? "Ej: Mostrando los beneficios y cómo funciona el producto/servicio/video..."
+                            : "Ej: Llamado a la acción final invitando a hacer clic en el enlace..."
                       }
                       rows={1}
                       className="flex-1 bg-transparent border-none outline-none text-xs font-medium text-foreground placeholder-muted resize-none"
@@ -830,7 +1154,7 @@ export default function Home() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-1.5 rounded hover:bg-glass-hover text-muted hover:text-foreground transition-colors"
-                  title="Upload Image"
+                  title="Subir foto de tu producto, servicio o referencia"
                 >
                   <FiImage size={20} className="text-sm" />
                 </button>
@@ -842,23 +1166,27 @@ export default function Home() {
                     e.target.style.height = e.target.scrollHeight + "px";
                   }}
                   placeholder={
-                    videoMode === "long"
-                      ? `Modo Video Largo (${longTotalDuration}s): pega tu guion largo o separa párrafos con Enter para cada escena...`
-                      : selectedModel.name
-                        ? `Usando ${selectedModel.name}... Escribe tu guion corto...`
-                        : "Elige un modelo y escribe tu guion..."
+                    isInfluencerMode
+                      ? `Guion para ${selectedInfluencer?.name || "tu Influencer IA"} (o llena los datos arriba y presiona 'Armar Guion' / Generar)...`
+                      : videoMode === "long"
+                        ? `Modo Video Largo (${longTotalDuration}s): pega tu guion largo o separa párrafos con Enter para cada escena...`
+                        : selectedModel.name
+                          ? `Usando ${selectedModel.name}... Escribe tu guion...`
+                          : "Elige un modelo y escribe tu guion..."
                   }
-                  className="w-full bg-transparent border-none outline-none text-xs font-medium text-foreground placeholder-muted resize-none max-h-[200px] overflow-y-auto no-scrollbar"
-                  rows={videoMode === "long" ? 2 : 1}
+                  className="w-full bg-transparent border-none outline-none text-xs font-medium text-foreground placeholder-muted resize-none max-h-[180px] overflow-y-auto no-scrollbar"
+                  rows={videoMode === "long" || isInfluencerMode ? 2 : 1}
                 />
               </div>
             )}
 
-            {!uploadedImages.length && !selectedModel.supportsTextToVideo && (
-              <p className="px-4 pt-2 text-[10px] text-amber-600">
-                Seedance 2 requires a reference image. Upload one to generate.
-              </p>
-            )}
+            {!hasEffectiveReferenceImage() &&
+              !selectedModel.supportsTextToVideo && (
+                <p className="px-4 pt-2 text-[10px] text-amber-600">
+                  Seedance 2 requiere una imagen de referencia (sube una imagen
+                  o activa Influencer IA).
+                </p>
+              )}
 
             <input
               type="file"
@@ -982,9 +1310,9 @@ export default function Home() {
                   onClick={handleGenerate}
                   disabled={
                     isGenerating ||
-                    !isPromptValid() ||
+                    !hasEffectiveInput() ||
                     uploadedImages.some((img) => img.status !== "ready") ||
-                    (!uploadedImages.length &&
+                    (!hasEffectiveReferenceImage() &&
                       !selectedModel.supportsTextToVideo)
                   }
                   className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
