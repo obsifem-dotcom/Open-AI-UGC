@@ -10,6 +10,7 @@ import {
 } from "react-icons/fi";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -104,14 +105,21 @@ export default function Dashboard() {
                   onClick={() => setSelectedCreation(item)}
                 >
                   {item.status === "completed" ? (
-                    <video
-                      src={item.url}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      muted
-                      autoPlay
-                      loop
-                      playsInline
-                    />
+                    <>
+                      <video
+                        src={item.url}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        muted
+                        autoPlay
+                        loop
+                        playsInline
+                      />
+                      {item.segmentsTotal > 1 && (
+                        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md text-[10px] font-bold text-white border border-white/15">
+                          Video Largo • {item.segmentsTotal} escenas
+                        </div>
+                      )}
+                    </>
                   ) : item.status === "failed" ? (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-rose-500 gap-3">
                       <FiAlertCircle className="text-rose-500 text-2xl" />
@@ -165,13 +173,13 @@ export default function Dashboard() {
               {/* Media Side */}
               <div className="flex w-full md:w-[60%] h-[50%] md:h-full bg-glass-bg border-b md:border-b-0 md:border-r border-glass-border items-center justify-center">
                 {selectedCreation.status === "completed" ? (
-                  <video
-                    src={selectedCreation.url}
+                  <SeamlessVideoPlayer
+                    url={selectedCreation.url}
+                    urls={selectedCreation.urls}
                     className="h-full w-full object-contain"
-                    controls
-                    autoPlay
-                    loop
-                    playsInline
+                    showSceneBar={true}
+                    showDownloadButton={true}
+                    title={`ugcora-${selectedCreation.id}`}
                   />
                 ) : selectedCreation.status === "failed" ? (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-4">
