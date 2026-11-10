@@ -44,8 +44,10 @@ import {
   MICRO_EXPRESSIONS,
   TIMELINE_TRANSITIONS,
   COMMERCIAL_VOICE_PROFILES,
+  YOUTUBE_LONGFORM_CONFIG,
   generatePredictiveHooks,
   buildCharacterConsistencyLock,
+  buildYouTubeLongFormBlueprint,
 } from "@/lib/ugcore-v3";
 
 const MODELS = [
@@ -369,6 +371,23 @@ export default function Home() {
     "hand-gestures",
   ]);
 
+  // Module 5: Universal YouTube Long-Form Pipeline (4 Chapters × 5 Min • B-Roll every 25s • #8B5CF6 & #FFFFFF)
+  const [ytTopic, setYtTopic] = useState(
+    "Estrategias de Automatización e Inteligencia Artificial para Escalar Negocios Digitales"
+  );
+  const [ytBlueprint, setYtBlueprint] = useState(() =>
+    buildYouTubeLongFormBlueprint({
+      topic:
+        "Estrategias de Automatización e Inteligencia Artificial para Escalar Negocios Digitales",
+      influencerName: AI_INFLUENCERS[0]?.name || "Presentador IA",
+      bRollIntervalSeconds: 25,
+      primaryHex: "#8B5CF6",
+      secondaryHex: "#FFFFFF",
+    })
+  );
+  const [selectedYtChapter, setSelectedYtChapter] = useState(1);
+  const [copiedYtMeta, setCopiedYtMeta] = useState(false);
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
   const [prompt, setPrompt] = useState("");
@@ -403,6 +422,81 @@ export default function Home() {
 
   const toggleV3Module = (modName) => {
     setActiveV3Module((prev) => (prev === modName ? null : modName));
+  };
+
+  // Module 5 handler: Universal YouTube Long-Form Blueprint (4 Chapters × 5 Min • B-Roll every 25s • #8B5CF6 & #FFFFFF)
+  const handleGenerateYouTubeBlueprint = (customTopic = ytTopic) => {
+    const bp = buildYouTubeLongFormBlueprint({
+      topic: customTopic,
+      influencerName: selectedInfluencer?.name || "Presentador IA",
+      bRollIntervalSeconds: 25,
+      primaryHex: "#8B5CF6",
+      secondaryHex: "#FFFFFF",
+    });
+    setYtBlueprint(bp);
+    return bp;
+  };
+
+  const handleApplyYouTubeToTimeline = () => {
+    const bp = handleGenerateYouTubeBlueprint(ytTopic);
+    setVideoMode("long");
+    setLongSubMode("scenes");
+    if (selectedModel?.params?.aspect_ratio?.options?.includes("16:9")) {
+      setModelSettings((prev) => ({ ...prev, aspect_ratio: "16:9" }));
+    }
+    const defaultDur =
+      selectedModel.fixedClipDuration ||
+      Math.min(30, selectedModel.maxClipDuration || 15);
+    setScenes(
+      bp.chapters.map((ch, idx) => ({
+        id: `yt-ch-${ch.chapterNumber}`,
+        label: `Cap. ${ch.chapterNumber} (${ch.startTimestamp}-${ch.endTimestamp} • 5m • ${ch.bRollCount} B-Rolls)`,
+        prompt: ch.scenePrompt,
+        duration: defaultDur,
+        transition: idx === 0 ? "zoom-in" : "whip-pan",
+      }))
+    );
+    setOverlayCtaBadge("IDENTIDAD #8B5CF6 & #FFFFFF • B-ROLL 25S");
+    setOverlayLowerThird(bp.seoMetadata.title.slice(0, 68));
+    setOverlaySubtitle(`00:00 Cap.1 | 05:00 Cap.2 | 10:00 Cap.3 | 15:00 Cap.4`);
+  };
+
+  const handleCopyYouTubeMetadata = async () => {
+    const bp = ytBlueprint || handleGenerateYouTubeBlueprint(ytTopic);
+    const exportPayload = [
+      `=== METADATOS YOUTUBE FORMATO LARGO (UGCORE STUDIO) ===`,
+      `TÍTULO SEO: ${bp.seoMetadata.title}`,
+      `IDENTIDAD VISUAL: #8B5CF6 (Violeta) & #FFFFFF (Blanco) | B-Roll cada 25s (48 inserciones)`,
+      ``,
+      `DESCRIPCIÓN + MARCAS DE TIEMPO AUTOMÁTICAS:`,
+      bp.seoMetadata.description,
+      ``,
+      `TAGS: ${bp.seoMetadata.tags.join(", ")}`,
+      `PROMPT MINIATURA (16:9): ${bp.seoMetadata.thumbnailPrompt}`,
+      ``,
+      `=== MATRIZ DE INSERCIÓN DE B-ROLL (CADA 25 SEGUNDOS) ===`,
+      bp.seoMetadata.bRollScheduleText,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(exportPayload);
+      setCopiedYtMeta(true);
+      setTimeout(() => setCopiedYtMeta(false), 2500);
+    } catch (e) {
+      console.error("Clipboard error:", e);
+    }
+  };
+
+  const handleDownloadYouTubeMetadata = () => {
+    const bp = ytBlueprint || handleGenerateYouTubeBlueprint(ytTopic);
+    const jsonString = JSON.stringify(bp, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ugcore-youtube-longform-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Module 1 handler: analyze trends & predictive hooks
@@ -1246,6 +1340,19 @@ export default function Home() {
                   <FiCpu size={12} />
                   <span>4. Avatar & Audio Synthesizer</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleV3Module("youtube-longform")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                    activeV3Module === "youtube-longform"
+                      ? "bg-[#8B5CF6] text-white border-[#8B5CF6] shadow-sm"
+                      : "bg-[#8B5CF6]/10 text-[#8B5CF6] border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/20"
+                  }`}
+                >
+                  <FiFilm size={12} />
+                  <span>5. YouTube Largo (4×5m • B-Roll 25s • #8B5CF6)</span>
+                </button>
               </div>
 
               <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-[9px] font-black text-emerald-500 uppercase tracking-wider">
@@ -1600,6 +1707,216 @@ export default function Home() {
                       );
                     })}
                   </div>
+                </motion.div>
+              )}
+
+              {activeV3Module === "youtube-longform" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-b border-[#8B5CF6]/40 bg-bg-card/85 p-4 space-y-3.5 overflow-hidden"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] ring-2 ring-white inline-block" />
+                        <span>
+                          Pipeline Universal YouTube Formato Largo (4 Capítulos ×
+                          5 Min = 20:00)
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-muted">
+                        Inserción automática de B-Roll cada{" "}
+                        {YOUTUBE_LONGFORM_CONFIG.bRollIntervalSeconds} segundos
+                        (12 cortes por capítulo / 48 totales) • Identidad visual{" "}
+                        <span className="font-bold text-[#8B5CF6]">
+                          #8B5CF6 (Violeta)
+                        </span>{" "}
+                        y{" "}
+                        <span className="font-bold text-foreground">
+                          #FFFFFF (Blanco)
+                        </span>{" "}
+                        • Exportación de metadatos con marcas de tiempo.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded bg-[#8B5CF6] text-white text-[9px] font-black uppercase tracking-wider">
+                        Identidad #8B5CF6 + #FFFFFF
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase">
+                        48 B-Rolls (c/25s)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Topic Input & Action Bar */}
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2">
+                    <input
+                      type="text"
+                      value={ytTopic}
+                      onChange={(e) => {
+                        setYtTopic(e.target.value);
+                        handleGenerateYouTubeBlueprint(e.target.value);
+                      }}
+                      placeholder="Escribe aquí el tema de tu video largo de YouTube (ej: Cómo automatizar ventas con IA en 2026)..."
+                      className="flex-1 px-3 py-2 rounded-lg bg-bg-card border border-[#8B5CF6]/50 text-xs font-semibold text-foreground placeholder-muted outline-none focus:border-[#8B5CF6]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateYouTubeBlueprint(ytTopic)}
+                      className="px-3 py-2 rounded-lg bg-[#8B5CF6]/15 hover:bg-[#8B5CF6]/25 border border-[#8B5CF6]/40 text-[#8B5CF6] text-xs font-black whitespace-nowrap cursor-pointer transition-all"
+                    >
+                      🔄 Estructurar 4 Capítulos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleApplyYouTubeToTimeline}
+                      className="px-3.5 py-2 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-black whitespace-nowrap cursor-pointer transition-all shadow-sm"
+                    >
+                      ⚡ Cargar 4 Capítulos al Timeline (16:9)
+                    </button>
+                  </div>
+
+                  {/* 4 Chapters Modular Grid */}
+                  {ytBlueprint && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                        {ytBlueprint.chapters.map((ch) => {
+                          const isSelected =
+                            selectedYtChapter === ch.chapterNumber;
+                          return (
+                            <div
+                              key={ch.chapterNumber}
+                              onClick={() =>
+                                setSelectedYtChapter(ch.chapterNumber)
+                              }
+                              className={`p-2.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
+                                isSelected
+                                  ? "border-[#8B5CF6] bg-[#8B5CF6]/10 ring-1 ring-[#8B5CF6]"
+                                  : "border-glass-border bg-bg-card hover:border-[#8B5CF6]/40"
+                              }`}
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="px-1.5 py-0.5 rounded bg-[#8B5CF6] text-white text-[9px] font-black">
+                                    CAPÍTULO {ch.chapterNumber} (5 MIN)
+                                  </span>
+                                  <span className="text-[10px] font-mono font-bold text-[#8B5CF6]">
+                                    {ch.startTimestamp} - {ch.endTimestamp}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] font-bold text-foreground line-clamp-2 leading-snug">
+                                  {ch.title}
+                                </p>
+                                <p className="text-[9px] text-muted line-clamp-2">
+                                  {ch.objective}
+                                </p>
+                              </div>
+                              <div className="pt-1 border-t border-glass-border/60 flex items-center justify-between text-[9px] font-bold">
+                                <span className="text-[#8B5CF6]">
+                                  🎬 {ch.bRollCount} B-Rolls (cada 25s)
+                                </span>
+                                <span className="text-muted">
+                                  Ver matriz →
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Selected Chapter B-Roll Matrix (Every 25s) & Metadata Export */}
+                      {(() => {
+                        const activeCh =
+                          ytBlueprint.chapters.find(
+                            (c) => c.chapterNumber === selectedYtChapter
+                          ) || ytBlueprint.chapters[0];
+                        return (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+                            {/* B-Roll Every 25s Inspector */}
+                            <div className="p-3 rounded-xl border border-glass-border bg-bg-card space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase text-[#8B5CF6]">
+                                  Matriz B-Roll Cada 25s • Cap.{" "}
+                                  {activeCh.chapterNumber} (
+                                  {activeCh.startTimestamp} -{" "}
+                                  {activeCh.endTimestamp})
+                                </span>
+                                <span className="text-[9px] font-bold text-muted">
+                                  Tonos #8B5CF6 & #FFFFFF
+                                </span>
+                              </div>
+                              <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                                {activeCh.bRollCues.map((cue) => (
+                                  <div
+                                    key={cue.cueNumber}
+                                    className="flex items-start gap-2 text-[10px] p-1.5 rounded bg-glass-bg border border-glass-border/60"
+                                  >
+                                    <span className="px-1.5 py-0.5 rounded bg-[#8B5CF6] text-white font-mono font-bold text-[9px] flex-shrink-0">
+                                      {cue.timestamp}
+                                    </span>
+                                    <span className="text-foreground font-medium leading-tight">
+                                      <strong className="text-[#8B5CF6]">
+                                        B-Roll #{cue.cueNumber} (+
+                                        {cue.relativeSecond}s):
+                                      </strong>{" "}
+                                      {cue.visualDirection}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Automatic Timestamps & Metadata Exporter */}
+                            <div className="p-3 rounded-xl border border-glass-border bg-bg-card flex flex-col justify-between space-y-2">
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black uppercase text-foreground">
+                                    ⏱️ Exportación de Metadatos + Marcas de
+                                    Tiempo Automáticas
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={handleCopyYouTubeMetadata}
+                                      className="px-2.5 py-1 rounded bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-[10px] font-bold cursor-pointer transition-all"
+                                    >
+                                      {copiedYtMeta
+                                        ? "✓ ¡Copiado!"
+                                        : "📋 Copiar Metadatos + Timestamps"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={handleDownloadYouTubeMetadata}
+                                      className="px-2 py-1 rounded bg-glass-bg hover:bg-white/10 border border-glass-border text-foreground text-[10px] font-bold cursor-pointer"
+                                    >
+                                      ⬇️ JSON
+                                    </button>
+                                  </div>
+                                </div>
+                                <pre className="p-2 rounded bg-glass-bg border border-glass-border text-[10px] font-mono text-secondary-text whitespace-pre-wrap max-h-28 overflow-y-auto">
+                                  {ytBlueprint.seoMetadata.description}
+                                </pre>
+                              </div>
+                              <p className="text-[9px] text-muted">
+                                Incluye: Título SEO, Capítulos de YouTube (00:00,
+                                05:00, 10:00, 15:00), Prompt de Miniatura en{" "}
+                                <span className="text-[#8B5CF6] font-bold">
+                                  #8B5CF6
+                                </span>{" "}
+                                y{" "}
+                                <span className="font-bold text-foreground">
+                                  #FFFFFF
+                                </span>{" "}
+                                + escaleta de 48 B-Rolls.
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

@@ -359,3 +359,192 @@ export const COMMERCIAL_VOICE_PROFILES = [
       "Clear confident native German UGC creator voiceover with trustworthy commercial delivery and lip-sync",
   },
 ];
+
+// ============================================================================
+// UGCore Studio — Universal YouTube Long-Form Pipeline (4 Chapters × 5 Min)
+// Visual Identity: #8B5CF6 (Violet) & #FFFFFF (White) | B-Roll every 25s
+// ============================================================================
+
+export const YOUTUBE_LONGFORM_CONFIG = {
+  pipelineId: "UGCORE_YOUTUBE_LONGFORM_V1",
+  status: "ACTIVE",
+  chaptersCount: 4,
+  chapterDurationMinutes: 5,
+  chapterDurationSeconds: 300,
+  totalDurationMinutes: 20,
+  totalDurationSeconds: 1200,
+  bRollIntervalSeconds: 25,
+  bRollInsertionsPerChapter: 12,
+  totalBRollInsertions: 48,
+  visualIdentity: {
+    primaryHex: "#8B5CF6",
+    primaryName: "Violeta Eléctrico (#8B5CF6)",
+    secondaryHex: "#FFFFFF",
+    secondaryName: "Blanco Puro (#FFFFFF)",
+    aestheticDirective:
+      "Clean high-contrast studio & B-roll visual identity with #8B5CF6 electric violet key accents, subtle violet rim lighting, and crisp #FFFFFF pure white minimalist typography and motion graphics overlays",
+  },
+};
+
+export function formatTimestampMMSS(totalSeconds) {
+  const sec = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const mins = Math.floor(sec / 60);
+  const rem = sec % 60;
+  return `${String(mins).padStart(2, "0")}:${String(rem).padStart(2, "0")}`;
+}
+
+export function buildYouTubeLongFormBlueprint({
+  topic = "",
+  influencerName = "Presentador IA",
+  bRollIntervalSeconds = 25,
+  primaryHex = "#8B5CF6",
+  secondaryHex = "#FFFFFF",
+} = {}) {
+  const cleanTopic =
+    topic.trim() ||
+    "Estrategias de Automatización e Inteligencia Artificial para Escalar Negocios Digitales";
+  const interval = Math.max(10, Number(bRollIntervalSeconds) || 25);
+  const chapterDurSec = 300; // 5 minutes per chapter
+
+  const chapterDefinitions = [
+    {
+      chapterNumber: 1,
+      startSec: 0,
+      endSec: 300,
+      startTimestamp: "00:00",
+      endTimestamp: "05:00",
+      title: `Introducción, Hook de Retención y Fundamentos de ${cleanTopic}`,
+      objective:
+        "Capturar la atención en los primeros 15 segundos, plantear la promesa central del video y desglosar el contexto actual.",
+      spokenSummary: `Bienvenidos. Hoy vamos a desglosar a fondo ${cleanTopic}. En estos primeros 5 minutos entenderás por qué el 90% falla al aplicarlo y cuál es la base exacta que necesitas dominar hoy.`,
+      bRollTheme: "Gráficos de impacto inicial, estadísticas clave y contexto visual",
+    },
+    {
+      chapterNumber: 2,
+      startSec: 300,
+      endSec: 600,
+      startTimestamp: "05:00",
+      endTimestamp: "10:00",
+      title: `Arquitectura Paso a Paso y Metodología Práctica de ${cleanTopic}`,
+      objective:
+        "Demostrar el sistema técnico/práctico en acción con diagramas visuales y ejemplos claros.",
+      spokenSummary: `Ahora que tenemos clara la base, entremos en el Capítulo 2: el método paso a paso para implementar ${cleanTopic} con precisión y sin perder tiempo en procesos manuales.`,
+      bRollTheme: "Demostración de flujo de trabajo, esquemas modulares y pantallas UI",
+    },
+    {
+      chapterNumber: 3,
+      startSec: 600,
+      endSec: 900,
+      startTimestamp: "10:00",
+      endTimestamp: "15:00",
+      title: `Casos Reales, Optimización Avanzada y Errores a Evitar en ${cleanTopic}`,
+      objective:
+        "Contrastar errores comunes frente a mejores prácticas de alto rendimiento, manteniendo la retención media del video.",
+      spokenSummary: `En este tercer bloque analizamos resultados reales de ${cleanTopic}, cómo optimizar cada métrica clave y los 3 errores críticos que debes evitar a toda costa.`,
+      bRollTheme: "Comparativas Antes vs. Después, métricas de crecimiento y casos de estudio",
+    },
+    {
+      chapterNumber: 4,
+      startSec: 900,
+      endSec: 1200,
+      startTimestamp: "15:00",
+      endTimestamp: "20:00",
+      title: `Plan de Implementación Inmediata, Futuro y Conclusión sobre ${cleanTopic}`,
+      objective:
+        "Entregar una hoja de ruta accionable para las próximas 24 horas y cerrar con un llamado a la acción (CTA) de alta conversión.",
+      spokenSummary: `Para cerrar en el Capítulo 4, aquí tienes tu hoja de ruta exacta para ejecutar ${cleanTopic} desde hoy mismo. Suscríbete, revisa los recursos en la descripción y déjame tus dudas en los comentarios.`,
+      bRollTheme: "Checklist de acción rápida, resumen ejecutivo y pantalla final de conversión",
+    },
+  ];
+
+  const bRollVisualTemplates = [
+    "Minimalist 3D motion graphic chart in #8B5CF6 violet and #FFFFFF pure white",
+    "Cinematic macro B-roll shot with #8B5CF6 neon rim light and crisp #FFFFFF clean background",
+    "Dynamic kinetic typography callout card (#FFFFFF text on #8B5CF6 badge overlay)",
+    "Split-screen visual comparison with #8B5CF6 highlight frame and #FFFFFF UI indicators",
+    "High-tech clean dashboard animation accented in #8B5CF6 electric purple and #FFFFFF",
+    "Over-the-shoulder workspace B-roll with subtle #8B5CF6 ambient LED and #FFFFFF key light",
+  ];
+
+  const chapters = chapterDefinitions.map((ch) => {
+    const bRollCues = [];
+    for (
+      let offset = interval;
+      offset <= chapterDurSec;
+      offset += interval
+    ) {
+      const absSec = ch.startSec + offset;
+      const cueIndex = bRollCues.length + 1;
+      const tpl =
+        bRollVisualTemplates[(cueIndex - 1) % bRollVisualTemplates.length];
+      bRollCues.push({
+        cueNumber: cueIndex,
+        relativeSecond: offset,
+        absoluteSecond: absSec,
+        timestamp: formatTimestampMMSS(absSec),
+        durationSeconds: 4,
+        palette: `${primaryHex} & ${secondaryHex}`,
+        visualDirection: `${tpl} illustrating "${ch.bRollTheme}" for ${cleanTopic}`,
+      });
+    }
+
+    const scenePrompt = `[YOUTUBE LONG-FORM CHAPTER ${ch.chapterNumber} (${ch.startTimestamp}-${ch.endTimestamp})] Presenter (${influencerName}) speaking to camera in 16:9 YouTube studio with ${primaryHex} violet rim lighting and ${secondaryHex} clean minimalist accents. Auto B-Roll inserted every ${interval}s (${bRollCues.length} cuts in ${primaryHex}/${secondaryHex}). Topic: "${ch.title}". Speaking with natural lip-sync: "${ch.spokenSummary}"`;
+
+    return {
+      ...ch,
+      durationMinutes: 5,
+      durationSeconds: chapterDurSec,
+      bRollIntervalSeconds: interval,
+      bRollCount: bRollCues.length,
+      bRollCues,
+      scenePrompt,
+    };
+  });
+
+  const youtubeChaptersText = chapters
+    .map((c) => `${c.startTimestamp} Capítulo ${c.chapterNumber}: ${c.title}`)
+    .join("\n");
+
+  const bRollScheduleText = chapters
+    .map(
+      (c) =>
+        `--- CAPÍTULO ${c.chapterNumber} (${c.startTimestamp} - ${c.endTimestamp}) ---\n` +
+        c.bRollCues
+          .map(
+            (cue) =>
+              `[${cue.timestamp}] B-Roll #${cue.cueNumber} (${primaryHex} + ${secondaryHex}): ${cue.visualDirection}`
+          )
+          .join("\n")
+    )
+    .join("\n\n");
+
+  const seoMetadata = {
+    title: `${cleanTopic}: Guía Completa Paso a Paso (Estructura Masterclass)`,
+    description: `En este video de formato largo analizamos a fondo ${cleanTopic} dividido en 4 capítulos estratégicos de 5 minutos.\n\n⏱️ MARCAS DE TIEMPO (CAPÍTULOS AUTOMÁTICOS):\n${youtubeChaptersText}\n\n🎨 Identidad Visual: ${primaryHex} (Violeta) & ${secondaryHex} (Blanco) | B-Roll dinámico cada ${interval}s.\n#UGCoreStudio #YouTubeLongForm #IA`,
+    tags: [
+      cleanTopic,
+      `${cleanTopic} guía completa`,
+      `${cleanTopic} paso a paso`,
+      "UGCore Studio",
+      "YouTube Long Form",
+    ],
+    thumbnailPrompt: `High-CTR 16:9 YouTube thumbnail for "${cleanTopic}", expressive presenter portrait on the right, bold minimalist #FFFFFF white 3-word headline on a vibrant #8B5CF6 electric violet badge, clean dark-to-violet studio background, 8k crisp contrast`,
+    youtubeChaptersText,
+    bRollScheduleText,
+  };
+
+  return {
+    config: {
+      ...YOUTUBE_LONGFORM_CONFIG,
+      bRollIntervalSeconds: interval,
+      visualIdentity: {
+        ...YOUTUBE_LONGFORM_CONFIG.visualIdentity,
+        primaryHex,
+        secondaryHex,
+      },
+    },
+    topic: cleanTopic,
+    chapters,
+    seoMetadata,
+  };
+}
