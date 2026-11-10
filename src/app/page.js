@@ -411,6 +411,43 @@ export default function Home() {
   const currentPromoCategory =
     PROMO_CATEGORIES.find((c) => c.id === promoType) || PROMO_CATEGORIES[0];
 
+  const syncCreationToLocalArchive = (creationObj) => {
+    if (!creationObj || !creationObj.id || typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("ugcore_creations_archive_v1");
+      const list = raw ? JSON.parse(raw) : [];
+      const arr = Array.isArray(list) ? list : [];
+      const existingIdx = arr.findIndex((c) => c.id === creationObj.id);
+      const mergedItem =
+        existingIdx >= 0
+          ? { ...arr[existingIdx], ...creationObj }
+          : {
+              createdAt: new Date().toISOString(),
+              ...creationObj,
+            };
+      const nextList =
+        existingIdx >= 0
+          ? arr.map((c, idx) => (idx === existingIdx ? mergedItem : c))
+          : [mergedItem, ...arr].slice(0, 60);
+      window.localStorage.setItem(
+        "ugcore_creations_archive_v1",
+        JSON.stringify(nextList)
+      );
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  // Load reused prompt from Gallery if present
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedPrompt = window.sessionStorage.getItem("ugcore_reuse_prompt");
+    if (savedPrompt) {
+      window.sessionStorage.removeItem("ugcore_reuse_prompt");
+      setTimeout(() => setPrompt(savedPrompt), 0);
+    }
+  }, []);
+
   // Polling for last generation status
   useEffect(() => {
     let interval;
@@ -422,6 +459,7 @@ export default function Home() {
           if (res.ok) {
             const data = await res.json();
             setLastGeneration(data);
+            syncCreationToLocalArchive(data);
             if (!activeStatuses.includes(data.status)) {
               clearInterval(interval);
             }
@@ -1144,14 +1182,26 @@ export default function Home() {
         updateSession({ credits: data.remainingCredits }).catch(() => {});
       }
 
-      setLastGeneration({
+      const initialGenRecord = {
         id: data.creationId,
         status: "processing",
+        title: (finalPrompt || "Video UGCore Studio").slice(0, 60),
         prompt: finalPrompt,
+        modelId: selectedModel.id,
+        aspectRatio: requestSettings.aspect_ratio || "9:16",
+        resolution: requestSettings.resolution || "720p",
         segmentsTotal: data.segmentsTotal || 1,
         segmentsCompleted: 0,
         duration: data.totalDuration || effectiveDuration,
-      });
+        inputImages: combinedImageUrls,
+        environmentName: isInfluencerMode ? selectedEnvObj?.shortLabel : null,
+        influencerName: isInfluencerMode
+          ? `${selectedInfluencer?.name} (${selectedInfluencer?.ucid})`
+          : null,
+        createdAt: new Date().toISOString(),
+      };
+      setLastGeneration(initialGenRecord);
+      syncCreationToLocalArchive(initialGenRecord);
 
       if (videoMode === "long" && longSubMode === "scenes") {
         setScenes((prev) => prev.map((s) => ({ ...s, prompt: "" })));

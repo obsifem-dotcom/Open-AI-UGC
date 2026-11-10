@@ -79,6 +79,123 @@ export function getPackageById(planId) {
   );
 }
 
+export const STUDIO_SHOWCASE_CREATIONS = [
+  {
+    id: "showcase-sofia-wellness-01",
+    userId: "admin-obsifem",
+    isShowcase: true,
+    category: "influencer",
+    type: "video",
+    title: "Sofía Morales • Espacio Bienestar #8B5CF6 & Blanco",
+    prompt:
+      '@image1 as the AI influencer face and character speaking to camera. Virtual Studio Environment (Espacio de Bienestar #8B5CF6 & Blanco): serene architectural wellness sanctuary in pure white (#FFFFFF) and electric violet (#8B5CF6) LED coves. Speaking in Latin American Spanish with natural lip-sync: "¡Tienes que ver esto! Desde que probé nuestro Sérum Vitamina C Bio-Glow, mi piel luce radiante desde el primer día. Haz clic en el enlace de mi perfil ahora mismo."',
+    requestId: "showcase_req_01",
+    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    status: "completed",
+    error: null,
+    modelId: "grok-video",
+    aspectRatio: "9:16",
+    resolution: "720p",
+    duration: 15,
+    mode: "normal",
+    environmentName: "✨ Bienestar #8B5CF6 & Blanco",
+    influencerName: "Sofía Morales (UCID-SOFIA-01)",
+    inputImages: JSON.stringify([
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+    ]),
+    createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+  },
+  {
+    id: "showcase-mateo-interview-02",
+    userId: "admin-obsifem",
+    isShowcase: true,
+    category: "influencer",
+    type: "video",
+    title: "Mateo Rivas • Estudio de Entrevistas Moderno (HeyGen Set)",
+    prompt:
+      '@image1 as the AI influencer face and character speaking to camera. Virtual Studio Environment (Estudio de Entrevistas Moderno): high-end modern broadcast podcast studio with warm acoustic wood slat panels, broadcast microphone, and f/1.8 bokeh. Speaking in Latin American Spanish: "Si estás buscando automatizar tus ventas con IA en tiempo récord, esta plataforma transforma tus resultados sin complicaciones."',
+    requestId: "showcase_req_02",
+    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    status: "completed",
+    error: null,
+    modelId: "veo-3-1",
+    aspectRatio: "9:16",
+    resolution: "1080p",
+    duration: 8,
+    mode: "normal",
+    environmentName: "🎙️ Estudio de Entrevistas Moderno",
+    influencerName: "Mateo Rivas (UCID-MATEO-02)",
+    inputImages: JSON.stringify([
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80",
+    ]),
+    createdAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+  },
+  {
+    id: "showcase-youtube-longform-03",
+    userId: "admin-obsifem",
+    isShowcase: true,
+    category: "longform",
+    type: "video",
+    title: "Pipeline YouTube Largo (4 Capítulos × 5m • B-Roll 25s • #8B5CF6)",
+    prompt:
+      '[YOUTUBE LONG-FORM 4 CHAPTERS (00:00-20:00)] Presenter (Alejandro Vega • UCID-ALEJANDRO-06) in Corporate Minimalist Set with #8B5CF6 violet rim lighting and #FFFFFF clean graphics. Auto B-Roll inserted every 25s (48 cuts). Chapters: 00:00 Fundamentos | 05:00 Arquitectura Paso a Paso | 10:00 Casos Reales | 15:00 Plan de Implementación.',
+    requestId: JSON.stringify([
+      "yt_ch1_req",
+      "yt_ch2_req",
+      "yt_ch3_req",
+      "yt_ch4_req",
+    ]),
+    url: JSON.stringify([
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoy.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    ]),
+    status: "completed",
+    error: null,
+    modelId: "grok-video",
+    aspectRatio: "16:9",
+    resolution: "720p",
+    duration: 120,
+    mode: "normal",
+    environmentName: "🏢 Set Minimalista Corporativo (#8B5CF6)",
+    influencerName: "Alejandro Vega (UCID-ALEJANDRO-06)",
+    inputImages: JSON.stringify([
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+    ]),
+    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+  },
+  {
+    id: "showcase-camila-chroma-04",
+    userId: "admin-obsifem",
+    isShowcase: true,
+    category: "chroma",
+    type: "video",
+    title: "Dra. Camila Ortiz • Consultorio Clínico & Croma Key Pro",
+    prompt:
+      '@image1 as the AI influencer face and character speaking to camera. Virtual Studio Environment (Consultorio Clínico Blanco): pristine modern aesthetic medical clinic with 6000K beauty lighting and precision chroma-key composite. Speaking in Latin American Spanish: "Agenda tu valoración personalizada hoy mismo con nuestro equipo especialista."',
+    requestId: "showcase_req_04",
+    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+    status: "completed",
+    error: null,
+    modelId: "seedance-2",
+    aspectRatio: "9:16",
+    resolution: "720p",
+    duration: 10,
+    mode: "normal",
+    environmentName: "🩺 Estudio Clínico / Croma Key Pro",
+    influencerName: "Dra. Camila Ortiz (UCID-CAMILA-08)",
+    inputImages: JSON.stringify([
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80",
+      "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80",
+    ]),
+    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+  },
+];
+
 // Global in-memory fallback store for serverless/local resilience when DB is unreachable
 const globalStore = globalThis;
 if (!globalStore.__ugcoreRuntimeStore) {
@@ -117,8 +234,14 @@ if (!globalStore.__ugcoreRuntimeStore) {
         },
       ],
     ]),
-    creationsById: new Map(),
+    creationsById: new Map(
+      STUDIO_SHOWCASE_CREATIONS.map((item) => [item.id, item])
+    ),
   };
+} else if (globalStore.__ugcoreRuntimeStore.creationsById.size === 0) {
+  for (const item of STUDIO_SHOWCASE_CREATIONS) {
+    globalStore.__ugcoreRuntimeStore.creationsById.set(item.id, item);
+  }
 }
 
 export const runtimeStore = globalStore.__ugcoreRuntimeStore;
