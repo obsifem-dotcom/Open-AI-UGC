@@ -20,6 +20,10 @@ import {
   FiBriefcase,
   FiPlayCircle,
   FiCheck,
+  FiTrendingUp,
+  FiLink,
+  FiLayers,
+  FiCpu,
 } from "react-icons/fi";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +34,14 @@ import {
   PROMO_CATEGORIES,
   buildInfluencerScript,
 } from "@/lib/influencers";
+import {
+  SOCIAL_PLATFORMS,
+  EMOTION_PROFILES,
+  MICRO_EXPRESSIONS,
+  TIMELINE_TRANSITIONS,
+  generatePredictiveHooks,
+  buildCharacterConsistencyLock,
+} from "@/lib/ugcore-v3";
 
 const MODELS = [
   {
@@ -267,9 +279,9 @@ export default function Home() {
   const [longSubMode, setLongSubMode] = useState("auto");
   const [longTotalDuration, setLongTotalDuration] = useState(60);
   const [scenes, setScenes] = useState([
-    { id: "s1", label: "Escena 1 (Hook)", prompt: "", duration: 15 },
-    { id: "s2", label: "Escena 2 (Producto / Demo)", prompt: "", duration: 15 },
-    { id: "s3", label: "Escena 3 (Beneficios y CTA)", prompt: "", duration: 15 },
+    { id: "s1", label: "Escena 1 (Hook)", prompt: "", duration: 15, transition: "zoom-in" },
+    { id: "s2", label: "Escena 2 (Producto / Demo)", prompt: "", duration: 15, transition: "cut" },
+    { id: "s3", label: "Escena 3 (Beneficios y CTA)", prompt: "", duration: 15, transition: "cut" },
   ]);
 
   // AI Influencer & Promotion Studio state
@@ -284,6 +296,39 @@ export default function Home() {
   const [promoBenefit, setPromoBenefit] = useState("");
   const [promoCta, setPromoCta] = useState("");
   const [promoStyle, setPromoStyle] = useState("showcase");
+
+  // UGCore Studio v3.0 — Active Architectural Module Tab
+  // null | "intelligence" | "ecommerce" | "timeline" | "consistency"
+  const [activeV3Module, setActiveV3Module] = useState(null);
+
+  // Module 1: Pre-Production Intelligence Engine state
+  const [targetPlatform, setTargetPlatform] = useState("tiktok");
+  const [predictiveHooks, setPredictiveHooks] = useState(() =>
+    generatePredictiveHooks({ platform: "tiktok" })
+  );
+  const [isLoadingHooks, setIsLoadingHooks] = useState(false);
+
+  // Module 2: Instant E-Commerce URL-to-Video state
+  const [ecommerceUrl, setEcommerceUrl] = useState("");
+  const [isExtractingUrl, setIsExtractingUrl] = useState(false);
+  const [extractedProduct, setExtractedProduct] = useState(null);
+
+  // Module 3: Text-Based Hybrid Timeline & Multilayer Overlays state
+  const [overlaySubtitle, setOverlaySubtitle] = useState("");
+  const [overlayLowerThird, setOverlayLowerThird] = useState("");
+  const [overlayCtaBadge, setOverlayCtaBadge] = useState("");
+
+  // Module 4: Advanced Character Consistency (UCID) & Micro-Expression Engine state
+  const [ucidLockEnabled, setUcidLockEnabled] = useState(true);
+  const [ucidCode, setUcidCode] = useState("UCID-SOFIA-01");
+  const [wardrobeLock, setWardrobeLock] = useState(true);
+  const [lightingLock, setLightingLock] = useState(true);
+  const [emotionId, setEmotionId] = useState("euphoric-viral");
+  const [microExpressionIds, setMicroExpressionIds] = useState([
+    "eye-contact-lock",
+    "natural-breathing",
+    "hand-gestures",
+  ]);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
@@ -317,6 +362,145 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [lastGeneration]);
 
+  const toggleV3Module = (modName) => {
+    setActiveV3Module((prev) => (prev === modName ? null : modName));
+  };
+
+  // Module 1 handler: analyze trends & predictive hooks
+  const handleAnalyzeHooks = async (plat = targetPlatform) => {
+    setTargetPlatform(plat);
+    setIsLoadingHooks(true);
+    try {
+      const res = await fetch("/api/intelligence/hooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: promoName || prompt.slice(0, 60),
+          benefit: promoBenefit,
+          platform: plat,
+          promoType,
+        }),
+      });
+      const data = await res.json();
+      if (data.hooks) {
+        setPredictiveHooks(data.hooks);
+      }
+    } catch (err) {
+      console.error("Failed to fetch predictive hooks:", err);
+    } finally {
+      setIsLoadingHooks(false);
+    }
+  };
+
+  const applyViralHook = (hookItem, asMultiScene = false) => {
+    if (asMultiScene && Array.isArray(hookItem.scenes)) {
+      setVideoMode("long");
+      setLongSubMode("scenes");
+      const defaultDur =
+        selectedModel.fixedClipDuration ||
+        Math.min(15, selectedModel.maxClipDuration || 15);
+      setScenes(
+        hookItem.scenes.map((sc, idx) => ({
+          id: `viral-sc-${idx + 1}`,
+          label: sc.label || `Escena ${idx + 1}`,
+          prompt: sc.prompt,
+          duration: defaultDur,
+          transition: sc.transition || "cut",
+        }))
+      );
+    } else {
+      setPrompt(hookItem.hookText);
+    }
+    setOverlaySubtitle(hookItem.hookText.slice(0, 50));
+  };
+
+  // Module 2 handler: Instant E-Commerce URL-to-Video extraction
+  const handleExtractEcommerceUrl = async (e) => {
+    if (e) e.preventDefault();
+    if (!ecommerceUrl.trim()) return;
+    setIsExtractingUrl(true);
+    try {
+      const res = await fetch("/api/ecommerce/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: ecommerceUrl.trim() }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const prod = data.product;
+      setExtractedProduct(prod);
+      setIsInfluencerMode(true);
+      setPromoType("product");
+      setPromoName(prod.title || "");
+      setPromoBenefit(prod.benefit || "");
+      setPromoCta(prod.cta || "");
+
+      if (prod.price) {
+        setOverlayCtaBadge(`OFERTA ${prod.price}`);
+      } else {
+        setOverlayCtaBadge("ENVÍO HOY • LINK EN BIO");
+      }
+      setOverlayLowerThird(prod.title || "");
+
+      // Import extracted product images into uploadedImages
+      if (Array.isArray(prod.images) && prod.images.length > 0) {
+        const importedImgs = prod.images.map((imgUrl, idx) => ({
+          id: `ecom-${Date.now()}-${idx}`,
+          preview: imgUrl,
+          url: imgUrl,
+          status: "ready",
+        }));
+        setUploadedImages((prev) => [...prev, ...importedImgs].slice(0, 7));
+      }
+
+      if (data.hooks && data.hooks.length > 0) {
+        setPredictiveHooks(data.hooks);
+      }
+
+      // Build complete script automatically
+      const { singleScript, multiScenes } = buildInfluencerScript({
+        influencer: selectedInfluencer,
+        promoType: "product",
+        name: prod.title,
+        benefit: prod.benefit,
+        cta: prod.cta,
+        style: "showcase",
+        useInfluencerAvatar:
+          useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
+        hasUploadedAsset: (prod.images?.length || 0) > 0,
+      });
+
+      if (videoMode === "long" && longSubMode === "scenes") {
+        const defaultDur =
+          selectedModel.fixedClipDuration ||
+          Math.min(15, selectedModel.maxClipDuration || 15);
+        setScenes(
+          multiScenes.map((ms, idx) => ({
+            id: `ecom-sc-${idx + 1}`,
+            label: ms.label,
+            prompt: ms.prompt,
+            duration: defaultDur,
+            transition: idx === 0 ? "zoom-in" : "cut",
+          }))
+        );
+      } else {
+        setPrompt(singleScript);
+      }
+    } catch (err) {
+      alert(err.message || "No se pudo extraer la URL");
+    } finally {
+      setIsExtractingUrl(false);
+    }
+  };
+
+  // Module 4 helper: toggle micro-expression
+  const toggleMicroExpression = (id) => {
+    setMicroExpressionIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
   const handlePromoTypeChange = (newType) => {
     setPromoType(newType);
     const cat = PROMO_CATEGORIES.find((c) => c.id === newType);
@@ -334,7 +518,8 @@ export default function Home() {
       benefit: promoBenefit,
       cta: promoCta,
       style: promoStyle,
-      useInfluencerAvatar: useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
+      useInfluencerAvatar:
+        useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
       hasUploadedAsset: readyUploads.length > 0,
     });
 
@@ -348,6 +533,7 @@ export default function Home() {
           label: ms.label,
           prompt: ms.prompt,
           duration: defaultDur,
+          transition: idx === 0 ? "zoom-in" : "cut",
         }))
       );
     } else {
@@ -467,6 +653,7 @@ export default function Home() {
         label: `Escena ${nextNum}`,
         prompt: "",
         duration: defaultDur,
+        transition: "cut",
       },
     ]);
   };
@@ -533,7 +720,6 @@ export default function Home() {
         .filter((img) => img.status === "ready")
         .map((img) => img.url);
 
-      // Combine AI Influencer avatar reference (if Influencer mode is active) with user uploaded product/asset images
       const combinedImageUrls = [
         ...(isInfluencerMode &&
         useInfluencerReferenceImage &&
@@ -543,7 +729,6 @@ export default function Home() {
         ...readyUserUrls,
       ].slice(0, 7);
 
-      // Auto-build Influencer script if user filled Influencer promo fields without manually writing a prompt
       const autoBuilt = isInfluencerMode
         ? buildInfluencerScript({
             influencer: selectedInfluencer,
@@ -558,6 +743,18 @@ export default function Home() {
           })
         : null;
 
+      // Module 4: Build Character Consistency Lock + Micro-Expressions directive
+      const consistencyDirective = ucidLockEnabled
+        ? buildCharacterConsistencyLock({
+            ucid: ucidCode,
+            influencer: isInfluencerMode ? selectedInfluencer : null,
+            wardrobeLock,
+            lightingLock,
+            emotionId,
+            microExpressionIds,
+          })
+        : "";
+
       let activeScenes = [];
       let finalPrompt = prompt.trim();
 
@@ -565,20 +762,19 @@ export default function Home() {
         const userScenes = scenes.filter((s) => s.prompt.trim().length > 0);
         if (userScenes.length > 0) {
           activeScenes = userScenes.map((s) => ({
-            prompt:
-              isInfluencerMode && selectedInfluencer
-                ? `${selectedInfluencer.visualPrompt}. ${s.prompt.trim()}`
-                : s.prompt.trim(),
+            prompt: s.prompt.trim(),
             duration:
               Number(s.duration) || selectedModel.minClipDuration || 8,
+            transition: s.transition || "cut",
           }));
         } else if (autoBuilt) {
           const defaultDur =
             selectedModel.fixedClipDuration ||
             Math.min(15, selectedModel.maxClipDuration || 15);
-          activeScenes = autoBuilt.multiScenes.map((ms) => ({
+          activeScenes = autoBuilt.multiScenes.map((ms, idx) => ({
             prompt: ms.prompt,
             duration: defaultDur,
+            transition: idx === 0 ? "zoom-in" : "cut",
           }));
         }
         finalPrompt = activeScenes
@@ -587,12 +783,6 @@ export default function Home() {
       } else {
         if (!finalPrompt && autoBuilt) {
           finalPrompt = autoBuilt.singleScript;
-        } else if (
-          isInfluencerMode &&
-          selectedInfluencer &&
-          !finalPrompt.includes(selectedInfluencer.visualPrompt)
-        ) {
-          finalPrompt = `${selectedInfluencer.visualPrompt}. ${finalPrompt}`;
         }
       }
 
@@ -605,6 +795,7 @@ export default function Home() {
           settings: requestSettings,
           scenes: activeScenes,
           videoMode,
+          consistencyDirective,
           images: combinedImageUrls,
         }),
       });
@@ -658,6 +849,12 @@ export default function Home() {
     setModelSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const activeOverlays = {
+    subtitle: overlaySubtitle.trim() || null,
+    lowerThird: overlayLowerThird.trim() || null,
+    ctaBadge: overlayCtaBadge.trim() || null,
+  };
+
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
       <main className="flex-1 flex flex-col relative min-h-0">
@@ -676,19 +873,24 @@ export default function Home() {
                   <FiFilm className="text-primary" />
                   <span>
                     {videoMode === "long"
-                      ? `Modo Video Largo (${getEffectiveTotalDuration()}s • ${getEstimatedSceneCount()} escenas)`
-                      : "Modo Video Corto"}
+                      ? `UGCore v3.0 • Video Largo (${getEffectiveTotalDuration()}s • ${getEstimatedSceneCount()} escenas)`
+                      : "UGCore v3.0 • Video Corto"}
                   </span>
                   {isInfluencerMode && selectedInfluencer && (
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 text-[10px]">
                       • Influencer IA: {selectedInfluencer.name}
                     </span>
                   )}
+                  {ucidLockEnabled && (
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 text-[10px]">
+                      • Lock: {ucidCode}
+                    </span>
+                  )}
                 </div>
-                <p className="text-muted text-xs font-bold max-w-[320px] leading-relaxed">
-                  {isInfluencerMode
-                    ? "Selecciona tu Influencer IA abajo, elige Producto, Servicio o Video y genera tu anuncio promocional."
-                    : "Usa @image1, @image2 en tu guion o activa 'Influencer IA' para promocionar un producto, servicio o video."}
+                <p className="text-muted text-xs font-bold max-w-[380px] leading-relaxed">
+                  Usa los módulos v3.0 abajo: Inteligencias de Hooks Virales,
+                  URL E-Commerce a Video, Editor Híbrido de Línea de Tiempo y
+                  Consistencia UCID con Micro-Expresiones.
                 </p>
               </motion.div>
             ) : (
@@ -696,7 +898,7 @@ export default function Home() {
                 key={lastGeneration.id}
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="relative w-full max-w-lg aspect-[9/16] max-h-[52vh] bg-glass-bg rounded border border-glass-border shadow-2xl overflow-hidden flex flex-col items-center justify-center"
+                className="relative w-full max-w-lg aspect-[9/16] max-h-[50vh] bg-glass-bg rounded border border-glass-border shadow-2xl overflow-hidden flex flex-col items-center justify-center"
               >
                 {["processing", "pending", "starting", "queued"].includes(
                   lastGeneration.status
@@ -733,7 +935,8 @@ export default function Home() {
                     urls={lastGeneration.urls}
                     showSceneBar={true}
                     showDownloadButton={true}
-                    title={`ugcora-${lastGeneration.id}`}
+                    overlays={activeOverlays}
+                    title={`ugcore-${lastGeneration.id}`}
                   />
                 )}
 
@@ -764,8 +967,8 @@ export default function Home() {
         {/* Interaction Bar */}
         <div className="p-3 md:p-4 flex-shrink-0 flex flex-col items-center justify-center">
           <div className="w-full max-w-4xl bg-glass-bg rounded border border-glass-border shadow-2xl relative backdrop-blur-3xl">
-            {/* Top Mode Selector Bar: Short Video | Long Video | AI Influencer Promo */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-glass-border bg-glass-bg/60">
+            {/* Row 1: Primary Mode Bar (Short Video | Long Video | AI Influencer) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 border-b border-glass-border bg-glass-bg/60">
               <div className="flex items-center flex-wrap gap-1.5">
                 <button
                   type="button"
@@ -841,6 +1044,399 @@ export default function Home() {
               )}
             </div>
 
+            {/* Row 2: UGCore v3.0 Industrial Architecture Modules Bar */}
+            <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-glass-border bg-bg-card/30">
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
+                v3.0 Suite:
+              </span>
+              <button
+                type="button"
+                onClick={() => toggleV3Module("intelligence")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  activeV3Module === "intelligence"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                }`}
+              >
+                <FiTrendingUp size={12} />
+                <span>1. Hooks & Tendencias Virales</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => toggleV3Module("ecommerce")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  activeV3Module === "ecommerce"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                }`}
+              >
+                <FiLink size={12} />
+                <span>2. URL E-Commerce a Video</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => toggleV3Module("timeline")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  activeV3Module === "timeline"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                }`}
+              >
+                <FiLayers size={12} />
+                <span>3. Editor Timeline & Capas</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => toggleV3Module("consistency")}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  activeV3Module === "consistency"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                }`}
+              >
+                <FiCpu size={12} />
+                <span>4. Consistencia UCID & Micro-Gestos</span>
+              </button>
+            </div>
+
+            {/* UGCore v3.0 Module Panels */}
+            <AnimatePresence>
+              {activeV3Module === "intelligence" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
+                        <FiTrendingUp className="text-indigo-500" />
+                        <span>
+                          Módulo 1: Pre-Production Intelligence Engine (Hooks
+                          Predictivos)
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-muted">
+                        Ganchos de alta retención basados en métricas de los
+                        primeros 3 segundos en TikTok, Reels y Shorts.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {SOCIAL_PLATFORMS.map((plat) => (
+                        <button
+                          key={plat.id}
+                          type="button"
+                          onClick={() => handleAnalyzeHooks(plat.id)}
+                          className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                            targetPlatform === plat.id
+                              ? "bg-indigo-600 text-white border-indigo-600"
+                              : "bg-glass-bg text-muted border-glass-border hover:text-foreground"
+                          }`}
+                        >
+                          {plat.name} ({plat.avgRetentionTarget})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isLoadingHooks ? (
+                    <div className="py-4 flex items-center justify-center gap-2 text-xs text-muted">
+                      <FiLoader className="animate-spin" />
+                      <span>Calculando hooks predictivos...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                      {predictiveHooks.map((hk) => (
+                        <div
+                          key={hk.id}
+                          className="p-3 rounded-lg border border-glass-border bg-bg-card flex flex-col justify-between space-y-2"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black text-indigo-400">
+                                {hk.framework}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 text-[9px] font-bold">
+                                Retención 3s: {hk.retention3s}% • CTR{" "}
+                                {hk.estimatedCtr}
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-semibold text-foreground leading-snug">
+                              &ldquo;{hk.hookText}&rdquo;
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => applyViralHook(hk, false)}
+                              className="flex-1 py-1 rounded bg-primary/15 text-primary hover:bg-primary/25 text-[10px] font-bold transition-colors cursor-pointer"
+                            >
+                              Usar en Guion
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyViralHook(hk, true)}
+                              className="flex-1 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 text-[10px] font-bold transition-colors cursor-pointer"
+                            >
+                              Armar 3 Escenas
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeV3Module === "ecommerce" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                >
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
+                      <FiLink className="text-indigo-500" />
+                      <span>
+                        Módulo 2: Instant E-Commerce URL-to-Video Pipeline
+                      </span>
+                    </h4>
+                    <p className="text-[10px] text-muted">
+                      Pega el link de Shopify, Amazon, Mercado Libre o tu web
+                      para extraer imágenes, beneficios, oferta y guion UGC en
+                      segundos.
+                    </p>
+                  </div>
+
+                  <form
+                    onSubmit={handleExtractEcommerceUrl}
+                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={ecommerceUrl}
+                      onChange={(e) => setEcommerceUrl(e.target.value)}
+                      placeholder="https://mitienda.myshopify.com/products/... o link de Amazon / Mercado Libre"
+                      className="flex-1 px-3 py-2 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isExtractingUrl || !ecommerceUrl.trim()}
+                      className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      {isExtractingUrl ? (
+                        <>
+                          <FiLoader className="animate-spin" />
+                          <span>Extrayendo producto...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiZap />
+                          <span>Extraer URL y Generar Anuncio</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {extractedProduct && (
+                    <div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs">
+                      <div className="truncate pr-2">
+                        <span className="font-black text-emerald-500 mr-1.5">
+                          ✓ Extraído ({extractedProduct.marketplace}):
+                        </span>
+                        <span className="font-bold text-foreground">
+                          {extractedProduct.title}
+                        </span>
+                        {extractedProduct.price && (
+                          <span className="ml-2 px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[10px] font-bold">
+                            {extractedProduct.price}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-emerald-400 font-semibold whitespace-nowrap">
+                        Guion e imágenes cargados
+                      </span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeV3Module === "timeline" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
+                        <FiLayers className="text-indigo-500" />
+                        <span>
+                          Módulo 3: Text-Based Hybrid Timeline & Capas Gráficas
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-muted">
+                        Superposición multicapa en tiempo real (Subtítulos
+                        dinámicos, Lower-Thirds, Badge de oferta y transiciones
+                        por corte).
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVideoMode("long");
+                        setLongSubMode("scenes");
+                      }}
+                      className="px-2.5 py-1 rounded bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 text-[10px] font-bold cursor-pointer"
+                    >
+                      Abrir Cortes por Escena
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={overlaySubtitle}
+                      onChange={(e) => setOverlaySubtitle(e.target.value)}
+                      placeholder="Subtítulo Dinámico Central (ej: ¡30% OFF Solo Hoy!)"
+                      className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-indigo-500"
+                    />
+                    <input
+                      type="text"
+                      value={overlayLowerThird}
+                      onChange={(e) => setOverlayLowerThird(e.target.value)}
+                      placeholder="Lower-Third Inferior (ej: Sofía Morales • Especialista)"
+                      className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-indigo-500"
+                    />
+                    <input
+                      type="text"
+                      value={overlayCtaBadge}
+                      onChange={(e) => setOverlayCtaBadge(e.target.value)}
+                      placeholder="Badge Superior (ej: ENVÍO GRATIS • LINK EN BIO)"
+                      className="px-3 py-1.5 rounded bg-bg-card border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {activeV3Module === "consistency" && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
+                        <FiCpu className="text-indigo-500" />
+                        <span>
+                          Módulo 4: Advanced Character Consistency (UCID) &
+                          Micro-Expression Engine
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-muted">
+                        Persistencia de rasgos faciales, vestimenta e
+                        iluminación entre escenas con sincronización emocional y
+                        micro-gestos orgánicos.
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-emerald-500 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={ucidLockEnabled}
+                        onChange={(e) => setUcidLockEnabled(e.target.checked)}
+                        className="rounded accent-emerald-500"
+                      />
+                      <span>Activar Candado Universal ({ucidCode})</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted uppercase">
+                        Universal Character ID (UCID)
+                      </label>
+                      <input
+                        type="text"
+                        value={ucidCode}
+                        onChange={(e) => setUcidCode(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-xs font-bold text-foreground outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted uppercase">
+                        Sincronización Emocional
+                      </label>
+                      <select
+                        value={emotionId}
+                        onChange={(e) => setEmotionId(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-xs font-bold text-foreground outline-none"
+                      >
+                        {EMOTION_PROFILES.map((em) => (
+                          <option key={em.id} value={em.id}>
+                            {em.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-end gap-3 pb-1">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={wardrobeLock}
+                          onChange={(e) => setWardrobeLock(e.target.checked)}
+                          className="rounded accent-indigo-500"
+                        />
+                        <span>Fijar Vestimenta</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={lightingLock}
+                          onChange={(e) => setLightingLock(e.target.checked)}
+                          className="rounded accent-indigo-500"
+                        />
+                        <span>Fijar Iluminación 5600K</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] font-bold text-muted mr-1">
+                      Micro-gestos orgánicos:
+                    </span>
+                    {MICRO_EXPRESSIONS.map((me) => {
+                      const active = microExpressionIds.includes(me.id);
+                      return (
+                        <button
+                          key={me.id}
+                          type="button"
+                          onClick={() => toggleMicroExpression(me.id)}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all cursor-pointer ${
+                            active
+                              ? "bg-indigo-600/20 text-indigo-400 border-indigo-500/40"
+                              : "bg-glass-bg text-muted border-glass-border"
+                          }`}
+                        >
+                          {active ? "✓ " : "+ "}
+                          {me.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* AI Influencer & Promotion Studio Panel */}
             <AnimatePresence>
               {isInfluencerMode && (
@@ -876,7 +1472,12 @@ export default function Home() {
                           <button
                             key={inf.id}
                             type="button"
-                            onClick={() => setSelectedInfluencer(inf)}
+                            onClick={() => {
+                              setSelectedInfluencer(inf);
+                              setUcidCode(
+                                `UCID-${inf.id.split("-")[0].toUpperCase()}-01`
+                              );
+                            }}
                             className={`flex items-center gap-2.5 p-2 rounded-lg border text-left transition-all flex-shrink-0 cursor-pointer ${
                               isSelected
                                 ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
@@ -1052,9 +1653,9 @@ export default function Home() {
               )}
             </AnimatePresence>
 
-            {/* Prompt Input OR Multi-Scene Builder */}
+            {/* Prompt Input OR Hybrid Text-Timeline Scene Builder */}
             {videoMode === "long" && longSubMode === "scenes" ? (
-              <div className="p-4 space-y-2.5 max-h-[200px] overflow-y-auto custom-scrollbar">
+              <div className="p-4 space-y-2.5 max-h-[210px] overflow-y-auto custom-scrollbar">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <button
@@ -1066,8 +1667,9 @@ export default function Home() {
                       <FiImage size={18} />
                     </button>
                     <span className="text-[11px] font-bold text-muted">
-                      Escenas del Video Largo ({getEffectiveTotalDuration()}s en
-                      total):
+                      Hybrid Text-Timeline Editor ({getEffectiveTotalDuration()}
+                      s en total • cada bloque de texto controla un corte de
+                      escena):
                     </span>
                   </div>
                   <button
@@ -1076,17 +1678,17 @@ export default function Home() {
                     className="flex items-center gap-1 px-2.5 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 text-[11px] font-bold transition-colors cursor-pointer"
                   >
                     <FiPlus size={12} />
-                    <span>Agregar Escena</span>
+                    <span>Agregar Corte / Escena</span>
                   </button>
                 </div>
 
                 {scenes.map((scene, idx) => (
                   <div
                     key={scene.id}
-                    className="flex items-start gap-2 p-2.5 rounded bg-bg-card border border-glass-border"
+                    className="flex flex-wrap sm:flex-nowrap items-start gap-2 p-2.5 rounded bg-bg-card border border-glass-border"
                   >
                     <span className="px-2 py-1 rounded bg-glass-hover text-[10px] font-black text-foreground whitespace-nowrap mt-0.5">
-                      Escena {idx + 1}
+                      Corte {idx + 1}
                     </span>
                     <textarea
                       value={scene.prompt}
@@ -1104,6 +1706,20 @@ export default function Home() {
                       className="flex-1 bg-transparent border-none outline-none text-xs font-medium text-foreground placeholder-muted resize-none"
                     />
                     <div className="flex items-center gap-1">
+                      <select
+                        value={scene.transition || "cut"}
+                        onChange={(e) =>
+                          updateScene(scene.id, "transition", e.target.value)
+                        }
+                        className="px-2 py-1 rounded bg-glass-bg border border-glass-border text-[10px] font-bold text-secondary-text outline-none"
+                        title="Transición de cámara"
+                      >
+                        {TIMELINE_TRANSITIONS.map((tr) => (
+                          <option key={tr.id} value={tr.id}>
+                            {tr.label}
+                          </option>
+                        ))}
+                      </select>
                       <select
                         value={scene.duration}
                         onChange={(e) =>

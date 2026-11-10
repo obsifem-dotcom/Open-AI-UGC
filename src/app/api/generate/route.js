@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions, DEFAULT_MUAPI_KEY, isAdminEmail } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { TIMELINE_TRANSITIONS } from "@/lib/ugcore-v3";
 
 const MODEL_ENDPOINTS = {
   "grok-video": {
@@ -108,12 +109,15 @@ function splitPromptAcrossSegments(prompt, segmentCount) {
   );
 }
 
-function buildSegments({ prompt, settings, scenes, model }) {
+function buildSegments({ prompt, settings, scenes, model, consistencyDirective = "" }) {
+  const prefix = consistencyDirective ? `${consistencyDirective} ` : "";
+
   const validScenes = Array.isArray(scenes)
     ? scenes
         .map((s) => ({
           prompt: typeof s?.prompt === "string" ? s.prompt.trim() : "",
           duration: typeof s?.duration === "number" ? s.duration : model.defaultDuration,
+          transition: typeof s?.transition === "string" ? s.transition : "cut",
         }))
         .filter((s) => s.prompt.length > 0)
     : [];
@@ -121,11 +125,13 @@ function buildSegments({ prompt, settings, scenes, model }) {
   if (validScenes.length > 0) {
     const expanded = [];
     for (const scene of validScenes) {
+      const transObj = TIMELINE_TRANSITIONS.find((t) => t.id === scene.transition);
+      const transDirective = transObj ? ` [Transition: ${transObj.directive}]` : "";
       const durations = splitDurationIntoChunks(scene.duration, model);
       const prompts = splitPromptAcrossSegments(scene.prompt, durations.length);
       durations.forEach((dur, idx) => {
         expanded.push({
-          prompt: prompts[idx] || scene.prompt,
+          prompt: `${prefix}${prompts[idx] || scene.prompt}${transDirective}`.trim(),
           duration: dur,
         });
       });
@@ -139,7 +145,7 @@ function buildSegments({ prompt, settings, scenes, model }) {
   const prompts = splitPromptAcrossSegments(prompt, durations.length);
 
   return durations.map((dur, idx) => ({
-    prompt: prompts[idx] || prompt,
+    prompt: `${prefix}${prompts[idx] || prompt}`.trim(),
     duration: dur,
   }));
 }
@@ -209,11 +215,17 @@ export async function POST(req) {
       return new NextResponse("Invalid model selected", { status: 400 });
     }
 
+    const consistencyDirective =
+      typeof body.consistencyDirective === "string"
+        ? body.consistencyDirective.trim()
+        : "";
+
     const segments = buildSegments({
       prompt: rawPrompt,
       settings,
       scenes,
       model,
+      consistencyDirective,
     });
 
     if (!segments.length || segments.every((s) => !s.prompt)) {

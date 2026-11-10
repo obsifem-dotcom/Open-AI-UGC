@@ -12,7 +12,8 @@ export default function SeamlessVideoPlayer({
   muted = false,
   showSceneBar = true,
   showDownloadButton = false,
-  title = "ugcora-video",
+  overlays = null,
+  title = "ugcore-video",
 }) {
   const validUrls =
     Array.isArray(urls) && urls.length > 0
@@ -42,9 +43,47 @@ export default function SeamlessVideoPlayer({
     setRawIndex(idx);
   };
 
+  const drawOverlaysOnCanvas = (ctx, width, height) => {
+    if (!overlays) return;
+
+    if (overlays.ctaBadge) {
+      ctx.save();
+      ctx.fillStyle = "rgba(16, 185, 129, 0.92)";
+      ctx.fillRect(24, 90, Math.min(width - 48, 320), 42);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 20px sans-serif";
+      ctx.fillText(overlays.ctaBadge, 38, 118);
+      ctx.restore();
+    }
+
+    if (overlays.subtitle) {
+      ctx.save();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+      const boxHeight = 64;
+      const yPos = height - 220;
+      ctx.fillRect(32, yPos, width - 64, boxHeight);
+      ctx.fillStyle = "#facc15";
+      ctx.font = "bold 24px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(overlays.subtitle.slice(0, 48), width / 2, yPos + 40);
+      ctx.restore();
+    }
+
+    if (overlays.lowerThird) {
+      ctx.save();
+      ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+      const yPos = height - 140;
+      ctx.fillRect(24, yPos, Math.min(width - 48, 380), 48);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 18px sans-serif";
+      ctx.fillText(overlays.lowerThird, 38, yPos + 30);
+      ctx.restore();
+    }
+  };
+
   const handleDownloadFullVideo = async (e) => {
     if (e) e.stopPropagation();
-    if (!isMultiScene) {
+    if (!isMultiScene && !overlays?.subtitle && !overlays?.lowerThird && !overlays?.ctaBadge) {
       window.open(validUrls[0], "_blank", "noopener,noreferrer");
       return;
     }
@@ -57,7 +96,6 @@ export default function SeamlessVideoPlayer({
       tempVideo.crossOrigin = "anonymous";
       tempVideo.playsInline = true;
 
-      // Load first clip metadata to size canvas
       await new Promise((resolve, reject) => {
         tempVideo.onloadedmetadata = resolve;
         tempVideo.onerror = reject;
@@ -96,6 +134,7 @@ export default function SeamlessVideoPlayer({
             if (!tempVideo.paused && !tempVideo.ended) {
               try {
                 ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+                drawOverlaysOnCanvas(ctx, canvas.width, canvas.height);
               } catch (drawErr) {
                 reject(drawErr);
                 return;
@@ -127,7 +166,6 @@ export default function SeamlessVideoPlayer({
       document.body.removeChild(a);
       URL.revokeObjectURL(downloadUrl);
     } catch {
-      // Fallback if CDN does not send CORS headers for canvas stitching: open each scene download
       validUrls.forEach((clipUrl, idx) => {
         const a = document.createElement("a");
         a.href = clipUrl;
@@ -157,6 +195,27 @@ export default function SeamlessVideoPlayer({
         controls={controls}
         onEnded={handleEnded}
       />
+
+      {/* Module 3: Multilayer Graphic Overlays */}
+      {overlays?.ctaBadge && (
+        <div className="absolute top-14 left-3 z-20 px-3 py-1 rounded-full bg-emerald-500 text-white text-[11px] font-black uppercase tracking-wider shadow-lg pointer-events-none">
+          {overlays.ctaBadge}
+        </div>
+      )}
+
+      {overlays?.subtitle && (
+        <div className="absolute bottom-24 left-4 right-4 z-20 flex justify-center pointer-events-none">
+          <span className="px-3 py-1.5 rounded bg-black/75 text-yellow-300 text-xs font-black text-center shadow-lg border border-white/10">
+            {overlays.subtitle}
+          </span>
+        </div>
+      )}
+
+      {overlays?.lowerThird && (
+        <div className="absolute bottom-14 left-3 z-20 px-3 py-1 rounded bg-slate-900/85 border-l-4 border-primary text-white text-[10px] font-bold shadow pointer-events-none">
+          {overlays.lowerThird}
+        </div>
+      )}
 
       {isMultiScene && showSceneBar && (
         <div
@@ -211,4 +270,3 @@ export default function SeamlessVideoPlayer({
     </div>
   );
 }
-
