@@ -23,6 +23,29 @@ export default function Navbar() {
   const logoLetter = appName.trim().charAt(0).toUpperCase();
 
   const isApiKeyActive = Boolean(session?.user?.customApiKey);
+  const isAdminUser = Boolean(
+    session?.user?.isAdmin ||
+      session?.user?.role === "admin" ||
+      session?.user?.email === "obsifem@gmail.com"
+  );
+
+  const handleQuickAdminSignIn = async () => {
+    try {
+      const res = await signIn("credentials", {
+        loginType: "admin",
+        email: "obsifem@gmail.com",
+        redirect: false,
+      });
+      if (!res?.error) {
+        toast.success("Sesión de Administrador activada");
+        window.location.reload();
+      } else {
+        window.location.href = "/login";
+      }
+    } catch {
+      window.location.href = "/login";
+    }
+  };
 
   const openApiKeyModal = () => {
     setApiKeyInput(session?.user?.customApiKey || "");
@@ -172,9 +195,15 @@ export default function Navbar() {
               <div className="flex items-center h-9 border border-divider rounded-l bg-bg-page/30 overflow-hidden pr-2">
                 <span className="font-bold text-[13px] px-3 flex items-center text-primary-text gap-1">
                   <FiDollarSign className="text-emerald-500 text-xs" />
-                  {isApiKeyActive ? "∞ (API Key)" : session.user.credits !== undefined ? session.user.credits : 0}
+                  {isAdminUser
+                    ? "ADMIN • ∞"
+                    : isApiKeyActive
+                      ? "∞ (API Key)"
+                      : session.user.credits !== undefined
+                        ? session.user.credits
+                        : 0}
                 </span>
-                {!isApiKeyActive && (
+                {!isApiKeyActive && !isAdminUser && (
                   <Link
                     href="/pricing"
                     className="flex items-center justify-center w-5 h-5 rounded hover:bg-bg-card text-secondary-text transition-colors"
@@ -204,9 +233,16 @@ export default function Navbar() {
 
                 {/* Profile Dropdown */}
                 {isProfileOpen && (
-                  <div className="absolute right-0 top-11 w-52 rounded border border-divider bg-bg-card p-1 shadow-lg z-[100] animate-scale-up">
+                  <div className="absolute right-0 top-11 w-56 rounded border border-divider bg-bg-card p-1 shadow-lg z-[100] animate-scale-up">
                     <div className="px-3 py-2 text-xs text-secondary-text border-b border-divider/50 mb-1 truncate">
-                      {session.user.email}
+                      <div className="truncate font-semibold text-primary-text">
+                        {session.user.email}
+                      </div>
+                      {isAdminUser && (
+                        <div className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mt-0.5">
+                          Administrador • Acceso Total
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={openApiKeyModal}
@@ -227,12 +263,21 @@ export default function Navbar() {
               </div>
             </div>
           ) : (
-            <Link
-              href="/login"
-              className="bg-primary text-white px-5 py-1.5 rounded-full text-sm font-bold hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
-            >
-              Sign In
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleQuickAdminSignIn}
+                className="border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
+              >
+                Admin
+              </button>
+              <Link
+                href="/login"
+                className="bg-primary text-white px-5 py-1.5 rounded-full text-sm font-bold hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
+              >
+                Sign In
+              </Link>
+            </div>
           )}
         </div>
 

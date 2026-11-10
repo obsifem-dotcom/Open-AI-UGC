@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions, isAdminEmail } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatCreationResponse } from "@/lib/creations";
 
@@ -12,8 +12,14 @@ export async function GET() {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const isAdmin = Boolean(
+      session.user.isAdmin ||
+        session.user.role === "admin" ||
+        isAdminEmail(session.user.email)
+    );
+
     const creations = await prisma.creation.findMany({
-      where: { userId: session.user.id },
+      where: isAdmin ? {} : { userId: session.user.id },
       orderBy: { createdAt: "desc" },
     });
 

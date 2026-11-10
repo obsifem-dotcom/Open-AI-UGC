@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isAdminEmail } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const MODEL_ENDPOINTS = {
@@ -181,13 +181,25 @@ export async function POST(req) {
       ? body.images.filter((image) => typeof image === "string" && image.trim())
       : [];
 
-    const headerApiKey = req.headers.get("x-custom-api-key");
-    const customApiKey = headerApiKey || body.customApiKey || session.user.customApiKey || null;
-    const isUsingCustomKey = Boolean(customApiKey && customApiKey.trim().length > 0);
+    const isAdmin = Boolean(
+      session.user.isAdmin ||
+        session.user.role === "admin" ||
+        isAdminEmail(session.user.email)
+    );
 
-    const apiKey = isUsingCustomKey
-      ? customApiKey.trim()
-      : process.env.UGC_API_KEY || process.env.MUAPIAPP_API_KEY;
+    const headerApiKey = req.headers.get("x-custom-api-key");
+    const customApiKey =
+      headerApiKey || body.customApiKey || session.user.customApiKey || null;
+    const isUsingCustomKey = Boolean(
+      (customApiKey && customApiKey.trim().length > 0) || isAdmin
+    );
+
+    const apiKey =
+      customApiKey && customApiKey.trim().length > 0
+        ? customApiKey.trim()
+        : process.env.UGC_API_KEY ||
+          process.env.MUAPIAPP_API_KEY ||
+          DEFAULT_MUAPI_KEY;
     if (!apiKey) {
       return new NextResponse("API Key not configured", { status: 500 });
     }
@@ -284,10 +296,27 @@ export async function POST(req) {
     const combinedPrompt =
       rawPrompt || segments.map((s, idx) => `[Escena ${idx + 1}] ${s.prompt}`).join("\n");
 
+    // Ensure user exists in DB if admin fallback ID was used
+    let targetUserId = session.user.id;
+    if (isAdmin && targetUserId === "admin-obsifem") {
+      const adminEmail = session.user.email || "obsifem@gmail.com";
+      const dbAdmin = await prisma.user.upsert({
+        where: { email: adminEmail },
+        update: { credits: 999999 },
+        create: {
+          name: "Administrador (UGCora Studio)",
+          email: adminEmail,
+          credits: 999999,
+          customApiKey: DEFAULT_MUAPI_KEY,
+        },
+      });
+      targetUserId = dbAdmin.id;
+    }
+
     // Create entry in DB
     const creation = await prisma.creation.create({
       data: {
-        userId: session.user.id,
+        userId: targetUserId,
         type: "video",
         title: combinedPrompt.substring(0, 50) + "...",
         prompt: combinedPrompt,

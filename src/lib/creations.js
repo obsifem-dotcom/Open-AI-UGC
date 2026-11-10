@@ -49,3 +49,4 @@ export function formatCreationResponse(creation) {
 
   return formatted;
 }
+

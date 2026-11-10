@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isAdminEmail } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray, formatCreationResponse } from "@/lib/creations";
 
@@ -13,12 +13,19 @@ export async function GET(req, { params }) {
     }
 
     const { id } = await params;
+    const isAdmin = Boolean(
+      session.user.isAdmin ||
+        session.user.role === "admin" ||
+        isAdminEmail(session.user.email)
+    );
 
     let creation = await prisma.creation.findUnique({
-      where: {
-        id,
-        userId: session.user.id,
-      },
+      where: isAdmin
+        ? { id }
+        : {
+            id,
+            userId: session.user.id,
+          },
     });
 
     if (!creation) {
@@ -29,7 +36,10 @@ export async function GET(req, { params }) {
     const activeStatuses = ["processing", "pending", "starting", "queued"];
     if (activeStatuses.includes(creation.status) && creation.requestId) {
       const apiKey =
-        session.user.customApiKey || process.env.UGC_API_KEY || process.env.MUAPIAPP_API_KEY;
+        session.user.customApiKey ||
+        process.env.UGC_API_KEY ||
+        process.env.MUAPIAPP_API_KEY ||
+        DEFAULT_MUAPI_KEY;
 
       if (apiKey) {
         const multiRequestIds = parseJsonArray(creation.requestId);
