@@ -479,6 +479,164 @@ export const INFLUENCER_WARDROBE_OPTIONS = [
   },
 ];
 
+// ============================================================================
+// HeyGen-Style Virtual Environments, Studios & Chroma / Realistic Compositing
+// ============================================================================
+
+export const INFLUENCER_VIRTUAL_ENVIRONMENTS = [
+  {
+    id: "preset",
+    name: "Escenario Original del Influencer",
+    shortLabel: "🎬 Set Original",
+    badge: "Por Defecto",
+    accentHex: "#64748B",
+    previewUrl: null,
+    environmentPrompt: "",
+    lightingMatch: "",
+  },
+  {
+    id: "wellness-violet-white",
+    name: "Espacio de Bienestar #8B5CF6 & Blanco",
+    shortLabel: "✨ Bienestar #8B5CF6 & Blanco",
+    badge: "Identidad #8B5CF6",
+    accentHex: "#8B5CF6",
+    previewUrl:
+      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+    environmentPrompt:
+      "set inside a serene architectural wellness and beauty sanctuary designed in pure white (#FFFFFF) curves and soft electric violet (#8B5CF6) ambient LED coves, minimalist organic stone textures, subtle botanical accents, and clean depth of field",
+    lightingMatch:
+      "soft diffused #FFFFFF key light with subtle #8B5CF6 violet rim light wrapping naturally around the avatar's shoulders and hair",
+  },
+  {
+    id: "modern-interview-studio",
+    name: "Estudio de Entrevistas Moderno (Podcast / YouTube)",
+    shortLabel: "🎙️ Estudio de Entrevistas",
+    badge: "HeyGen Pro Set",
+    accentHex: "#F59E0B",
+    previewUrl:
+      "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80",
+    environmentPrompt:
+      "set inside a high-end modern broadcast interview and podcast studio with warm acoustic wood slat panels, designer armchair, broadcast microphone on boom arm, and cinematic f/1.8 background bokeh",
+    lightingMatch:
+      "three-point cinema broadcast lighting with warm tungsten rim light and balanced 5600K key light on the subject",
+  },
+  {
+    id: "corporate-minimalist-set",
+    name: "Set Minimalista Corporativo (B2B / SaaS)",
+    shortLabel: "🏢 Set Minimalista Corporativo",
+    badge: "Ejecutivo B2B",
+    accentHex: "#3B82F6",
+    previewUrl:
+      "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
+    environmentPrompt:
+      "set inside a sleek minimalist corporate headquarters studio with frosted architectural glass, matte white walls, subtle LED presentation screen in background, and executive modern furniture",
+    lightingMatch:
+      "crisp 5600K daylight studio lighting with clean softbox reflections and natural contact shadows",
+  },
+  {
+    id: "heygen-keynote-stage",
+    name: "Escenario Keynote Virtual 3D (#8B5CF6 & LED)",
+    shortLabel: "🌐 Keynote Virtual 3D",
+    badge: "Lanzamiento",
+    accentHex: "#8B5CF6",
+    previewUrl:
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80",
+    environmentPrompt:
+      "set on a futuristic virtual keynote presentation stage featuring a curved panoramic LED wall displaying minimalist #8B5CF6 violet and #FFFFFF white data graphics and polished reflective stage floor",
+    lightingMatch:
+      "stage spotlighting with crisp top hair light and subtle #8B5CF6 ambient screen bounce on the presenter",
+  },
+  {
+    id: "luxury-penthouse-lounge",
+    name: "Penthouse / Lounge Editorial de Lujo",
+    shortLabel: "🏙️ Penthouse de Lujo",
+    badge: "High-Ticket",
+    accentHex: "#EC4899",
+    previewUrl:
+      "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=800&q=80",
+    environmentPrompt:
+      "set inside an ultra-luxury modern penthouse lounge with floor-to-ceiling skyline windows, Italian marble and travertine surfaces, and warm golden-hour architectural lighting",
+    lightingMatch:
+      "warm golden-hour window key light with soft cinematic fill and realistic eye catchlights",
+  },
+  {
+    id: "clinical-med-lab",
+    name: "Consultorio / Laboratorio Clínico Blanco",
+    shortLabel: "🩺 Estudio Clínico / Salud",
+    badge: "Médico / Derma",
+    accentHex: "#06B6D4",
+    previewUrl:
+      "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=800&q=80",
+    environmentPrompt:
+      "set inside a pristine modern aesthetic medical clinic and dermatology studio with glossy white surfaces, subtle cyan/white medical lighting, and clean professional background",
+    lightingMatch:
+      "bright clinical 6000K wrap-around beauty lighting with zero harsh shadows",
+  },
+  {
+    id: "ecommerce-showroom",
+    name: "Showroom Comercial / Boutique de Producto",
+    shortLabel: "🛍️ Showroom E-Commerce",
+    badge: "Conversión",
+    accentHex: "#10B981",
+    previewUrl:
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80",
+    environmentPrompt:
+      "set inside a contemporary flagship retail showroom and product studio with illuminated display shelves, clean marble counter in foreground, and soft depth of field",
+    lightingMatch:
+      "commercial product-showcase key lighting highlighting both the presenter and items held in hand",
+  },
+  {
+    id: "chroma-green-studio",
+    name: "Estudio Croma Key (Pantalla Verde #00FF00)",
+    shortLabel: "🟩 Croma Verde (#00FF00)",
+    badge: "Chroma Key",
+    accentHex: "#22C55E",
+    previewUrl: null,
+    isChromaScreen: true,
+    environmentPrompt:
+      "filmed in front of a perfectly flat, evenly lit #00FF00 chroma key green screen studio cyclorama wall with zero background shadows, crisp hair edge separation, and clean alpha matte readiness",
+    lightingMatch:
+      "neutral 5600K studio subject lighting with dedicated anti-spill rim light for flawless chroma keying",
+  },
+  {
+    id: "custom-environment",
+    name: "Fondo Personalizado (Subir Imagen o Describir Set)",
+    shortLabel: "🖼️ Fondo Personalizado",
+    badge: "Custom Set",
+    accentHex: "#8B5CF6",
+    previewUrl: null,
+    isCustom: true,
+    environmentPrompt:
+      "seamlessly composited into the user-specified custom virtual environment background with matched camera perspective",
+    lightingMatch:
+      "automatic neural relighting and edge color harmonization matching the custom background",
+  },
+];
+
+export const INFLUENCER_COMPOSITING_MODES = [
+  {
+    id: "realistic-relight",
+    label: "✨ Integración Realista 3D + Relighting (Estilo HeyGen Studio)",
+    shortLabel: "Integración Realista + Relighting",
+    directive:
+      "HeyGen-grade photorealistic neural compositing: match subject perspective, depth of field (f/1.8 optical bokeh), ambient light wrap, contact shadows, and rim lighting seamlessly to the virtual environment",
+  },
+  {
+    id: "chroma-composite",
+    label: "🟩 Croma Key Pro + Incrustación Limpia sobre el Escenario",
+    shortLabel: "Croma Key + Incrustación sobre Fondo",
+    directive:
+      "Precision studio chroma-key extraction composited over the selected virtual studio background with sub-pixel hair-edge matte refinement and color spill suppression",
+  },
+  {
+    id: "pure-chroma-green",
+    label: "🟢 Exportar en Pantalla Verde Croma Pura (#00FF00 para Edición)",
+    shortLabel: "Pantalla Verde #00FF00 Pura",
+    directive:
+      "Render the AI influencer strictly over a uniform, shadow-free #00FF00 chroma green screen background with clean edge separation for external post-production keying",
+  },
+];
+
 export const PROMO_CATEGORIES = [
   {
     id: "product",
@@ -707,6 +865,10 @@ export function buildInfluencerScript({
   personaStyleId = "preset",
   wardrobeId = "preset",
   customWardrobeText = "",
+  virtualEnvironmentId = "preset",
+  compositingModeId = "realistic-relight",
+  customEnvironmentText = "",
+  customEnvironmentImageTag = "",
   voiceDirective = "",
   extraNotes = "",
   useInfluencerAvatar = true,
@@ -750,6 +912,12 @@ export function buildInfluencerScript({
   const wardrobeObj = INFLUENCER_WARDROBE_OPTIONS.find(
     (w) => w.id === wardrobeId
   );
+  const virtualEnvObj = INFLUENCER_VIRTUAL_ENVIRONMENTS.find(
+    (env) => env.id === virtualEnvironmentId
+  );
+  const compositingObj =
+    INFLUENCER_COMPOSITING_MODES.find((cm) => cm.id === compositingModeId) ||
+    INFLUENCER_COMPOSITING_MODES[0];
 
   const customTraitFragments = [];
   if (customFaceTrait.trim()) {
@@ -771,6 +939,29 @@ export function buildInfluencerScript({
   } else if (wardrobeObj?.directive) {
     customTraitFragments.push(`Wardrobe/Clothing: ${wardrobeObj.directive}`);
   }
+
+  // HeyGen Virtual Studio & Chroma / Realistic Compositing Directives
+  if (compositingModeId === "pure-chroma-green") {
+    customTraitFragments.push(
+      `Virtual Studio & Compositing: ${compositingObj.directive}`
+    );
+  } else if (virtualEnvironmentId === "custom-environment") {
+    const customEnvDesc =
+      customEnvironmentText.trim() ||
+      "modern custom virtual studio background with clean architectural lighting";
+    customTraitFragments.push(
+      `Virtual Studio Environment: ${customEnvDesc}${
+        customEnvironmentImageTag
+          ? ` (matching background reference ${customEnvironmentImageTag})`
+          : ""
+      }. Lighting & Compositing: ${compositingObj.directive}`
+    );
+  } else if (virtualEnvObj && virtualEnvObj.id !== "preset") {
+    customTraitFragments.push(
+      `Virtual Studio Environment (${virtualEnvObj.name}): ${virtualEnvObj.environmentPrompt}. Lighting Integration: ${virtualEnvObj.lightingMatch}. Compositing Engine: ${compositingObj.directive}`
+    );
+  }
+
   if (voiceDirective.trim()) {
     customTraitFragments.push(`Voice & tone: ${voiceDirective.trim()}`);
   }
@@ -794,6 +985,11 @@ export function buildInfluencerScript({
       effectivePromoType === "product"
         ? `featuring and holding the product from ${assetIdx}`
         : `showcasing the visual reference from ${assetIdx}`
+    );
+  }
+  if (customEnvironmentImageTag) {
+    imageRefs.push(
+      `composited realistically over the virtual studio background from ${customEnvironmentImageTag}`
     );
   }
   const refPrefix = imageRefs.length > 0 ? `${imageRefs.join(", ")}. ` : "";

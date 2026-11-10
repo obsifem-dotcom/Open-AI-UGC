@@ -35,6 +35,8 @@ import {
   INFLUENCER_FACE_PRESETS,
   INFLUENCER_PERSONA_STYLES,
   INFLUENCER_WARDROBE_OPTIONS,
+  INFLUENCER_VIRTUAL_ENVIRONMENTS,
+  INFLUENCER_COMPOSITING_MODES,
   PROMO_CATEGORIES,
   buildInfluencerScript,
 } from "@/lib/influencers";
@@ -336,6 +338,18 @@ export default function Home() {
   const [influencerWardrobeId, setInfluencerWardrobeId] = useState("preset");
   const [customWardrobeText, setCustomWardrobeText] = useState("");
   const faceInputRef = useRef(null);
+
+  // HeyGen-Style Virtual Environments & Chroma / Realistic Compositing state
+  const [influencerVirtualEnvId, setInfluencerVirtualEnvId] = useState(
+    "wellness-violet-white"
+  );
+  const [influencerCompositingModeId, setInfluencerCompositingModeId] =
+    useState("realistic-relight");
+  const [customEnvText, setCustomEnvText] = useState("");
+  const [customEnvImageUrl, setCustomEnvImageUrl] = useState("");
+  const [isUploadingCustomEnv, setIsUploadingCustomEnv] = useState(false);
+  const [useVirtualEnvImageRef, setUseVirtualEnvImageRef] = useState(true);
+  const envInputRef = useRef(null);
 
   // UGCore Studio v3.0 — Active Architectural Module Tab
   // null | "intelligence" | "ecommerce" | "timeline" | "consistency"
@@ -659,6 +673,45 @@ export default function Home() {
     return inf?.avatar || null;
   };
 
+  const getEffectiveVirtualEnvUrl = () => {
+    if (influencerCompositingModeId === "pure-chroma-green") return null;
+    if (
+      influencerVirtualEnvId === "custom-environment" &&
+      customEnvImageUrl
+    ) {
+      return customEnvImageUrl;
+    }
+    const envObj = INFLUENCER_VIRTUAL_ENVIRONMENTS.find(
+      (env) => env.id === influencerVirtualEnvId
+    );
+    return envObj?.previewUrl || null;
+  };
+
+  const handleCustomEnvUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingCustomEnv(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("No se pudo subir el fondo virtual");
+      const data = await response.json();
+      setCustomEnvImageUrl(data.url);
+      setInfluencerVirtualEnvId("custom-environment");
+      setUseVirtualEnvImageRef(true);
+    } catch (error) {
+      console.error("Custom environment upload error:", error);
+      alert("Error al subir la imagen de entorno virtual personalizado.");
+    } finally {
+      setIsUploadingCustomEnv(false);
+      if (envInputRef.current) envInputRef.current.value = "";
+    }
+  };
+
   const handleCustomFaceUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -720,6 +773,15 @@ export default function Home() {
       COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
       COMMERCIAL_VOICE_PROFILES[0];
     const effectiveAvatar = getEffectiveInfluencerAvatar(activeInf);
+    const effectiveEnvUrl = getEffectiveVirtualEnvUrl();
+    const hasAvatarRef =
+      useInfluencerReferenceImage && Boolean(effectiveAvatar);
+    const envImageTag =
+      useVirtualEnvImageRef && effectiveEnvUrl
+        ? `@image${
+            (hasAvatarRef ? 1 : 0) + (readyUploads.length > 0 ? 1 : 0) + 1
+          }`
+        : "";
 
     const { singleScript, multiScenes } = buildInfluencerScript({
       influencer: activeInf,
@@ -738,9 +800,12 @@ export default function Home() {
       personaStyleId: influencerPersonaStyleId,
       wardrobeId: influencerWardrobeId,
       customWardrobeText,
+      virtualEnvironmentId: influencerVirtualEnvId,
+      compositingModeId: influencerCompositingModeId,
+      customEnvironmentText: customEnvText,
+      customEnvironmentImageTag: envImageTag,
       voiceDirective: activeVoiceObj.directive,
-      useInfluencerAvatar:
-        useInfluencerReferenceImage && Boolean(effectiveAvatar),
+      useInfluencerAvatar: hasAvatarRef,
       hasUploadedAsset: readyUploads.length > 0,
     });
 
@@ -942,14 +1007,27 @@ export default function Home() {
         .map((img) => img.url);
 
       const effectiveAvatar = getEffectiveInfluencerAvatar();
-      const combinedImageUrls = [
-        ...(isInfluencerMode &&
+      const effectiveEnvUrl = getEffectiveVirtualEnvUrl();
+      const hasAvatarRef =
+        isInfluencerMode &&
         useInfluencerReferenceImage &&
-        effectiveAvatar
-          ? [effectiveAvatar]
-          : []),
+        Boolean(effectiveAvatar);
+      const hasEnvRef =
+        isInfluencerMode &&
+        useVirtualEnvImageRef &&
+        Boolean(effectiveEnvUrl);
+
+      const combinedImageUrls = [
+        ...(hasAvatarRef ? [effectiveAvatar] : []),
         ...readyUserUrls,
+        ...(hasEnvRef ? [effectiveEnvUrl] : []),
       ].slice(0, 7);
+
+      const envImageTag = hasEnvRef
+        ? `@image${
+            (hasAvatarRef ? 1 : 0) + readyUserUrls.length + 1
+          }`
+        : "";
 
       // Module 4 + v3.5 Commercial Audio Synthesizer directive
       const voiceObj =
@@ -970,12 +1048,36 @@ export default function Home() {
             personaStyleId: influencerPersonaStyleId,
             wardrobeId: influencerWardrobeId,
             customWardrobeText,
+            virtualEnvironmentId: influencerVirtualEnvId,
+            compositingModeId: influencerCompositingModeId,
+            customEnvironmentText: customEnvText,
+            customEnvironmentImageTag: envImageTag,
             voiceDirective: voiceObj.directive,
-            useInfluencerAvatar:
-              useInfluencerReferenceImage && Boolean(effectiveAvatar),
+            useInfluencerAvatar: hasAvatarRef,
             hasUploadedAsset: readyUserUrls.length > 0,
           })
         : null;
+
+      const selectedEnvObj = INFLUENCER_VIRTUAL_ENVIRONMENTS.find(
+        (env) => env.id === influencerVirtualEnvId
+      );
+      const selectedCompObj =
+        INFLUENCER_COMPOSITING_MODES.find(
+          (cm) => cm.id === influencerCompositingModeId
+        ) || INFLUENCER_COMPOSITING_MODES[0];
+      const virtualStudioDirective = isInfluencerMode
+        ? influencerCompositingModeId === "pure-chroma-green"
+          ? ` Virtual Studio: ${selectedCompObj.directive}.`
+          : selectedEnvObj && selectedEnvObj.id !== "preset"
+          ? ` Virtual Studio (${selectedEnvObj.name}): ${
+              influencerVirtualEnvId === "custom-environment" &&
+              customEnvText.trim()
+                ? customEnvText.trim()
+                : selectedEnvObj.environmentPrompt
+            }. Compositing: ${selectedCompObj.directive}.`
+          : ""
+        : "";
+
       const consistencyDirective = ucidLockEnabled
         ? `${buildCharacterConsistencyLock({
             ucid: ucidCode,
@@ -984,8 +1086,8 @@ export default function Home() {
             lightingLock,
             emotionId,
             microExpressionIds,
-          })} Audio Synthesizer: ${voiceObj.directive}.`
-        : `Audio Synthesizer: ${voiceObj.directive}.`;
+          })} Audio Synthesizer: ${voiceObj.directive}.${virtualStudioDirective}`
+        : `Audio Synthesizer: ${voiceObj.directive}.${virtualStudioDirective}`;
 
       let activeScenes = [];
       let finalPrompt = prompt.trim();
@@ -2124,6 +2226,171 @@ export default function Home() {
                         className="w-full px-3 py-1.5 rounded bg-bg-card border border-emerald-500/40 text-xs text-foreground placeholder-muted outline-none focus:border-emerald-500"
                       />
                     )}
+
+                    {/* Row 2.5: HeyGen-Style Virtual Environments & Chroma / Realistic Compositing */}
+                    <div className="p-2.5 rounded-xl border border-[#8B5CF6]/35 bg-[#8B5CF6]/5 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#8B5CF6] ring-2 ring-white inline-block" />
+                          <span className="text-[10px] font-black uppercase tracking-wider text-foreground">
+                            Estudios & Entornos Virtuales (Estilo HeyGen • Croma
+                            & Integración Realista):
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={influencerCompositingModeId}
+                            onChange={(e) =>
+                              setInfluencerCompositingModeId(e.target.value)
+                            }
+                            title="Modo de integración de croma o relighting realista del avatar sobre el entorno"
+                            className="px-2.5 py-1 rounded bg-bg-card border border-[#8B5CF6]/40 text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-[#8B5CF6]"
+                          >
+                            {INFLUENCER_COMPOSITING_MODES.map((cm) => (
+                              <option key={cm.id} value={cm.id}>
+                                {cm.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          <label className="flex items-center gap-1 text-[10px] font-semibold text-secondary-text cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={useVirtualEnvImageRef}
+                              onChange={(e) =>
+                                setUseVirtualEnvImageRef(e.target.checked)
+                              }
+                              className="rounded accent-[#8B5CF6]"
+                            />
+                            <span>Inyectar referencia visual de estudio</span>
+                          </label>
+
+                          <input
+                            type="file"
+                            ref={envInputRef}
+                            onChange={handleCustomEnvUpload}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => envInputRef.current?.click()}
+                            disabled={isUploadingCustomEnv}
+                            className="px-2.5 py-1 rounded bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                          >
+                            {isUploadingCustomEnv ? (
+                              <FiLoader className="animate-spin" size={11} />
+                            ) : (
+                              <FiImage size={11} />
+                            )}
+                            <span>Subir Fondo Propio</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Virtual Environments Carousel / Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
+                        {INFLUENCER_VIRTUAL_ENVIRONMENTS.map((env) => {
+                          const isSelected = influencerVirtualEnvId === env.id;
+                          const thumbUrl =
+                            env.id === "custom-environment" && customEnvImageUrl
+                              ? customEnvImageUrl
+                              : env.previewUrl;
+                          return (
+                            <button
+                              key={env.id}
+                              type="button"
+                              onClick={() => {
+                                setInfluencerVirtualEnvId(env.id);
+                                if (env.id === "chroma-green-studio") {
+                                  setInfluencerCompositingModeId(
+                                    "pure-chroma-green"
+                                  );
+                                } else if (
+                                  influencerCompositingModeId ===
+                                  "pure-chroma-green"
+                                ) {
+                                  setInfluencerCompositingModeId(
+                                    "realistic-relight"
+                                  );
+                                }
+                                if (
+                                  env.id === "custom-environment" &&
+                                  !customEnvImageUrl &&
+                                  !customEnvText
+                                ) {
+                                  envInputRef.current?.click();
+                                }
+                              }}
+                              className={`flex items-center gap-2 p-1.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? "border-[#8B5CF6] bg-[#8B5CF6]/15 ring-1 ring-[#8B5CF6]"
+                                  : "border-glass-border bg-bg-card hover:border-[#8B5CF6]/40"
+                              }`}
+                            >
+                              <div className="relative w-10 h-7 rounded overflow-hidden flex-shrink-0 border border-white/20 flex items-center justify-center bg-slate-900">
+                                {thumbUrl ? (
+                                  <img
+                                    src={thumbUrl}
+                                    alt={env.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : env.isChromaScreen ? (
+                                  <div className="w-full h-full bg-[#00FF00] flex items-center justify-center text-[8px] font-black text-black">
+                                    CROMA
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-full h-full flex items-center justify-center text-[9px] font-black text-white"
+                                    style={{
+                                      background:
+                                        env.id === "wellness-violet-white"
+                                          ? "linear-gradient(135deg, #8B5CF6 0%, #FFFFFF 100%)"
+                                          : "#334155",
+                                    }}
+                                  >
+                                    SET
+                                  </div>
+                                )}
+                                {getEffectiveInfluencerAvatar() && (
+                                  <img
+                                    src={getEffectiveInfluencerAvatar()}
+                                    alt="Avatar en set"
+                                    className="absolute bottom-0 right-0 w-4 h-4 rounded-full object-cover border border-white shadow"
+                                  />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-foreground truncate">
+                                  {env.shortLabel}
+                                </p>
+                                <p className="text-[8px] font-black text-[#8B5CF6] uppercase truncate">
+                                  {env.badge}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {influencerVirtualEnvId === "custom-environment" && (
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                          <input
+                            type="text"
+                            value={customEnvText}
+                            onChange={(e) => setCustomEnvText(e.target.value)}
+                            placeholder="Describe tu escenario virtual personalizado (ej: Estudio de bienestar minimalista con arcos blancos y luces #8B5CF6)..."
+                            className="flex-1 px-3 py-1.5 rounded bg-bg-card border border-[#8B5CF6]/50 text-xs text-foreground placeholder-muted outline-none focus:border-[#8B5CF6]"
+                          />
+                          {customEnvImageUrl && (
+                            <span className="px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-500 text-[10px] font-bold whitespace-nowrap">
+                              ✓ Imagen de fondo subida lista para composición
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Row 3: Modo (Producto / Servicio / Video), Idioma & 1-Click Script */}
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
