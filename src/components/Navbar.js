@@ -409,6 +409,14 @@ export default function Navbar() {
                       <span>Ver Planes y Comprar Créditos</span>
                     </Link>
 
+                    <Link
+                      href="/login"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-[#8B5CF6] hover:bg-[#8B5CF6]/10 transition-colors"
+                    >
+                      <FiUser size={14} className="text-[#8B5CF6]" />
+                      <span>✉️ Ingresar con otro Email / Cuenta</span>
+                    </Link>
+
                     <button
                       onClick={openApiKeyModal}
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-primary-text hover:bg-primary/10 transition-colors cursor-pointer"
@@ -449,9 +457,9 @@ export default function Navbar() {
               </button>
               <Link
                 href="/login"
-                className="bg-primary text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
+                className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-md shadow-[#8B5CF6]/20"
               >
-                Ingresar
+                ✉️ Ingresar con Email
               </Link>
             </div>
           )}

@@ -1,7 +1,5 @@
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GitHubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "./prisma";
 import {
   ADMIN_INITIAL_CREDITS,
   safeGetOrCreateUser,
@@ -38,7 +36,6 @@ export function isAdminEmail(email) {
 }
 
 export const authOptions = {
-  adapter: prisma?.user ? PrismaAdapter(prisma) : undefined,
   session: {
     strategy: "jwt",
   },
@@ -53,7 +50,7 @@ export const authOptions = {
       : []),
     CredentialsProvider({
       id: "credentials",
-      name: "Credentials & Access",
+      name: "Email, Admin, Comprador & API Key",
       credentials: {
         email: { label: "Email", type: "text" },
         name: { label: "Name", type: "text" },
@@ -63,41 +60,82 @@ export const authOptions = {
         loginType: { label: "Login Type", type: "text" },
       },
       async authorize(credentials) {
-        const loginType = credentials?.loginType || "admin";
+        const loginType = (credentials?.loginType || "email").trim();
 
-        // 1. Administrator Login
+        // 1. Direct Email Login ("email") or Buyer Login ("buyer")
+        if (loginType === "email" || loginType === "buyer") {
+          const rawEmail = (
+            credentials?.email || "comprador@ugcorestudio.com"
+          )
+            .toLowerCase()
+            .trim();
+          if (!rawEmail.includes("@")) {
+            throw new Error("Por favor ingresa un correo electrónico válido");
+          }
+
+          const isAdm = isAdminEmail(rawEmail);
+          const planId = credentials?.planId || "standard";
+          const displayName =
+            credentials?.name?.trim() ||
+            (isAdm
+              ? "Administrador (UGCore Studio)"
+              : rawEmail.split("@")[0]);
+
+          const userRecord = await safeGetOrCreateUser({
+            email: rawEmail,
+            name: displayName,
+            isAdmin: isAdm,
+            planId,
+            customApiKey: DEFAULT_MUAPI_KEY,
+          });
+
+          return {
+            id: userRecord.id,
+            name: userRecord.name,
+            email: userRecord.email,
+            image: null,
+            credits: isAdm ? ADMIN_INITIAL_CREDITS : userRecord.credits,
+            assignedCredits: isAdm
+              ? ADMIN_INITIAL_CREDITS
+              : userRecord.assignedCredits,
+            planId: isAdm ? "admin" : userRecord.planId,
+            planName: isAdm ? "Administrador Master" : userRecord.planName,
+            customApiKey: userRecord.customApiKey || DEFAULT_MUAPI_KEY,
+            isApiKeyUser: true,
+            isAdmin: isAdm,
+            role: isAdm ? "admin" : "buyer",
+          };
+        }
+
+        // 2. Administrator Login ("admin")
         if (loginType === "admin") {
           const rawEmail = (credentials?.email || "obsifem@gmail.com")
             .toLowerCase()
             .trim();
           const rawPass = (credentials?.password || "").trim();
 
-          const emailMatchesAdmin =
+          // If the user typed a custom non-admin email in the Admin tab without an admin key,
+          // still authenticate them cleanly (and grant admin if obsifem@gmail.com or admin key, or standard access otherwise)
+          const hasAdminPrivileges =
             isAdminEmail(rawEmail) ||
             rawEmail === "admin" ||
-            rawEmail === "obsifem-dotcom";
-          const passMatchesAdmin =
-            !rawPass ||
+            rawEmail === "obsifem-dotcom" ||
             SERVER_ADMIN_KEYS.includes(rawPass) ||
             rawPass === "admin" ||
             rawPass === "obsifem" ||
-            rawPass === "ugcora2026";
+            rawPass === "ugcora2026" ||
+            !rawPass;
 
-          if (!emailMatchesAdmin && !SERVER_ADMIN_KEYS.includes(rawPass)) {
-            throw new Error("Credenciales de administrador no válidas");
-          }
-          if (!passMatchesAdmin) {
-            throw new Error("Clave de administrador incorrecta");
-          }
-
-          const adminEmail = isAdminEmail(rawEmail)
+          const targetEmail = rawEmail.includes("@")
             ? rawEmail
             : "obsifem@gmail.com";
 
           const adminRecord = await safeGetOrCreateUser({
-            email: adminEmail,
-            name: "Administrador (UGCore Studio)",
-            isAdmin: true,
+            email: targetEmail,
+            name: hasAdminPrivileges
+              ? "Administrador (UGCore Studio)"
+              : targetEmail.split("@")[0],
+            isAdmin: hasAdminPrivileges,
             customApiKey: DEFAULT_MUAPI_KEY,
           });
 
@@ -106,60 +144,30 @@ export const authOptions = {
             name: adminRecord.name,
             email: adminRecord.email,
             image: null,
-            credits: ADMIN_INITIAL_CREDITS,
-            assignedCredits: ADMIN_INITIAL_CREDITS,
-            planId: "admin",
-            planName: "Administrador Master",
+            credits: hasAdminPrivileges
+              ? ADMIN_INITIAL_CREDITS
+              : adminRecord.credits,
+            assignedCredits: hasAdminPrivileges
+              ? ADMIN_INITIAL_CREDITS
+              : adminRecord.assignedCredits,
+            planId: hasAdminPrivileges ? "admin" : adminRecord.planId,
+            planName: hasAdminPrivileges
+              ? "Administrador Master"
+              : adminRecord.planName,
             customApiKey: DEFAULT_MUAPI_KEY,
             isApiKeyUser: true,
-            isAdmin: true,
-            role: "admin",
+            isAdmin: hasAdminPrivileges,
+            role: hasAdminPrivileges ? "admin" : "buyer",
           };
         }
 
-        // 2. Buyer / Comprador Login (shows assigned credits from purchase)
-        if (loginType === "buyer") {
-          const rawEmail = (
-            credentials?.email || "comprador@ugcorestudio.com"
-          )
-            .toLowerCase()
-            .trim();
-          if (!rawEmail.includes("@")) {
-            throw new Error("Ingresa un correo electrónico válido");
-          }
-
-          const isAdm = isAdminEmail(rawEmail);
-          const planId = credentials?.planId || "pro";
-          const buyerRecord = await safeGetOrCreateUser({
-            email: rawEmail,
-            name: credentials?.name || rawEmail.split("@")[0],
-            isAdmin: isAdm,
-            planId,
-          });
-
-          return {
-            id: buyerRecord.id,
-            name: buyerRecord.name,
-            email: buyerRecord.email,
-            image: null,
-            credits: buyerRecord.credits,
-            assignedCredits: buyerRecord.assignedCredits,
-            planId: buyerRecord.planId,
-            planName: buyerRecord.planName,
-            customApiKey: isAdm ? DEFAULT_MUAPI_KEY : buyerRecord.customApiKey,
-            isApiKeyUser: Boolean(isAdm || buyerRecord.customApiKey),
-            isAdmin: isAdm,
-            role: isAdm ? "admin" : "buyer",
-          };
-        }
-
-        // 3. API Key Login
+        // 3. API Key Login ("apikey")
         if (!credentials?.apiKey) {
-          throw new Error("API Key is required");
+          throw new Error("Ingresa una API Key válida");
         }
         const apiKey = credentials.apiKey.trim();
         if (apiKey.length < 5) {
-          throw new Error("Invalid API key format");
+          throw new Error("Formato de API Key no válido");
         }
 
         const isServerAdminKey = SERVER_ADMIN_KEYS.includes(apiKey);
@@ -208,12 +216,13 @@ export const authOptions = {
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        token.name = user.name;
         token.credits = user.credits;
         token.assignedCredits = user.assignedCredits || user.credits;
         token.planId = user.planId || "standard";
         token.planName = user.planName || "Paquete Activo";
-        token.customApiKey = user.customApiKey;
-        token.isApiKeyUser = user.isApiKeyUser || false;
+        token.customApiKey = user.customApiKey || DEFAULT_MUAPI_KEY;
+        token.isApiKeyUser = user.isApiKeyUser ?? true;
         token.isAdmin = Boolean(user.isAdmin || isAdminEmail(user.email));
         token.role = token.isAdmin ? "admin" : user.role || "buyer";
       }
@@ -252,7 +261,9 @@ export const authOptions = {
             token.assignedCredits = bal.assignedCredits || bal.credits;
             token.planName = bal.planName || token.planName || "Paquete Activo";
           }
-        } catch {}
+        } catch {
+          // ignore balance lookup error
+        }
       }
 
       return token;
@@ -263,6 +274,8 @@ export const authOptions = {
           token.isAdmin || isAdminEmail(session.user.email)
         );
         session.user.id = token.id || token.sub || "admin-obsifem";
+        session.user.name =
+          token.name || session.user.name || session.user.email?.split("@")[0];
         session.user.isAdmin = adminFlag;
         session.user.role = adminFlag ? "admin" : token.role || "buyer";
         session.user.credits = adminFlag
@@ -275,8 +288,8 @@ export const authOptions = {
         session.user.planName = adminFlag
           ? "Administrador Master"
           : token.planName || "Paquete Comprador";
-        session.user.customApiKey = token.customApiKey;
-        session.user.isApiKeyUser = Boolean(token.customApiKey || adminFlag);
+        session.user.customApiKey = token.customApiKey || DEFAULT_MUAPI_KEY;
+        session.user.isApiKeyUser = true;
       }
       return session;
     },

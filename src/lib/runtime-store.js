@@ -246,6 +246,28 @@ if (!globalStore.__ugcoreRuntimeStore) {
 
 export const runtimeStore = globalStore.__ugcoreRuntimeStore;
 
+async function tryDbQuery(fn) {
+  if (!prisma?.user) return null;
+  const now = Date.now();
+  if (runtimeStore.dbCooldownUntil && now < runtimeStore.dbCooldownUntil) {
+    return null;
+  }
+  try {
+    const result = await Promise.race([
+      fn(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("DB_FAST_TIMEOUT")), 750)
+      ),
+    ]);
+    runtimeStore.dbCooldownUntil = 0;
+    return result;
+  } catch (err) {
+    runtimeStore.dbCooldownUntil = Date.now() + 90000;
+    console.warn("[FAST_DB_FALLBACK]", err?.message || err);
+    return null;
+  }
+}
+
 export function encodeStatelessCreationId(requestIds, modelId = "grok-video") {
   const arr = Array.isArray(requestIds) ? requestIds : [requestIds];
   if (arr.length === 1) {
@@ -305,33 +327,29 @@ export async function safeGetOrCreateUser({
     ? "Administrador Master"
     : existingMem?.planName || pkg.name;
 
-  let dbUser = null;
-  try {
-    if (prisma?.user) {
-      dbUser = await prisma.user.findUnique({
-        where: { email: cleanEmail },
+  const dbUser = await tryDbQuery(async () => {
+    let found = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
+    if (!found) {
+      found = await prisma.user.create({
+        data: {
+          name:
+            name ||
+            (isAdmin ? "Administrador (UGCore Studio)" : "Usuario Comprador"),
+          email: cleanEmail,
+          credits: defaultCredits,
+          customApiKey: customApiKey || null,
+        },
       });
-      if (!dbUser) {
-        dbUser = await prisma.user.create({
-          data: {
-            name:
-              name ||
-              (isAdmin ? "Administrador (UGCore Studio)" : "Usuario Comprador"),
-            email: cleanEmail,
-            credits: defaultCredits,
-            customApiKey: customApiKey || null,
-          },
-        });
-      } else if (isAdmin && dbUser.credits < ADMIN_INITIAL_CREDITS) {
-        dbUser = await prisma.user.update({
-          where: { id: dbUser.id },
-          data: { credits: ADMIN_INITIAL_CREDITS },
-        });
-      }
+    } else if (isAdmin && found.credits < ADMIN_INITIAL_CREDITS) {
+      found = await prisma.user.update({
+        where: { id: found.id },
+        data: { credits: ADMIN_INITIAL_CREDITS },
+      });
     }
-  } catch (err) {
-    console.warn("[SAFE_USER_DB_FALLBACK]", err?.message || err);
-  }
+    return found;
+  });
 
   const finalCredits = isAdmin
     ? ADMIN_INITIAL_CREDITS
@@ -379,36 +397,39 @@ export async function safeGetUserBalance({ userId, email, isAdmin = false }) {
   const cleanEmail = email ? email.toLowerCase().trim() : null;
   const memUser = cleanEmail ? runtimeStore.usersByEmail.get(cleanEmail) : null;
 
-  try {
-    if (prisma?.user && (userId || cleanEmail)) {
-      const dbUser = await prisma.user.findFirst({
+  if (userId || cleanEmail) {
+    const dbUser = await tryDbQuery(() =>
+      prisma.user.findFirst({
         where: userId
-          ? { OR: [{ id: userId }, ...(cleanEmail ? [{ email: cleanEmail }] : [])] }
+          ? {
+              OR: [
+                { id: userId },
+                ...(cleanEmail ? [{ email: cleanEmail }] : []),
+              ],
+            }
           : { email: cleanEmail },
-      });
-      if (dbUser) {
-        const assigned = Math.max(
-          memUser?.assignedCredits || 0,
-          dbUser.credits || 0
-        );
-        const updated = {
-          ...(memUser || {}),
-          id: dbUser.id,
-          email: dbUser.email || cleanEmail,
-          name: dbUser.name || memUser?.name || "Usuario Comprador",
-          credits: dbUser.credits,
-          assignedCredits: assigned || dbUser.credits,
-          planName: memUser?.planName || "Paquete de Créditos Activo",
-          approved: true,
-        };
-        if (updated.email) {
-          runtimeStore.usersByEmail.set(updated.email, updated);
-        }
-        return updated;
+      })
+    );
+    if (dbUser) {
+      const assigned = Math.max(
+        memUser?.assignedCredits || 0,
+        dbUser.credits || 0
+      );
+      const updated = {
+        ...(memUser || {}),
+        id: dbUser.id,
+        email: dbUser.email || cleanEmail,
+        name: dbUser.name || memUser?.name || "Usuario Comprador",
+        credits: dbUser.credits,
+        assignedCredits: assigned || dbUser.credits,
+        planName: memUser?.planName || "Paquete de Créditos Activo",
+        approved: true,
+      };
+      if (updated.email) {
+        runtimeStore.usersByEmail.set(updated.email, updated);
       }
+      return updated;
     }
-  } catch (err) {
-    console.warn("[SAFE_BALANCE_DB_FALLBACK]", err?.message || err);
   }
 
   if (memUser) {
