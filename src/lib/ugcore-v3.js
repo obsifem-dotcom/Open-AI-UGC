@@ -241,3 +241,67 @@ export function buildCharacterConsistencyLock({
 
   return `${baseIdentity} ${locks.join(", ")}. Emotional sync: ${emotion.promptDirective}. Micro-expressions: ${microDirectives}.`;
 }
+
+
+// UGCore Studio v3.5 — Commercial Compliance & Audio Synthesizer Pipeline
+export const COMMERCIAL_COMPLIANCE_FRAMEWORK = {
+  version: "3.5",
+  targetPlatform: "UGCore Studio Commercial Pipeline",
+  licenseWhitelist: ["MIT", "Apache-2.0", "BSD-3-Clause"],
+  modelAuditStatus: "Strictly Commercial-Safe",
+  royaltyFree: true,
+  watermarkFree: true,
+  modules: [
+    {
+      id: "commercial-ingestion",
+      name: "Commercial-Safe Ingestion Pipeline",
+      license: "MIT",
+      status: "ACTIVE",
+    },
+    {
+      id: "permissive-render",
+      name: "Permissive Open-Source Render Engine",
+      license: "Apache-2.0 / MIT",
+      status: "ACTIVE",
+    },
+    {
+      id: "text-to-timeline",
+      name: "Text-To-Timeline Editor Core",
+      license: "MIT",
+      status: "ACTIVE",
+    },
+    {
+      id: "commercial-avatar-audio",
+      name: "Commercial Avatar & Audio Synthesizer",
+      license: "BSD-3-Clause / Commercial-Safe",
+      status: "ACTIVE",
+    },
+  ],
+};
+
+export const COMMERCIAL_VOICE_PROFILES = [
+  {
+    id: "es-latam-commercial",
+    label: "Español Neutro Comercial (LATAM)",
+    directive:
+      "Clear broadcast-quality Latin American Spanish voiceover with natural commercial cadence and accurate lip-sync",
+  },
+  {
+    id: "es-es-commercial",
+    label: "Español Peninsular (España)",
+    directive:
+      "Crisp Castilian Spanish commercial voiceover with dynamic brand presenter intonation and lip-sync",
+  },
+  {
+    id: "en-us-commercial",
+    label: "English US (High-Converting Ad Voice)",
+    directive:
+      "Native American English UGC creator voiceover with high-retention commercial inflection and lip-sync",
+  },
+  {
+    id: "pt-br-commercial",
+    label: "Português Brasil (Comercial)",
+    directive:
+      "Natural Brazilian Portuguese creator voiceover with warm commercial energy and lip-sync",
+  },
+];

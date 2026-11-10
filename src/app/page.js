@@ -39,6 +39,7 @@ import {
   EMOTION_PROFILES,
   MICRO_EXPRESSIONS,
   TIMELINE_TRANSITIONS,
+  COMMERCIAL_VOICE_PROFILES,
   generatePredictiveHooks,
   buildCharacterConsistencyLock,
 } from "@/lib/ugcore-v3";
@@ -324,6 +325,7 @@ export default function Home() {
   const [wardrobeLock, setWardrobeLock] = useState(true);
   const [lightingLock, setLightingLock] = useState(true);
   const [emotionId, setEmotionId] = useState("euphoric-viral");
+  const [voiceProfileId, setVoiceProfileId] = useState("es-latam-commercial");
   const [microExpressionIds, setMicroExpressionIds] = useState([
     "eye-contact-lock",
     "natural-breathing",
@@ -743,17 +745,20 @@ export default function Home() {
           })
         : null;
 
-      // Module 4: Build Character Consistency Lock + Micro-Expressions directive
+      // Module 4 + v3.5 Commercial Audio Synthesizer directive
+      const voiceObj =
+        COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
+        COMMERCIAL_VOICE_PROFILES[0];
       const consistencyDirective = ucidLockEnabled
-        ? buildCharacterConsistencyLock({
+        ? `${buildCharacterConsistencyLock({
             ucid: ucidCode,
             influencer: isInfluencerMode ? selectedInfluencer : null,
             wardrobeLock,
             lightingLock,
             emotionId,
             microExpressionIds,
-          })
-        : "";
+          })} Audio Synthesizer: ${voiceObj.directive}.`
+        : `Audio Synthesizer: ${voiceObj.directive}.`;
 
       let activeScenes = [];
       let finalPrompt = prompt.trim();
@@ -1044,62 +1049,68 @@ export default function Home() {
               )}
             </div>
 
-            {/* Row 2: UGCore v3.0 Industrial Architecture Modules Bar */}
-            <div className="flex flex-wrap items-center gap-1.5 px-4 py-2 border-b border-glass-border bg-bg-card/30">
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
-                v3.0 Suite:
+            {/* Row 2: UGCore v3.5 Commercial Pipeline & Architecture Modules Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-1.5 px-4 py-2 border-b border-glass-border bg-bg-card/30">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mr-1">
+                  v3.5 Commercial Pipeline:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toggleV3Module("intelligence")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                    activeV3Module === "intelligence"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                  }`}
+                >
+                  <FiTrendingUp size={12} />
+                  <span>1. Hooks & Tendencias</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleV3Module("ecommerce")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                    activeV3Module === "ecommerce"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                  }`}
+                >
+                  <FiLink size={12} />
+                  <span>2. Ingesta URL Comercial</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleV3Module("timeline")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                    activeV3Module === "timeline"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                  }`}
+                >
+                  <FiLayers size={12} />
+                  <span>3. Text-To-Timeline Core</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => toggleV3Module("consistency")}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                    activeV3Module === "consistency"
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
+                  }`}
+                >
+                  <FiCpu size={12} />
+                  <span>4. Avatar & Audio Synthesizer</span>
+                </button>
+              </div>
+
+              <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-[9px] font-black text-emerald-500 uppercase tracking-wider">
+                ✓ MIT • Apache 2.0 • BSD-3 • Royalty-Free
               </span>
-              <button
-                type="button"
-                onClick={() => toggleV3Module("intelligence")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
-                  activeV3Module === "intelligence"
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
-                }`}
-              >
-                <FiTrendingUp size={12} />
-                <span>1. Hooks & Tendencias Virales</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => toggleV3Module("ecommerce")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
-                  activeV3Module === "ecommerce"
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
-                }`}
-              >
-                <FiLink size={12} />
-                <span>2. URL E-Commerce a Video</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => toggleV3Module("timeline")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
-                  activeV3Module === "timeline"
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
-                }`}
-              >
-                <FiLayers size={12} />
-                <span>3. Editor Timeline & Capas</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => toggleV3Module("consistency")}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
-                  activeV3Module === "consistency"
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
-                }`}
-              >
-                <FiCpu size={12} />
-                <span>4. Consistencia UCID & Micro-Gestos</span>
-              </button>
             </div>
 
             {/* UGCore v3.0 Module Panels */}
@@ -1388,25 +1399,41 @@ export default function Home() {
                       </select>
                     </div>
 
-                    <div className="flex items-end gap-3 pb-1">
-                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={wardrobeLock}
-                          onChange={(e) => setWardrobeLock(e.target.checked)}
-                          className="rounded accent-indigo-500"
-                        />
-                        <span>Fijar Vestimenta</span>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted uppercase">
+                        Sintetizador de Audio Comercial & Sincronía
                       </label>
-                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={lightingLock}
-                          onChange={(e) => setLightingLock(e.target.checked)}
-                          className="rounded accent-indigo-500"
-                        />
-                        <span>Fijar Iluminación 5600K</span>
-                      </label>
+                      <select
+                        value={voiceProfileId}
+                        onChange={(e) => setVoiceProfileId(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-xs font-bold text-foreground outline-none"
+                      >
+                        {COMMERCIAL_VOICE_PROFILES.map((vp) => (
+                          <option key={vp.id} value={vp.id}>
+                            {vp.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex items-center gap-3 pt-1">
+                        <label className="flex items-center gap-1 text-[10px] font-semibold text-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={wardrobeLock}
+                            onChange={(e) => setWardrobeLock(e.target.checked)}
+                            className="rounded accent-indigo-500"
+                          />
+                          <span>Fijar Vestimenta</span>
+                        </label>
+                        <label className="flex items-center gap-1 text-[10px] font-semibold text-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={lightingLock}
+                            onChange={(e) => setLightingLock(e.target.checked)}
+                            className="rounded accent-indigo-500"
+                          />
+                          <span>Fijar Luz 5600K</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
 
