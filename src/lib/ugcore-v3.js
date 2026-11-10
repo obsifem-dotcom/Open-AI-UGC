@@ -282,26 +282,44 @@ export const COMMERCIAL_COMPLIANCE_FRAMEWORK = {
 export const COMMERCIAL_VOICE_PROFILES = [
   {
     id: "es-latam-commercial",
-    label: "Español Neutro Comercial (LATAM)",
+    label: "🇪🇸 Español Neutro Comercial (LATAM)",
     directive:
       "Clear broadcast-quality Latin American Spanish voiceover with natural commercial cadence and accurate lip-sync",
   },
   {
     id: "es-es-commercial",
-    label: "Español Peninsular (España)",
+    label: "🇪🇸 Español Peninsular (España)",
     directive:
       "Crisp Castilian Spanish commercial voiceover with dynamic brand presenter intonation and lip-sync",
   },
   {
     id: "en-us-commercial",
-    label: "English US (High-Converting Ad Voice)",
+    label: "🇺🇸 English US (High-Converting Ad Voice)",
     directive:
       "Native American English UGC creator voiceover with high-retention commercial inflection and lip-sync",
   },
   {
     id: "pt-br-commercial",
-    label: "Português Brasil (Comercial)",
+    label: "🇧🇷 Português Brasil (Comercial)",
     directive:
       "Natural Brazilian Portuguese creator voiceover with warm commercial energy and lip-sync",
+  },
+  {
+    id: "fr-fr-commercial",
+    label: "🇫🇷 Français (Comercial & Lifestyle)",
+    directive:
+      "Natural native French UGC creator voiceover with expressive commercial intonation and lip-sync",
+  },
+  {
+    id: "it-it-commercial",
+    label: "🇮🇹 Italiano (Comercial & Moda)",
+    directive:
+      "Charismatic native Italian UGC creator voiceover with warm expressive cadence and lip-sync",
+  },
+  {
+    id: "de-de-commercial",
+    label: "🇩🇪 Deutsch (Comercial & Tech)",
+    directive:
+      "Clear confident native German UGC creator voiceover with trustworthy commercial delivery and lip-sync",
   },
 ];

@@ -286,6 +286,51 @@ export const AI_INFLUENCERS = [
   },
 ];
 
+export const INFLUENCER_LANGUAGES = [
+  {
+    id: "es-latam",
+    label: "🇪🇸 Español (LATAM)",
+    speechLanguage: "Latin American Spanish",
+    voiceProfileId: "es-latam-commercial",
+  },
+  {
+    id: "es-es",
+    label: "🇪🇸 Español (España)",
+    speechLanguage: "Castilian Spanish (Spain)",
+    voiceProfileId: "es-es-commercial",
+  },
+  {
+    id: "en-us",
+    label: "🇺🇸 English (US)",
+    speechLanguage: "English (US)",
+    voiceProfileId: "en-us-commercial",
+  },
+  {
+    id: "pt-br",
+    label: "🇧🇷 Português (Brasil)",
+    speechLanguage: "Brazilian Portuguese",
+    voiceProfileId: "pt-br-commercial",
+  },
+  {
+    id: "fr-fr",
+    label: "🇫🇷 Français",
+    speechLanguage: "French",
+    voiceProfileId: "fr-fr-commercial",
+  },
+  {
+    id: "it-it",
+    label: "🇮🇹 Italiano",
+    speechLanguage: "Italian",
+    voiceProfileId: "it-it-commercial",
+  },
+  {
+    id: "de-de",
+    label: "🇩🇪 Deutsch",
+    speechLanguage: "German",
+    voiceProfileId: "de-de-commercial",
+  },
+];
+
 export const PROMO_CATEGORIES = [
   {
     id: "product",
@@ -330,6 +375,177 @@ export const PROMO_CATEGORIES = [
   },
 ];
 
+const LANGUAGE_TEMPLATES = {
+  "es-latam": {
+    defaults: {
+      productName: "este producto increíble",
+      serviceName: "este servicio profesional",
+      videoName: "este nuevo video",
+      benefit: "transforma tus resultados desde el primer día",
+      cta: "Haz clic en el enlace de mi perfil ahora mismo",
+    },
+    product: (n, b, c) => [
+      `¡Tienes que ver esto! Desde que probé ${n}, noté la diferencia de inmediato.`,
+      `Lo mejor es que ${b}.`,
+      `${c}.`,
+    ],
+    service: (n, b, c) => [
+      `Si estás buscando resultados de verdad, necesitas conocer ${n}.`,
+      `Te ayudan a lograr que ${b} sin complicaciones.`,
+      `${c}.`,
+    ],
+    video: (n, b, c) => [
+      `¡Para todo y mira esto! Acaba de salir ${n} y está dando muchísimo de qué hablar.`,
+      `Ahí explican exactamente cómo ${b}.`,
+      `${c}.`,
+    ],
+  },
+  "es-es": {
+    defaults: {
+      productName: "este producto increíble",
+      serviceName: "este servicio profesional",
+      videoName: "este nuevo vídeo",
+      benefit: "cambia por completo tus resultados desde el primer día",
+      cta: "Pincha en el enlace de mi perfil para aprovecharlo hoy",
+    },
+    product: (n, b, c) => [
+      `¡Tenéis que ver esto! Desde que probé ${n}, noté el cambio al instante.`,
+      `Lo mejor de todo es que ${b}.`,
+      `${c}.`,
+    ],
+    service: (n, b, c) => [
+      `Si buscáis resultados de verdad, tenéis que conocer ${n}.`,
+      `Os ayudan a conseguir que ${b} de forma súper sencilla.`,
+      `${c}.`,
+    ],
+    video: (n, b, c) => [
+      `¡Parad todo y mirad esto! Acaba de salir ${n} y está arrasando.`,
+      `Ahí explican paso a paso cómo ${b}.`,
+      `${c}.`,
+    ],
+  },
+  "en-us": {
+    defaults: {
+      productName: "this game-changing product",
+      serviceName: "this premium service",
+      videoName: "this brand new video",
+      benefit: "delivers visible results from day one without the hassle",
+      cta: "Tap the link in my bio right now before it sells out",
+    },
+    product: (n, b, c) => [
+      `Stop scrolling! Ever since I started using ${n}, I noticed the difference immediately.`,
+      `The best part is that it ${b}.`,
+      `${c}.`,
+    ],
+    service: (n, b, c) => [
+      `If you are looking for real results, you need to check out ${n}.`,
+      `They make it super easy so it ${b}.`,
+      `${c}.`,
+    ],
+    video: (n, b, c) => [
+      `Wait—stop everything and watch this! ${n} just dropped and everyone is talking about it.`,
+      `Inside, they break down exactly how it ${b}.`,
+      `${c}.`,
+    ],
+  },
+  "pt-br": {
+    defaults: {
+      productName: "este produto incrível",
+      serviceName: "este serviço exclusivo",
+      videoName: "este novo vídeo",
+      benefit: "transforma seus resultados logo no primeiro dia",
+      cta: "Clique no link da bio agora mesmo para aproveitar",
+    },
+    product: (n, b, c) => [
+      `Você precisa ver isso! Desde que comecei a usar ${n}, notei a diferença na hora.`,
+      `O melhor é que ${b}.`,
+      `${c}.`,
+    ],
+    service: (n, b, c) => [
+      `Se você busca resultados de verdade, precisa conhecer ${n}.`,
+      `Eles ajudam você para que ${b} sem complicação.`,
+      `${c}.`,
+    ],
+    video: (n, b, c) => [
+      `Pare tudo e olhe isso! Acabou de sair ${n} e todo mundo está comentando.`,
+      `Lá eles mostram exatamente como ${b}.`,
+      `${c}.`,
+    ],
+  },
+  "fr-fr": {
+    defaults: {
+      productName: "ce produit incroyable",
+      serviceName: "ce service sur mesure",
+      videoName: "cette nouvelle vidéo",
+      benefit: "change complètement vos résultats dès le premier jour",
+      cta: "Cliquez sur le lien dans ma bio dès maintenant",
+    },
+    product: (n, b, c) => [
+      `Il faut absolument voir ça ! Depuis que j'ai testé ${n}, j'ai vu la différence immédiatement.`,
+      `Le meilleur, c'est que ça ${b}.`,
+      `${c}.`,
+    ],
+    service: (n, b, c) => [
+      `Si vous cherchez de vrais résultats, vous devez découvrir ${n}.`,
+      `Cela vous permet que ça ${b} simplement.`,
+      `${c}.`,
+    ],
+    video: (n, b, c) => [
+      `Arrêtez tout et regardez ça ! ${n} vient de sortir et tout le monde en parle.`,
+      `On y découvre exactement comment ça ${b}.`,
+      `${c}.`,
+    ],
+  },
+  "it-it": {
+    defaults: {
+      productName: "questo prodotto incredibile",
+      serviceName: "questo servizio esclusivo",
+      videoName: "questo nuovo video",
+      benefit: "trasforma i tuoi risultati fin dal primo giorno",
+      cta: "Clicca subito sul link in bio per scoprirlo",
+    },
+    product: (n, b, c) => [
+      `Devi assolutamente vedere questo! Da quando ho provato ${n}, ho notato subito la differenza.`,
+      `La cosa migliore è che ${b}.`,
+      `${c}.`,
+    ],
+    service: (n, b, c) => [
+      `Se cerchi risultati concreti, devi conoscere ${n}.`,
+      `Ti permette di ottenere che ${b} senza stress.`,
+      `${c}.`,
+    ],
+    video: (n, b, c) => [
+      `Ferma tutto e guarda qui! È appena uscito ${n} e ne parlano tutti.`,
+      `Spiegano passo dopo passo come ${b}.`,
+      `${c}.`,
+    ],
+  },
+  "de-de": {
+    defaults: {
+      productName: "dieses geniale Produkt",
+      serviceName: "diesen erstklassigen Service",
+      videoName: "dieses neue Video",
+      benefit: "deine Ergebnisse vom ersten Tag an spürbar verbessert",
+      cta: "Klicke jetzt auf den Link in meiner Bio",
+    },
+    product: (n, b, c) => [
+      `Stopp! Seit ich ${n} benutze, habe ich sofort den Unterschied gemerkt.`,
+      `Das Beste daran ist, dass es ${b}.`,
+      `${c}.`,
+    ],
+    service: (n, b, c) => [
+      `Wenn du echte Ergebnisse suchst, musst du ${n} kennenlernen.`,
+      `So erreichst du ganz einfach, dass es ${b}.`,
+      `${c}.`,
+    ],
+    video: (n, b, c) => [
+      `Warte kurz und schau dir das an! ${n} ist gerade erschienen und jeder spricht darüber.`,
+      `Dort wird genau gezeigt, wie es ${b}.`,
+      `${c}.`,
+    ],
+  },
+};
+
 export function buildInfluencerScript({
   influencer,
   promoType,
@@ -337,6 +553,7 @@ export function buildInfluencerScript({
   benefit = "",
   cta = "",
   style,
+  language = "es-latam",
   extraNotes = "",
   useInfluencerAvatar = true,
   hasUploadedAsset = false,
@@ -345,24 +562,30 @@ export function buildInfluencerScript({
     promoType || influencer?.defaultPromoType || "product";
   const effectiveStyle = style || influencer?.defaultStyle || "showcase";
 
+  const langObj =
+    INFLUENCER_LANGUAGES.find((l) => l.id === language) ||
+    INFLUENCER_LANGUAGES[0];
+  const tpl = LANGUAGE_TEMPLATES[langObj.id] || LANGUAGE_TEMPLATES["es-latam"];
+  const isSpanish = langObj.id.startsWith("es");
+
   const cleanName =
     name.trim() ||
-    influencer?.defaultName ||
+    (isSpanish ? influencer?.defaultName : "") ||
     (effectivePromoType === "product"
-      ? "este producto increíble"
+      ? tpl.defaults.productName
       : effectivePromoType === "service"
-      ? "este servicio profesional"
-      : "este nuevo video");
+      ? tpl.defaults.serviceName
+      : tpl.defaults.videoName);
 
   const cleanBenefit =
     benefit.trim() ||
-    influencer?.defaultBenefit ||
-    "cambia por completo tus resultados desde el primer día";
+    (isSpanish ? influencer?.defaultBenefit : "") ||
+    tpl.defaults.benefit;
 
   const cleanCta =
     cta.trim() ||
-    influencer?.defaultCta ||
-    "Haz clic en el enlace ahora mismo para aprovecharlo";
+    (isSpanish ? influencer?.defaultCta : "") ||
+    tpl.defaults.cta;
 
   const actorDescription = influencer
     ? `${influencer.visualPrompt}.`
@@ -393,12 +616,7 @@ export function buildInfluencerScript({
     } else {
       actionDirection = `The influencer holds "${cleanName}" naturally in hand, showing it to the camera and demonstrating how it works while speaking enthusiastically.`;
     }
-
-    spokenLines = [
-      `¡Tienes que ver esto! Desde que probé ${cleanName}, noté la diferencia de inmediato.`,
-      `Lo mejor es que ${cleanBenefit}.`,
-      `${cleanCta}.`,
-    ];
+    spokenLines = tpl.product(cleanName, cleanBenefit, cleanCta);
   } else if (effectivePromoType === "service") {
     if (effectiveStyle === "explainer") {
       actionDirection = `The influencer explains clearly with confident hand gestures how the service "${cleanName}" works and why it stands out.`;
@@ -407,14 +625,8 @@ export function buildInfluencerScript({
     } else {
       actionDirection = `The influencer shares a genuine, trustworthy recommendation for the service "${cleanName}" with a warm smile.`;
     }
-
-    spokenLines = [
-      `Si estás buscando resultados de verdad, necesitas conocer ${cleanName}.`,
-      `Te ayudan a lograr que ${cleanBenefit} sin complicaciones.`,
-      `${cleanCta}.`,
-    ];
+    spokenLines = tpl.service(cleanName, cleanBenefit, cleanCta);
   } else {
-    // effectivePromoType === "video"
     if (effectiveStyle === "reaction") {
       actionDirection = `The influencer reacts with genuine surprise and excitement while pointing toward the screen/video topic "${cleanName}" and talking to the viewer.`;
     } else if (effectiveStyle === "summary") {
@@ -422,30 +634,25 @@ export function buildInfluencerScript({
     } else {
       actionDirection = `The influencer hooks the viewer immediately with an intrigued expression, inviting them to watch the video "${cleanName}".`;
     }
-
-    spokenLines = [
-      `¡Para todo y mira esto! Acaba de salir ${cleanName} y está dando muchísimo de qué hablar.`,
-      `Ahí explican exactamente cómo ${cleanBenefit}.`,
-      `${cleanCta}.`,
-    ];
+    spokenLines = tpl.video(cleanName, cleanBenefit, cleanCta);
   }
 
   const extra = extraNotes.trim() ? ` ${extraNotes.trim()}.` : "";
 
-  const singleScript = `${refPrefix}${actorDescription} ${actionDirection}${extra} Speaking in Spanish with natural lip-sync: "${spokenLines.join(" ")}"`;
+  const singleScript = `${refPrefix}${actorDescription} ${actionDirection}${extra} Speaking in ${langObj.speechLanguage} with natural lip-sync: "${spokenLines.join(" ")}"`;
 
   const multiScenes = [
     {
-      label: "Escena 1 (Hook con Influencer)",
-      prompt: `${refPrefix}${actorDescription} Opening hook, looking directly into the lens with expressive energy. ${actionDirection} Speaking in Spanish: "${spokenLines[0]}"`,
+      label: `Escena 1 (Hook • ${langObj.label})`,
+      prompt: `${refPrefix}${actorDescription} Opening hook, looking directly into the lens with expressive energy. ${actionDirection} Speaking in ${langObj.speechLanguage}: "${spokenLines[0]}"`,
     },
     {
-      label: "Escena 2 (Demostración y Beneficio)",
-      prompt: `${refPrefix}${actorDescription} Close-up and medium shot showcasing "${cleanName}" and highlighting its value.${extra} Speaking in Spanish: "${spokenLines[1]}"`,
+      label: `Escena 2 (Demostración • ${langObj.label})`,
+      prompt: `${refPrefix}${actorDescription} Close-up and medium shot showcasing "${cleanName}" and highlighting its value.${extra} Speaking in ${langObj.speechLanguage}: "${spokenLines[1]}"`,
     },
     {
-      label: "Escena 3 (Prueba y Llamado a la Acción)",
-      prompt: `${refPrefix}${actorDescription} Smiling confidently at the camera, pointing down to the link with a clear call to action. Speaking in Spanish: "${spokenLines[2]}"`,
+      label: `Escena 3 (CTA • ${langObj.label})`,
+      prompt: `${refPrefix}${actorDescription} Smiling confidently at the camera, pointing down to the link with a clear call to action. Speaking in ${langObj.speechLanguage}: "${spokenLines[2]}"`,
     },
   ];
 

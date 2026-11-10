@@ -31,6 +31,7 @@ import { FaCoins } from "react-icons/fa";
 import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
 import {
   AI_INFLUENCERS,
+  INFLUENCER_LANGUAGES,
   PROMO_CATEGORIES,
   buildInfluencerScript,
 } from "@/lib/influencers";
@@ -303,6 +304,7 @@ export default function Home() {
   const [promoStyle, setPromoStyle] = useState(
     AI_INFLUENCERS[0]?.defaultStyle || "showcase"
   );
+  const [influencerLanguage, setInfluencerLanguage] = useState("es-latam");
 
   // UGCore Studio v3.0 — Active Architectural Module Tab
   // null | "intelligence" | "ecommerce" | "timeline" | "consistency"
@@ -474,6 +476,7 @@ export default function Home() {
         benefit: prod.benefit,
         cta: prod.cta,
         style: "showcase",
+        language: influencerLanguage,
         useInfluencerAvatar:
           useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
         hasUploadedAsset: (prod.images?.length || 0) > 0,
@@ -517,6 +520,14 @@ export default function Home() {
     }
   };
 
+  const handleInfluencerLanguageChange = (newLangId) => {
+    setInfluencerLanguage(newLangId);
+    const langObj = INFLUENCER_LANGUAGES.find((l) => l.id === newLangId);
+    if (langObj?.voiceProfileId) {
+      setVoiceProfileId(langObj.voiceProfileId);
+    }
+  };
+
   const handleSelectInfluencer = (inf) => {
     setSelectedInfluencer(inf);
     setUcidCode(
@@ -527,9 +538,6 @@ export default function Home() {
     }
     if (inf.defaultStyle) {
       setPromoStyle(inf.defaultStyle);
-    }
-    if (inf.defaultVoiceProfileId) {
-      setVoiceProfileId(inf.defaultVoiceProfileId);
     }
   };
 
@@ -547,6 +555,7 @@ export default function Home() {
       style: overrideInfluencer
         ? activeInf?.defaultStyle || promoStyle
         : promoStyle,
+      language: influencerLanguage,
       useInfluencerAvatar:
         useInfluencerReferenceImage && Boolean(activeInf?.avatar),
       hasUploadedAsset: readyUploads.length > 0,
@@ -766,6 +775,7 @@ export default function Home() {
             benefit: promoBenefit,
             cta: promoCta,
             style: promoStyle,
+            language: influencerLanguage,
             useInfluencerAvatar:
               useInfluencerReferenceImage && Boolean(selectedInfluencer?.avatar),
             hasUploadedAsset: readyUserUrls.length > 0,
@@ -1628,6 +1638,21 @@ export default function Home() {
                           <FiPlayCircle size={11} />
                           <span>Video</span>
                         </button>
+
+                        <select
+                          value={influencerLanguage}
+                          onChange={(e) =>
+                            handleInfluencerLanguageChange(e.target.value)
+                          }
+                          title="Elegir el idioma en el que hablará el Influencer IA"
+                          className="px-2.5 py-1 rounded bg-bg-card border border-emerald-500/40 text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                        >
+                          {INFLUENCER_LANGUAGES.map((lang) => (
+                            <option key={lang.id} value={lang.id}>
+                              Idioma: {lang.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-xl">
