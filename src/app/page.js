@@ -270,8 +270,24 @@ function RangeParameter({
 }
 
 export default function Home() {
-  const { status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const [isModelsModalOpen, setIsModelsModalOpen] = useState(false);
+
+  const isAdminUser = Boolean(
+    session?.user?.isAdmin ||
+      session?.user?.role === "admin" ||
+      session?.user?.email === "obsifem@gmail.com"
+  );
+  const availableCredits =
+    typeof session?.user?.credits === "number"
+      ? session.user.credits
+      : isAdminUser
+      ? 999999
+      : 1000;
+  const assignedCredits =
+    typeof session?.user?.assignedCredits === "number"
+      ? session.user.assignedCredits
+      : availableCredits;
 
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
   const [modelSettings, setModelSettings] = useState(() =>
@@ -924,6 +940,13 @@ export default function Home() {
 
       const data = await response.json();
       if (data.error) throw new Error(data.error);
+
+      if (
+        typeof data.remainingCredits === "number" &&
+        status === "authenticated"
+      ) {
+        updateSession({ credits: data.remainingCredits }).catch(() => {});
+      }
 
       setLastGeneration({
         id: data.creationId,
@@ -2214,11 +2237,17 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Show credit cost */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-glass-bg border border-glass-border rounded-full">
-                  <FaCoins className="text-yellow-600 text-xs" />
+                {/* Show credit balance & cost for both Admin and Buyers */}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-glass-bg border border-glass-border rounded-full">
+                  <FaCoins className="text-yellow-500 text-xs" />
                   <span className="text-[10px] font-bold text-secondary-text">
-                    Cost: {getRequiredCredits()}
+                    Costo: {getRequiredCredits()} CR
+                  </span>
+                  <span className="text-muted">•</span>
+                  <span className="text-[10px] font-black text-emerald-500">
+                    {isAdminUser
+                      ? `Saldo Admin: ${Number(availableCredits).toLocaleString()} CR (∞)`
+                      : `Saldo: ${Number(availableCredits).toLocaleString()} / ${Number(assignedCredits).toLocaleString()} CR`}
                   </span>
                 </div>
 

@@ -2,6 +2,11 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GitHubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
+import {
+  ADMIN_INITIAL_CREDITS,
+  safeGetOrCreateUser,
+  safeGetUserBalance,
+} from "./runtime-store";
 
 const ADMIN_EMAILS = [
   "obsifem@gmail.com",
@@ -33,7 +38,7 @@ export function isAdminEmail(email) {
 }
 
 export const authOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: prisma?.user ? PrismaAdapter(prisma) : undefined,
   session: {
     strategy: "jwt",
   },
@@ -48,15 +53,17 @@ export const authOptions = {
       : []),
     CredentialsProvider({
       id: "credentials",
-      name: "Credentials & API Key",
+      name: "Credentials & Access",
       credentials: {
-        email: { label: "Admin Email", type: "text" },
-        password: { label: "Admin Key / Password", type: "password" },
+        email: { label: "Email", type: "text" },
+        name: { label: "Name", type: "text" },
+        password: { label: "Password / Key", type: "password" },
         apiKey: { label: "MuAPI Key", type: "password" },
+        planId: { label: "Plan ID", type: "text" },
         loginType: { label: "Login Type", type: "text" },
       },
       async authorize(credentials) {
-        const loginType = credentials?.loginType || "apikey";
+        const loginType = credentials?.loginType || "admin";
 
         // 1. Administrator Login
         if (loginType === "admin") {
@@ -66,7 +73,9 @@ export const authOptions = {
           const rawPass = (credentials?.password || "").trim();
 
           const emailMatchesAdmin =
-            isAdminEmail(rawEmail) || rawEmail === "admin" || rawEmail === "obsifem-dotcom";
+            isAdminEmail(rawEmail) ||
+            rawEmail === "admin" ||
+            rawEmail === "obsifem-dotcom";
           const passMatchesAdmin =
             !rawPass ||
             SERVER_ADMIN_KEYS.includes(rawPass) ||
@@ -81,60 +90,70 @@ export const authOptions = {
             throw new Error("Clave de administrador incorrecta");
           }
 
-          const adminEmail = isAdminEmail(rawEmail) ? rawEmail : "obsifem@gmail.com";
+          const adminEmail = isAdminEmail(rawEmail)
+            ? rawEmail
+            : "obsifem@gmail.com";
 
-          try {
-            let adminUser = await prisma.user.findUnique({
-              where: { email: adminEmail },
-            });
+          const adminRecord = await safeGetOrCreateUser({
+            email: adminEmail,
+            name: "Administrador (UGCore Studio)",
+            isAdmin: true,
+            customApiKey: DEFAULT_MUAPI_KEY,
+          });
 
-            if (!adminUser) {
-              adminUser = await prisma.user.create({
-                data: {
-                  name: "Administrador (UGCora Studio)",
-                  email: adminEmail,
-                  credits: 999999,
-                  customApiKey: DEFAULT_MUAPI_KEY,
-                },
-              });
-            } else if (adminUser.credits < 999999 || !adminUser.customApiKey) {
-              adminUser = await prisma.user.update({
-                where: { id: adminUser.id },
-                data: {
-                  credits: 999999,
-                  customApiKey: adminUser.customApiKey || DEFAULT_MUAPI_KEY,
-                },
-              });
-            }
-
-            return {
-              id: adminUser.id,
-              name: adminUser.name || "Administrador (UGCora Studio)",
-              email: adminUser.email,
-              image: adminUser.image || null,
-              credits: 999999,
-              customApiKey: adminUser.customApiKey || DEFAULT_MUAPI_KEY,
-              isApiKeyUser: true,
-              isAdmin: true,
-              role: "admin",
-            };
-          } catch (dbErr) {
-            console.error("[ADMIN_AUTH_DB_FALLBACK]", dbErr);
-            return {
-              id: "admin-obsifem",
-              name: "Administrador (UGCora Studio)",
-              email: adminEmail,
-              image: null,
-              credits: 999999,
-              customApiKey: DEFAULT_MUAPI_KEY,
-              isApiKeyUser: true,
-              isAdmin: true,
-              role: "admin",
-            };
-          }
+          return {
+            id: adminRecord.id,
+            name: adminRecord.name,
+            email: adminRecord.email,
+            image: null,
+            credits: ADMIN_INITIAL_CREDITS,
+            assignedCredits: ADMIN_INITIAL_CREDITS,
+            planId: "admin",
+            planName: "Administrador Master",
+            customApiKey: DEFAULT_MUAPI_KEY,
+            isApiKeyUser: true,
+            isAdmin: true,
+            role: "admin",
+          };
         }
 
-        // 2. API Key Login (also upgrades to Admin if using a configured server/admin key)
+        // 2. Buyer / Comprador Login (shows assigned credits from purchase)
+        if (loginType === "buyer") {
+          const rawEmail = (
+            credentials?.email || "comprador@ugcorestudio.com"
+          )
+            .toLowerCase()
+            .trim();
+          if (!rawEmail.includes("@")) {
+            throw new Error("Ingresa un correo electrónico válido");
+          }
+
+          const isAdm = isAdminEmail(rawEmail);
+          const planId = credentials?.planId || "pro";
+          const buyerRecord = await safeGetOrCreateUser({
+            email: rawEmail,
+            name: credentials?.name || rawEmail.split("@")[0],
+            isAdmin: isAdm,
+            planId,
+          });
+
+          return {
+            id: buyerRecord.id,
+            name: buyerRecord.name,
+            email: buyerRecord.email,
+            image: null,
+            credits: buyerRecord.credits,
+            assignedCredits: buyerRecord.assignedCredits,
+            planId: buyerRecord.planId,
+            planName: buyerRecord.planName,
+            customApiKey: isAdm ? DEFAULT_MUAPI_KEY : buyerRecord.customApiKey,
+            isApiKeyUser: Boolean(isAdm || buyerRecord.customApiKey),
+            isAdmin: isAdm,
+            role: isAdm ? "admin" : "buyer",
+          };
+        }
+
+        // 3. API Key Login
         if (!credentials?.apiKey) {
           throw new Error("API Key is required");
         }
@@ -145,7 +164,8 @@ export const authOptions = {
 
         const isServerAdminKey = SERVER_ADMIN_KEYS.includes(apiKey);
         const effectiveApiKey =
-          apiKey === "88e6133af38f606478109f6a80320815d7b7b742812b908ec2c8e23da4adfe42"
+          apiKey ===
+          "88e6133af38f606478109f6a80320815d7b7b742812b908ec2c8e23da4adfe42"
             ? DEFAULT_MUAPI_KEY
             : apiKey;
 
@@ -153,57 +173,33 @@ export const authOptions = {
           ? "obsifem@gmail.com"
           : `apikey_${apiKey.slice(-8)}@muapi.local`;
 
-        try {
-          let dbUser = await prisma.user.findFirst({
-            where: {
-              OR: [{ customApiKey: effectiveApiKey }, { email: targetEmail }],
-            },
-          });
+        const keyUser = await safeGetOrCreateUser({
+          email: targetEmail,
+          name: isServerAdminKey
+            ? "Administrador (UGCore Studio)"
+            : "API Key User",
+          isAdmin: isServerAdminKey,
+          initialCredits: isServerAdminKey ? ADMIN_INITIAL_CREDITS : 1000,
+          customApiKey: effectiveApiKey,
+        });
 
-          if (!dbUser) {
-            dbUser = await prisma.user.create({
-              data: {
-                name: isServerAdminKey ? "Administrador (UGCora Studio)" : "API Key User",
-                email: targetEmail,
-                customApiKey: effectiveApiKey,
-                credits: isServerAdminKey ? 999999 : 0,
-              },
-            });
-          } else if (!dbUser.customApiKey || (isServerAdminKey && dbUser.credits < 999999)) {
-            dbUser = await prisma.user.update({
-              where: { id: dbUser.id },
-              data: {
-                customApiKey: effectiveApiKey,
-                ...(isServerAdminKey ? { credits: 999999 } : {}),
-              },
-            });
-          }
-
-          return {
-            id: dbUser.id,
-            name: dbUser.name,
-            email: dbUser.email,
-            image: dbUser.image || null,
-            credits: isServerAdminKey ? 999999 : dbUser.credits,
-            customApiKey: dbUser.customApiKey || effectiveApiKey,
-            isApiKeyUser: true,
-            isAdmin: isServerAdminKey || isAdminEmail(dbUser.email),
-            role: isServerAdminKey || isAdminEmail(dbUser.email) ? "admin" : "user",
-          };
-        } catch (dbErr) {
-          console.error("[APIKEY_AUTH_DB_FALLBACK]", dbErr);
-          return {
-            id: isServerAdminKey ? "admin-obsifem" : `apikey-${apiKey.slice(-8)}`,
-            name: isServerAdminKey ? "Administrador (UGCora Studio)" : "API Key User",
-            email: targetEmail,
-            image: null,
-            credits: isServerAdminKey ? 999999 : 0,
-            customApiKey: effectiveApiKey,
-            isApiKeyUser: true,
-            isAdmin: isServerAdminKey,
-            role: isServerAdminKey ? "admin" : "user",
-          };
-        }
+        return {
+          id: keyUser.id,
+          name: keyUser.name,
+          email: keyUser.email,
+          image: null,
+          credits: isServerAdminKey ? ADMIN_INITIAL_CREDITS : keyUser.credits,
+          assignedCredits: isServerAdminKey
+            ? ADMIN_INITIAL_CREDITS
+            : keyUser.assignedCredits,
+          planId: keyUser.planId,
+          planName: keyUser.planName,
+          customApiKey: effectiveApiKey,
+          isApiKeyUser: true,
+          isAdmin: isServerAdminKey || isAdminEmail(keyUser.email),
+          role:
+            isServerAdminKey || isAdminEmail(keyUser.email) ? "admin" : "user",
+        };
       },
     }),
   ],
@@ -211,56 +207,83 @@ export const authOptions = {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.email = user.email;
         token.credits = user.credits;
+        token.assignedCredits = user.assignedCredits || user.credits;
+        token.planId = user.planId || "standard";
+        token.planName = user.planName || "Paquete Activo";
         token.customApiKey = user.customApiKey;
         token.isApiKeyUser = user.isApiKeyUser || false;
         token.isAdmin = Boolean(user.isAdmin || isAdminEmail(user.email));
-        token.role = token.isAdmin ? "admin" : user.role || "user";
+        token.role = token.isAdmin ? "admin" : user.role || "buyer";
       }
       if (trigger === "update" && session) {
-        if (session.customApiKey !== undefined) token.customApiKey = session.customApiKey;
+        if (session.customApiKey !== undefined)
+          token.customApiKey = session.customApiKey;
         if (session.credits !== undefined) token.credits = session.credits;
+        if (session.assignedCredits !== undefined)
+          token.assignedCredits = session.assignedCredits;
+        if (session.planName !== undefined) token.planName = session.planName;
+        if (session.planId !== undefined) token.planId = session.planId;
       }
+
       const userId = token.id || token.sub;
-      if (userId && userId !== "admin-obsifem") {
-        token.id = userId;
-        try {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { credits: true, customApiKey: true, email: true },
-          });
-          if (dbUser) {
-            const adminFlag = Boolean(token.isAdmin || isAdminEmail(dbUser.email));
-            token.isAdmin = adminFlag;
-            token.role = adminFlag ? "admin" : "user";
-            token.credits = adminFlag ? 999999 : dbUser.credits;
-            token.customApiKey = dbUser.customApiKey || (adminFlag ? DEFAULT_MUAPI_KEY : null);
-          }
-        } catch {}
-      }
-      if (token.isAdmin) {
-        token.credits = 999999;
+      const userEmail = token.email;
+      const adminFlag = Boolean(token.isAdmin || isAdminEmail(userEmail));
+
+      if (adminFlag) {
+        token.isAdmin = true;
         token.role = "admin";
+        token.credits = ADMIN_INITIAL_CREDITS;
+        token.assignedCredits = ADMIN_INITIAL_CREDITS;
+        token.planName = "Administrador Master";
         if (!token.customApiKey) {
           token.customApiKey = DEFAULT_MUAPI_KEY;
         }
+      } else if (userId || userEmail) {
+        try {
+          const bal = await safeGetUserBalance({
+            userId,
+            email: userEmail,
+            isAdmin: false,
+          });
+          if (bal && typeof bal.credits === "number") {
+            token.credits = bal.credits;
+            token.assignedCredits = bal.assignedCredits || bal.credits;
+            token.planName = bal.planName || token.planName || "Paquete Activo";
+          }
+        } catch {}
       }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user && token) {
-        const adminFlag = Boolean(token.isAdmin || isAdminEmail(session.user.email));
-        session.user.id = token.id || token.sub;
+        const adminFlag = Boolean(
+          token.isAdmin || isAdminEmail(session.user.email)
+        );
+        session.user.id = token.id || token.sub || "admin-obsifem";
         session.user.isAdmin = adminFlag;
-        session.user.role = adminFlag ? "admin" : token.role || "user";
-        session.user.credits = adminFlag ? 999999 : token.credits;
+        session.user.role = adminFlag ? "admin" : token.role || "buyer";
+        session.user.credits = adminFlag
+          ? ADMIN_INITIAL_CREDITS
+          : token.credits ?? 1000;
+        session.user.assignedCredits = adminFlag
+          ? ADMIN_INITIAL_CREDITS
+          : token.assignedCredits ?? session.user.credits;
+        session.user.planId = adminFlag ? "admin" : token.planId || "standard";
+        session.user.planName = adminFlag
+          ? "Administrador Master"
+          : token.planName || "Paquete Comprador";
         session.user.customApiKey = token.customApiKey;
         session.user.isApiKeyUser = Boolean(token.customApiKey || adminFlag);
       }
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "DrNDNN5RAavK9d2huBn7SpX5osg4YmGcx1+12B+sYLw=",
+  secret:
+    process.env.NEXTAUTH_SECRET ||
+    "DrNDNN5RAavK9d2huBn7SpX5osg4YmGcx1+12B+sYLw=",
   pages: {
     signIn: "/login",
   },

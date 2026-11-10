@@ -5,8 +5,18 @@ import { useSession, signOut, signIn } from "next-auth/react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { IoClose, IoMenu } from "react-icons/io5";
-import { FiMoon, FiSun, FiLogOut, FiDollarSign, FiPlus, FiUser, FiKey, FiCheck, FiX, FiTrash2 } from "react-icons/fi";
-import { SiVercel } from "react-icons/si";
+import {
+  FiLogOut,
+  FiDollarSign,
+  FiPlus,
+  FiUser,
+  FiKey,
+  FiCheck,
+  FiX,
+  FiTrash2,
+  FiShield,
+  FiCreditCard,
+} from "react-icons/fi";
 import config from "@/lib/config";
 import toast from "react-hot-toast";
 
@@ -16,10 +26,21 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isAdminCreditsModalOpen, setIsAdminCreditsModalOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [savingKey, setSavingKey] = useState(false);
 
-  const appName = config?.appName || "AI SaaS";
+  // Admin Credits & Buyer Approvals Modal State
+  const [buyerList, setBuyerList] = useState([]);
+  const [loadingBuyers, setLoadingBuyers] = useState(false);
+  const [targetBuyerEmail, setTargetBuyerEmail] = useState("");
+  const [targetBuyerName, setTargetBuyerName] = useState("");
+  const [targetPlanId, setTargetPlanId] = useState("pro");
+  const [targetCustomCredits, setTargetCustomCredits] = useState("");
+  const [targetMode, setTargetMode] = useState("add");
+  const [assigningCredits, setAssigningCredits] = useState(false);
+
+  const appName = config?.appName || "UGCore Studio";
   const logoLetter = appName.trim().charAt(0).toUpperCase();
 
   const isApiKeyActive = Boolean(session?.user?.customApiKey);
@@ -29,6 +50,79 @@ export default function Navbar() {
       session?.user?.email === "obsifem@gmail.com"
   );
 
+  const userCredits =
+    typeof session?.user?.credits === "number"
+      ? session.user.credits
+      : isAdminUser
+      ? 999999
+      : 1000;
+
+  const assignedCredits =
+    typeof session?.user?.assignedCredits === "number"
+      ? session.user.assignedCredits
+      : userCredits;
+
+  const userPlanName =
+    session?.user?.planName ||
+    (isAdminUser ? "Administrador Master" : "Pack Comprador");
+
+  const fetchAdminUsers = async () => {
+    setLoadingBuyers(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (res.ok) {
+        const data = await res.json();
+        setBuyerList(data.users || []);
+      }
+    } catch (err) {
+      console.error("Failed to load buyers:", err);
+    } finally {
+      setLoadingBuyers(false);
+    }
+  };
+
+  const openAdminCreditsModal = () => {
+    setIsAdminCreditsModalOpen(true);
+    fetchAdminUsers();
+  };
+
+  const handleAssignBuyerCredits = async (e) => {
+    e.preventDefault();
+    if (!targetBuyerEmail.trim() || !targetBuyerEmail.includes("@")) {
+      toast.error("Ingresa un correo electrónico válido para el comprador");
+      return;
+    }
+    setAssigningCredits(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: targetBuyerEmail.trim(),
+          name: targetBuyerName.trim(),
+          planId: targetPlanId,
+          customCredits: targetCustomCredits,
+          mode: targetMode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al asignar créditos");
+      setBuyerList(data.users || []);
+      toast.success(
+        `¡Aprobado! ${data.user.email} ahora tiene ${Number(
+          data.user.credits
+        ).toLocaleString()} créditos (${data.user.planName}).`
+      );
+      setTargetBuyerEmail("");
+      setTargetBuyerName("");
+      setTargetCustomCredits("");
+    } catch (err) {
+      toast.error(err.message || "No se pudieron asignar los créditos");
+    } finally {
+      setAssigningCredits(false);
+    }
+  };
+
   const handleQuickAdminSignIn = async () => {
     try {
       const res = await signIn("credentials", {
@@ -37,7 +131,26 @@ export default function Navbar() {
         redirect: false,
       });
       if (!res?.error) {
-        toast.success("Sesión de Administrador activada");
+        toast.success("Sesión de Administrador activada (999,999 Créditos)");
+        window.location.reload();
+      } else {
+        window.location.href = "/login";
+      }
+    } catch {
+      window.location.href = "/login";
+    }
+  };
+
+  const handleQuickBuyerSignIn = async () => {
+    try {
+      const res = await signIn("credentials", {
+        loginType: "buyer",
+        email: "comprador@ugcorestudio.com",
+        planId: "pro",
+        redirect: false,
+      });
+      if (!res?.error) {
+        toast.success("Sesión de Comprador Pro activada (6,000 Créditos)");
         window.location.reload();
       } else {
         window.location.href = "/login";
@@ -57,21 +170,21 @@ export default function Navbar() {
 
   const navLinks = currentAppId
     ? [
-        { name: "Workspace", path: `/app/${currentAppId}` },
-        { name: "Gallery", path: `/app/${currentAppId}/gallery` },
-        { name: "Pricing", path: `/app/${currentAppId}/pricing` },
+        { name: "Estudio", path: `/app/${currentAppId}` },
+        { name: "Galería", path: `/app/${currentAppId}/gallery` },
+        { name: "Precios & Créditos", path: `/app/${currentAppId}/pricing` },
       ]
     : [
-        { name: "Workspace", path: "/" },
-        { name: "Gallery", path: "/gallery" },
-        { name: "Pricing", path: "/pricing" },
+        { name: "Estudio", path: "/" },
+        { name: "Galería", path: "/gallery" },
+        { name: "Precios & Créditos", path: "/pricing" },
       ];
 
   const handleSaveApiKey = async (e) => {
     e.preventDefault();
     const key = apiKeyInput.trim();
     if (!key) {
-      toast.error("Please enter a valid API Key");
+      toast.error("Ingresa una API Key válida");
       return;
     }
     setSavingKey(true);
@@ -86,18 +199,19 @@ export default function Navbar() {
         if (!res.ok) throw new Error(data.error || "Failed to save API key");
 
         await updateSession({ customApiKey: key });
-        toast.success("Custom API Key updated!");
+        toast.success("¡API Key actualizada!");
         setIsApiKeyModalOpen(false);
         window.location.reload();
       } else {
         const res = await signIn("credentials", {
+          loginType: "apikey",
           apiKey: key,
           redirect: false,
         });
         if (res?.error) {
           throw new Error(res.error || "Failed to sign in with API key");
         }
-        toast.success("Signed in with API Key!");
+        toast.success("¡Sesión iniciada con API Key!");
         setIsApiKeyModalOpen(false);
         window.location.reload();
       }
@@ -117,7 +231,7 @@ export default function Navbar() {
 
       await updateSession({ customApiKey: null });
       setApiKeyInput("");
-      toast.success("Custom API Key removed");
+      toast.success("API Key eliminada");
       setIsApiKeyModalOpen(false);
       window.location.reload();
     } catch (err) {
@@ -129,10 +243,12 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full glass-panel border-b border-divider/50 shadow-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
         {/* Logo and Brand Title */}
-        <Link href="/" className="flex items-center gap-2 transition-transform hover:scale-[1.02] active:scale-95">
+        <Link
+          href="/"
+          className="flex items-center gap-2 transition-transform hover:scale-[1.02] active:scale-95"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white font-extrabold text-lg shadow-md shadow-primary/30">
             {logoLetter}
           </div>
@@ -150,12 +266,14 @@ export default function Navbar() {
                 key={link.name}
                 href={link.path}
                 className={`text-[13px] font-semibold transition-all relative py-1 ${
-                  isActive ? "text-primary" : "text-secondary-text hover:text-primary-text"
+                  isActive
+                    ? "text-primary"
+                    : "text-secondary-text hover:text-primary-text"
                 }`}
               >
                 {link.name}
                 {isActive && (
-                  <div className="absolute -bottom-[20px] left-0 right-0 h-0.5 bg-primary rounded-full" />
+                  <div className="absolute -bottom-[18px] left-0 right-0 h-0.5 bg-primary rounded-full" />
                 )}
               </Link>
             );
@@ -163,20 +281,20 @@ export default function Navbar() {
         </nav>
 
         {/* Desktop Actions Section */}
-        <div className="hidden md:flex items-center gap-3">
-          
-          {/* Vercel Deploy Button */}
-          <a
-            href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSamurAIGPT%2Fcommon-saas-template"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-full border border-divider px-4 py-1.5 text-xs font-bold text-secondary-text hover:text-primary-text hover:bg-bg-card transition-colors shadow-sm"
-          >
-            <SiVercel className="text-xs text-current" />
-            <span>Deploy</span>
-          </a>
+        <div className="hidden md:flex items-center gap-2.5">
+          {isAdminUser && (
+            <button
+              type="button"
+              onClick={openAdminCreditsModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer"
+              title="Ver todos los créditos y aprobar compras de usuarios"
+            >
+              <FiShield className="text-emerald-400" />
+              <span>Aprobaciones & Créditos</span>
+            </button>
+          )}
 
-          {/* Add/Manage API Key - Directly visible in Navbar */}
+          {/* Add/Manage API Key */}
           <button
             onClick={openApiKeyModal}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
@@ -185,32 +303,60 @@ export default function Navbar() {
                 : "bg-bg-page/50 border-divider text-secondary-text hover:text-white hover:border-primary/40"
             }`}
           >
-            <FiKey className={isApiKeyActive ? "text-amber-400" : "text-secondary-text"} />
-            <span>{isApiKeyActive ? "Custom API Key" : "Add API Key"}</span>
+            <FiKey
+              className={
+                isApiKeyActive ? "text-amber-400" : "text-secondary-text"
+              }
+            />
+            <span>{isApiKeyActive ? "API Key Activa" : "API Key"}</span>
           </button>
 
           {status === "authenticated" ? (
             <div className="flex items-center">
-              {/* Credit Balance indicator */}
-              <div className="flex items-center h-9 border border-divider rounded-l bg-bg-page/30 overflow-hidden pr-2">
-                <span className="font-bold text-[13px] px-3 flex items-center text-primary-text gap-1">
+              {/* Credit Balance indicator (Visible for BOTH Admin & Buyers!) */}
+              <div
+                onClick={() => {
+                  if (isAdminUser) openAdminCreditsModal();
+                }}
+                className={`flex items-center h-9 border border-divider rounded-l bg-bg-page/40 overflow-hidden pr-2 ${
+                  isAdminUser ? "cursor-pointer hover:bg-bg-card" : ""
+                }`}
+                title={
+                  isAdminUser
+                    ? "Créditos de Administrador (Haz clic para gestionar créditos de usuarios)"
+                    : `Créditos asignados según compra (${userPlanName})`
+                }
+              >
+                <span className="font-bold text-xs px-3 flex items-center text-primary-text gap-1.5">
                   <FiDollarSign className="text-emerald-500 text-xs" />
-                  {isAdminUser
-                    ? "ADMIN • ∞"
-                    : isApiKeyActive
-                      ? "∞ (API Key)"
-                      : session.user.credits !== undefined
-                        ? session.user.credits
-                        : 0}
+                  {isAdminUser ? (
+                    <span>
+                      👑 ADMIN:{" "}
+                      <strong className="text-emerald-400">
+                        {Number(userCredits).toLocaleString()} CR
+                      </strong>{" "}
+                      (∞)
+                    </span>
+                  ) : (
+                    <span>
+                      💳{" "}
+                      <strong className="text-emerald-400">
+                        {Number(userCredits).toLocaleString()}
+                      </strong>{" "}
+                      <span className="text-[10px] text-secondary-text">
+                        / {Number(assignedCredits).toLocaleString()} CR •{" "}
+                        {userPlanName}
+                      </span>
+                    </span>
+                  )}
                 </span>
-                {!isApiKeyActive && !isAdminUser && (
-                  <Link
-                    href="/pricing"
-                    className="flex items-center justify-center w-5 h-5 rounded hover:bg-bg-card text-secondary-text transition-colors"
-                  >
-                    <FiPlus size={14} />
-                  </Link>
-                )}
+                <Link
+                  href="/pricing"
+                  className="flex items-center justify-center w-5 h-5 rounded bg-primary/15 hover:bg-primary/30 text-primary transition-colors"
+                  title="Comprar o asignar más créditos"
+                >
+                  <FiPlus size={13} />
+                </Link>
               </div>
 
               {/* Profile Menu Toggle */}
@@ -233,30 +379,51 @@ export default function Navbar() {
 
                 {/* Profile Dropdown */}
                 {isProfileOpen && (
-                  <div className="absolute right-0 top-11 w-56 rounded border border-divider bg-bg-card p-1 shadow-lg z-[100] animate-scale-up">
-                    <div className="px-3 py-2 text-xs text-secondary-text border-b border-divider/50 mb-1 truncate">
-                      <div className="truncate font-semibold text-primary-text">
+                  <div className="absolute right-0 top-11 w-64 rounded-lg border border-divider bg-bg-card p-1.5 shadow-xl z-[100] animate-scale-up">
+                    <div className="px-3 py-2 text-xs text-secondary-text border-b border-divider/50 mb-1">
+                      <div className="truncate font-bold text-primary-text">
                         {session.user.email}
                       </div>
-                      {isAdminUser && (
-                        <div className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mt-0.5">
-                          Administrador • Acceso Total
-                        </div>
-                      )}
+                      <div className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mt-0.5">
+                        {isAdminUser
+                          ? `Administrador • ${Number(userCredits).toLocaleString()} Créditos`
+                          : `${userPlanName} • ${Number(userCredits).toLocaleString()} / ${Number(assignedCredits).toLocaleString()} CR`}
+                      </div>
                     </div>
-                    <button
-                      onClick={openApiKeyModal}
+
+                    {isAdminUser && (
+                      <button
+                        onClick={openAdminCreditsModal}
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                      >
+                        <FiShield size={14} />
+                        <span>Gestionar Créditos & Compradores</span>
+                      </button>
+                    )}
+
+                    <Link
+                      href="/pricing"
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-primary-text hover:bg-primary/10 transition-colors"
                     >
+                      <FiCreditCard size={14} className="text-primary" />
+                      <span>Ver Planes y Comprar Créditos</span>
+                    </Link>
+
+                    <button
+                      onClick={openApiKeyModal}
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-primary-text hover:bg-primary/10 transition-colors cursor-pointer"
+                    >
                       <FiKey size={14} className="text-amber-400" />
-                      <span>{isApiKeyActive ? "Manage API Key" : "Add API Key"}</span>
+                      <span>
+                        {isApiKeyActive ? "Configurar API Key" : "Añadir API Key"}
+                      </span>
                     </button>
                     <button
                       onClick={() => signOut({ callbackUrl: "/login" })}
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
+                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
                     >
                       <FiLogOut size={14} />
-                      <span>Sign Out</span>
+                      <span>Cerrar Sesión</span>
                     </button>
                   </div>
                 )}
@@ -267,15 +434,24 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleQuickAdminSignIn}
-                className="border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
+                className="border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
+                title="Acceso directo Administrador (999,999 Créditos)"
               >
-                Admin
+                👑 Admin
+              </button>
+              <button
+                type="button"
+                onClick={handleQuickBuyerSignIn}
+                className="border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
+                title="Acceso rápido Usuario Comprador"
+              >
+                💳 Comprador
               </button>
               <Link
                 href="/login"
-                className="bg-primary text-white px-5 py-1.5 rounded-full text-sm font-bold hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
+                className="bg-primary text-white px-4 py-1.5 rounded-full text-xs font-bold hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
               >
-                Sign In
+                Ingresar
               </Link>
             </div>
           )}
@@ -284,12 +460,16 @@ export default function Navbar() {
         {/* Mobile Navbar Controls */}
         <div className="flex md:hidden items-center gap-2">
           {status === "authenticated" && (
-            <div className="flex items-center h-8 border border-divider rounded bg-bg-page/30 px-2.5 text-xs font-bold text-primary-text gap-0.5">
+            <div className="flex items-center h-8 border border-divider rounded bg-bg-page/30 px-2.5 text-xs font-bold text-primary-text gap-1">
               <FiDollarSign className="text-emerald-500 text-[10px]" />
-              {isApiKeyActive ? "∞ Key" : session.user.credits !== undefined ? session.user.credits : 0}
+              <span>
+                {isAdminUser
+                  ? `${Number(userCredits).toLocaleString()} CR (Admin)`
+                  : `${Number(userCredits).toLocaleString()} CR`}
+              </span>
             </div>
           )}
-          
+
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="hover:bg-bg-card p-2 rounded cursor-pointer transition-colors text-primary-text border border-divider/50"
@@ -304,19 +484,35 @@ export default function Navbar() {
       {isOpen && (
         <div className="absolute top-full left-0 right-0 z-[200] glass-dropdown border-b border-divider shadow-2xl py-4 px-6 md:hidden animate-fade-in">
           <nav className="flex flex-col gap-3">
-            <span className="text-[10px] uppercase font-bold text-secondary-text tracking-widest mb-1">Navigation</span>
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.path}
                 onClick={() => setIsOpen(false)}
                 className={`flex items-center py-2.5 rounded text-sm font-semibold transition-all ${
-                  pathname === link.path ? "bg-primary/10 text-primary px-3 border border-primary/20" : "text-primary-text hover:bg-bg-card"
+                  pathname === link.path
+                    ? "bg-primary/10 text-primary px-3 border border-primary/20"
+                    : "text-primary-text hover:bg-bg-card"
                 }`}
               >
                 {link.name}
               </Link>
             ))}
+
+            {isAdminUser && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsAdminCreditsModalOpen(true);
+                }}
+                className="flex w-full items-center justify-between rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-400"
+              >
+                <div className="flex items-center gap-2">
+                  <FiShield />
+                  <span>Gestionar Créditos y Aprobaciones</span>
+                </div>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -327,22 +523,9 @@ export default function Navbar() {
             >
               <div className="flex items-center gap-2">
                 <FiKey />
-                <span>{isApiKeyActive ? "Manage Custom API Key" : "Add API Key"}</span>
+                <span>{isApiKeyActive ? "Gestionar API Key" : "Añadir API Key"}</span>
               </div>
             </button>
-
-            <div className="h-px bg-divider/50 my-2" />
-
-            {/* Vercel Deploy in Mobile menu */}
-            <a
-              href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSamurAIGPT%2Fcommon-saas-template"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-divider py-3 text-xs font-bold text-secondary-text hover:text-primary-text hover:bg-bg-card transition-all"
-            >
-              <SiVercel className="text-xs text-current" />
-              <span>Clone & Deploy Template</span>
-            </a>
 
             {status === "authenticated" ? (
               <button
@@ -353,18 +536,196 @@ export default function Navbar() {
                 className="flex w-full items-center justify-center gap-2 rounded bg-red-500/10 text-red-500 py-3 text-sm font-bold hover:bg-red-500/20 transition-all border border-red-500/20 mt-2"
               >
                 <FiLogOut size={16} />
-                <span>Sign Out</span>
+                <span>Cerrar Sesión</span>
               </button>
             ) : (
-              <Link
-                href="/login"
-                onClick={() => setIsOpen(false)}
-                className="flex w-full items-center justify-center rounded bg-primary text-white py-3 text-sm font-bold hover:bg-primary-hover transition-all shadow-md shadow-primary/20 mt-2"
-              >
-                Sign In
-              </Link>
+              <div className="flex flex-col gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={handleQuickAdminSignIn}
+                  className="w-full py-2.5 rounded bg-emerald-500 text-white text-xs font-bold"
+                >
+                  👑 Entrar como Administrador
+                </button>
+                <button
+                  type="button"
+                  onClick={handleQuickBuyerSignIn}
+                  className="w-full py-2.5 rounded bg-primary text-white text-xs font-bold"
+                >
+                  💳 Entrar como Comprador
+                </button>
+              </div>
             )}
           </nav>
+        </div>
+      )}
+
+      {/* Admin Credits & Buyer Approvals Modal */}
+      {isAdminCreditsModalOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="bg-bg-card border border-divider w-full max-w-2xl rounded-xl p-6 space-y-5 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-divider/60 pb-3">
+              <div>
+                <div className="flex items-center gap-2 text-emerald-400 font-black text-sm uppercase">
+                  <FiShield className="text-base" />
+                  <span>
+                    Panel de Administrador: Créditos, Compradores y Aprobaciones
+                  </span>
+                </div>
+                <p className="text-[11px] text-secondary-text mt-0.5">
+                  Saldo Admin Activo:{" "}
+                  <strong className="text-emerald-400">
+                    999,999 Créditos (Ilimitado ∞)
+                  </strong>{" "}
+                  • Aprueba compras o asigna créditos a cualquier usuario comprador.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAdminCreditsModalOpen(false)}
+                className="text-secondary-text hover:text-white transition-colors cursor-pointer"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            {/* Form to Assign / Approve Buyer Credits */}
+            <form
+              onSubmit={handleAssignBuyerCredits}
+              className="p-4 rounded-lg bg-bg-page/60 border border-divider space-y-3"
+            >
+              <div className="text-xs font-extrabold uppercase text-primary-text">
+                ➕ Aprobar Compra / Asignar Créditos a Usuario Comprador
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input
+                  type="email"
+                  value={targetBuyerEmail}
+                  onChange={(e) => setTargetBuyerEmail(e.target.value)}
+                  placeholder="Correo del comprador (ej: cliente@empresa.com)"
+                  className="px-3 py-2 rounded bg-bg-card border border-divider text-xs text-primary-text outline-none focus:border-emerald-500"
+                  required
+                />
+                <input
+                  type="text"
+                  value={targetBuyerName}
+                  onChange={(e) => setTargetBuyerName(e.target.value)}
+                  placeholder="Nombre del cliente (opcional)"
+                  className="px-3 py-2 rounded bg-bg-card border border-divider text-xs text-primary-text outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <select
+                  value={targetPlanId}
+                  onChange={(e) => setTargetPlanId(e.target.value)}
+                  className="px-3 py-2 rounded bg-bg-card border border-divider text-xs font-bold text-primary-text outline-none"
+                >
+                  <option value="basic">Pack Básico ($5 • 1,000 CR)</option>
+                  <option value="standard">Pack Estándar ($10 • 2,500 CR)</option>
+                  <option value="pro">Pack Profesional ($20 • 6,000 CR)</option>
+                  <option value="business">Pack Business ($50 • 20,000 CR)</option>
+                </select>
+
+                <input
+                  type="number"
+                  value={targetCustomCredits}
+                  onChange={(e) => setTargetCustomCredits(e.target.value)}
+                  placeholder="Créditos personalizados (opcional)"
+                  className="px-3 py-2 rounded bg-bg-card border border-divider text-xs text-primary-text outline-none"
+                />
+
+                <select
+                  value={targetMode}
+                  onChange={(e) => setTargetMode(e.target.value)}
+                  className="px-3 py-2 rounded bg-bg-card border border-divider text-xs font-bold text-primary-text outline-none"
+                >
+                  <option value="add">Sumar a su saldo actual</option>
+                  <option value="set">Fijar saldo exacto</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={assigningCredits}
+                  className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer transition-colors"
+                >
+                  {assigningCredits
+                    ? "Asignando..."
+                    : "✓ Aprobar y Asignar Créditos"}
+                </button>
+              </div>
+            </form>
+
+            {/* Buyer List Table */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-secondary-text">
+                  Usuarios y Compradores Registrados ({buyerList.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={fetchAdminUsers}
+                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                >
+                  Actualizar lista
+                </button>
+              </div>
+
+              {loadingBuyers ? (
+                <div className="py-6 text-center text-xs text-secondary-text">
+                  Cargando créditos de usuarios...
+                </div>
+              ) : (
+                <div className="border border-divider rounded-lg overflow-hidden">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-bg-page border-b border-divider text-[10px] font-black uppercase text-secondary-text">
+                        <th className="py-2 px-3">Usuario / Correo</th>
+                        <th className="py-2 px-3">Plan / Paquete</th>
+                        <th className="py-2 px-3">Créditos Disponibles</th>
+                        <th className="py-2 px-3">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-divider/50">
+                      {buyerList.map((u) => (
+                        <tr key={u.email} className="hover:bg-bg-page/40">
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-primary-text">
+                              {u.name}
+                            </div>
+                            <div className="text-[10px] text-secondary-text">
+                              {u.email}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-primary">
+                            {u.planName || "Paquete Activo"}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="font-black text-emerald-400">
+                              {Number(u.credits || 0).toLocaleString()} CR
+                            </span>
+                            <span className="text-[10px] text-secondary-text ml-1">
+                              (Asignados:{" "}
+                              {Number(
+                                u.assignedCredits || u.credits || 0
+                              ).toLocaleString()}
+                              )
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">
+                              ✓ Aprobado
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -375,7 +736,7 @@ export default function Navbar() {
             <div className="flex items-center justify-between border-b border-divider/60 pb-3">
               <div className="flex items-center gap-2 text-amber-400 font-black text-sm uppercase">
                 <FiKey className="text-base" />
-                <span>Custom API Key Settings</span>
+                <span>Configuración de API Key</span>
               </div>
               <button
                 onClick={() => setIsApiKeyModalOpen(false)}
@@ -386,7 +747,7 @@ export default function Navbar() {
             </div>
 
             <p className="text-xs text-secondary-text leading-relaxed">
-              Use your own <strong>MuAPI Key</strong> to generate UGC videos directly without consuming or purchasing website credits.
+              Puedes usar tu propia <strong>MuAPI Key</strong> o los créditos asignados a tu cuenta.
             </p>
 
             <form onSubmit={handleSaveApiKey} className="space-y-4">
@@ -412,7 +773,7 @@ export default function Navbar() {
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-bold border border-red-500/20 transition-all cursor-pointer"
                   >
                     <FiTrash2 />
-                    <span>Remove Key</span>
+                    <span>Eliminar Key</span>
                   </button>
                 )}
 
@@ -422,7 +783,7 @@ export default function Navbar() {
                     onClick={() => setIsApiKeyModalOpen(false)}
                     className="px-4 py-2 rounded-lg bg-bg-page border border-divider text-xs font-semibold text-secondary-text hover:text-white cursor-pointer"
                   >
-                    Cancel
+                    Cancelar
                   </button>
                   <button
                     type="submit"
@@ -430,7 +791,9 @@ export default function Navbar() {
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-md shadow-amber-500/20"
                   >
                     <FiCheck />
-                    <span>{savingKey ? "Processing..." : status === "authenticated" ? "Save Key" : "Sign In with API Key"}</span>
+                    <span>
+                      {savingKey ? "Guardando..." : "Guardar API Key"}
+                    </span>
                   </button>
                 </div>
               </div>
