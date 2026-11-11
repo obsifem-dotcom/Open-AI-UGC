@@ -1398,10 +1398,109 @@ export default function Home() {
   };
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden">
-      <main className="flex-1 flex flex-col relative min-h-0">
+    <div className="h-full flex flex-row relative overflow-hidden">
+      {/* Left Agents Sidebar: full-height scrollable list of AI influencers (desktop) */}
+      {isInfluencerMode && (
+        <aside className="hidden lg:flex w-72 xl:w-80 flex-shrink-0 flex-col border-r border-glass-border bg-bg-card/60 min-h-0">
+          <div className="px-3 py-3 border-b border-glass-border space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-foreground">
+                🧑‍🎤 Agentes IA ({AI_INFLUENCERS.length + customDigitalTwins.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsInfluencerMode(false)}
+                className="p-1 rounded hover:bg-glass-hover text-muted hover:text-foreground cursor-pointer"
+                title="Cerrar barra de agentes"
+              >
+                <FiX size={14} />
+              </button>
+            </div>
+            <p className="text-[10px] text-muted">
+              Elige un agente, dale las órdenes y genera el anuncio.
+            </p>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
+            {[...customDigitalTwins, ...AI_INFLUENCERS].map((inf) => {
+              const isSelected = selectedInfluencer?.id === inf.id;
+              return (
+                <button
+                  key={inf.id}
+                  type="button"
+                  onClick={() => handleSelectInfluencer(inf)}
+                  className={`w-full flex items-center gap-2.5 p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                    isSelected
+                      ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
+                      : "border-glass-border bg-bg-card hover:border-primary/40"
+                  }`}
+                >
+                  <div className="relative flex-shrink-0">
+                    <img
+                      src={inf.avatar}
+                      alt={inf.name}
+                      className="w-10 h-10 rounded-full object-cover border border-white/20"
+                    />
+                    <span className="absolute -top-1 -left-1 px-1 rounded-full bg-black/80 text-white text-[8px] font-black">
+                      #{inf.number || "TW"}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-foreground truncate">
+                      {inf.name}
+                    </span>
+                    <span className="block text-[10px] text-emerald-500 font-bold truncate">
+                      {inf.badge}
+                    </span>
+                    <span className="block text-[10px] text-muted truncate">
+                      {inf.niche}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="p-3 border-t border-glass-border space-y-2 bg-bg-card">
+            <div className="text-[10px] font-bold text-muted truncate">
+              Agente activo:{" "}
+              <span className="text-emerald-500">
+                {selectedInfluencer?.name || "—"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => applyInfluencerPromoToScript()}
+              className="w-full py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-500 text-[11px] font-black cursor-pointer"
+            >
+              ⚡ Armar Guion 1-Click
+            </button>
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={
+                isGenerating ||
+                !hasEffectiveInput() ||
+                uploadedImages.some((img) => img.status !== "ready") ||
+                (!hasEffectiveReferenceImage() &&
+                  !selectedModel.supportsTextToVideo)
+              }
+              className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {isGenerating ? (
+                <FiLoader className="animate-spin" size={13} />
+              ) : (
+                <FiArrowUp size={13} />
+              )}
+              <span>{isGenerating ? "Generando..." : "Generar Anuncio"}</span>
+            </button>
+          </div>
+        </aside>
+      )}
+
+      <main className="flex-1 min-w-0 flex flex-col relative min-h-0 overflow-y-auto custom-scrollbar">
         {/* Content Canvas */}
-        <div className="flex-1 p-4 md:p-6 relative flex flex-col items-center justify-center overflow-hidden">
+        <div className="flex-1 flex-shrink-0 min-h-[260px] p-4 md:p-6 relative flex flex-col items-center justify-center overflow-hidden">
           <AnimatePresence mode="wait">
             {!lastGeneration ? (
               <motion.div
@@ -1670,7 +1769,7 @@ export default function Home() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -1758,7 +1857,7 @@ export default function Home() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar"
                 >
                   <div>
                     <h4 className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
@@ -1832,7 +1931,7 @@ export default function Home() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar"
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -1891,7 +1990,7 @@ export default function Home() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 overflow-hidden"
+                  className="border-b border-glass-border bg-bg-card/70 p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -2205,7 +2304,7 @@ export default function Home() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-b border-glass-border bg-bg-card/50 p-4 space-y-3 overflow-hidden"
+                  className="border-b border-glass-border bg-bg-card/50 p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar"
                 >
                   {/* Selector Principal de Modo Avatar: (1) Stock/Estudio vs (2) Gemelo Digital */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-glass-border/60">
@@ -2462,7 +2561,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 max-h-44 overflow-y-auto pr-1">
+                    <div className="lg:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                       {AI_INFLUENCERS.map((inf) => {
                         const isSelected = selectedInfluencer?.id === inf.id;
                         return (
