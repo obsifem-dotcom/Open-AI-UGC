@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
-import { CREDIT_PACKAGES, getPackageById } from "@/lib/runtime-store";
+import { CREDIT_PACKAGES, FREE_DEMO_PACKAGE, getPackageById } from "@/lib/runtime-store";
 import {
   FaCheck,
   FaCoins,
@@ -308,6 +308,34 @@ export default function Pricing() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Free Demo Banner */}
+        <div className="w-full max-w-6xl rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black uppercase">
+                🎁 Demo Gratuito
+              </span>
+              <span className="text-sm font-black text-primary-text">
+                Prueba la aplicación sin pagar: {FREE_DEMO_PACKAGE.credits} créditos de cortesía
+              </span>
+            </div>
+            <p className="text-xs text-secondary-text">
+              {FREE_DEMO_PACKAGE.videoCapacityLabel} • Sin tarjeta • 1 demo por correo •{" "}
+              {FREE_DEMO_PACKAGE.entitlements.slice(1, 3).join(" • ")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handlePurchasePlan(FREE_DEMO_PACKAGE)}
+            disabled={processingPlanId === "demo"}
+            className="px-5 py-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black whitespace-nowrap cursor-pointer disabled:opacity-50 shadow-md shadow-emerald-500/20"
+          >
+            {processingPlanId === "demo"
+              ? "Activando demo..."
+              : `Probar Gratis (+${FREE_DEMO_PACKAGE.credits} CR)`}
+          </button>
         </div>
 
         {/* Commercial Pricing Cards Grid */}

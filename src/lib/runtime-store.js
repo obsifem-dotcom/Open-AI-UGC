@@ -142,7 +142,40 @@ export const CREDIT_PACKAGES = [
   },
 ];
 
+export const FREE_DEMO_PACKAGE = {
+  id: "demo",
+  name: "Demo Gratuito",
+  priceUsd: 0,
+  priceLabel: "GRATIS",
+  originalPriceLabel: "",
+  billingCycle: "once",
+  billingNote: "Sin tarjeta • 1 demo por correo",
+  costPerCreditLabel: "$0",
+  credits: 150,
+  videoEstimate: "1 - 2 videos cortos de prueba",
+  videoCapacityLabel: "1 - 2 videos cortos de prueba (6s - 10s)",
+  targetAudience: "Quienes quieren probar la aplicación antes de comprar",
+  popular: false,
+  badge: "Prueba Gratis",
+  description:
+    "Prueba UGCore Studio sin costo: genera tus primeros videos y conoce los avatares, estudios virtuales y el selector de hooks.",
+  features: [
+    "150 créditos de cortesía (1 - 2 videos cortos de prueba)",
+    "Acceso a los 15 avatares de stock",
+    "Entorno virtual #8B5CF6 & Blanco",
+    "Selector de hooks virales y tendencias",
+    "Sin tarjeta de crédito",
+  ],
+  entitlements: [
+    "150 créditos únicos de prueba",
+    "Videos cortos de hasta 10s",
+    "15 avatares de stock y 1 entorno virtual",
+    "Mejora a un plan de pago cuando quieras",
+  ],
+};
+
 export function getPackageById(planId) {
+  if (planId === "demo") return FREE_DEMO_PACKAGE;
   const normalizedId = planId === "pro" ? "professional" : planId;
   return (
     CREDIT_PACKAGES.find((p) => p.id === normalizedId || p.id === planId) ||

@@ -3,7 +3,9 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import {
   CREDIT_PACKAGES,
+  FREE_DEMO_PACKAGE,
   getPackageById,
+  runtimeStore,
   safeAssignOrPurchaseCredits,
   safeGetUserBalance,
 } from "@/lib/runtime-store";
@@ -22,6 +24,7 @@ export async function GET() {
     return NextResponse.json({
       enabled: true,
       packages: CREDIT_PACKAGES,
+      demo: FREE_DEMO_PACKAGE,
       currentUser: balance,
     });
   } catch (err) {
@@ -50,14 +53,36 @@ export async function POST(req) {
     const targetName =
       body.name || session?.user?.name || targetEmail.split("@")[0];
 
+    // Free demo: one claim per email, never overrides a paid plan
+    if (pkg.id === "demo") {
+      const existing = runtimeStore.usersByEmail.get(targetEmail);
+      if (existing?.demoClaimed) {
+        return NextResponse.json(
+          { error: "Este correo ya reclamó su demo gratuito. Elige un plan de pago para continuar." },
+          { status: 409 }
+        );
+      }
+      if (existing && existing.planId && existing.planId !== "demo") {
+        return NextResponse.json(
+          { error: "Tu cuenta ya tiene un plan activo; el demo gratuito no aplica." },
+          { status: 409 }
+        );
+      }
+    }
+
     const updatedUser = await safeAssignOrPurchaseCredits({
       email: targetEmail,
       userId: session?.user?.id,
       name: targetName,
       planId: pkg.id,
       customCredits: body.customCredits ?? null,
-      mode: body.mode || "add",
+      mode: pkg.id === "demo" ? "set" : body.mode || "add",
     });
+
+    if (pkg.id === "demo") {
+      const rec = runtimeStore.usersByEmail.get(targetEmail);
+      if (rec) runtimeStore.usersByEmail.set(targetEmail, { ...rec, demoClaimed: true });
+    }
 
     return NextResponse.json({
       success: true,
