@@ -386,8 +386,13 @@ export default function Pricing() {
                   {/* Entitlements Summary Box */}
                   <div className="p-2.5 rounded-lg bg-[#8B5CF6]/10 border border-[#8B5CF6]/25 space-y-1.5">
                     <div className="text-[10px] font-black uppercase text-[#8B5CF6]">
-                      ¿A qué tienes derecho por {plan.priceLabel}?
+                      ¿A qué tienes derecho por {plan.priceLabel}/mes?
                     </div>
+                    {plan.targetAudience && (
+                      <p className="text-[10px] font-bold text-secondary-text pb-1 border-b border-[#8B5CF6]/20">
+                        🎯 {plan.targetAudience}
+                      </p>
+                    )}
                     <ul className="space-y-1 text-[11px] font-bold text-primary-text">
                       {plan.entitlements.map((ent, i) => (
                         <li key={i} className="flex items-start gap-1.5">
@@ -462,13 +467,13 @@ export default function Pricing() {
               <thead>
                 <tr className="bg-bg-page border-b border-divider text-[10px] font-black uppercase text-secondary-text">
                   <th className="py-3 px-4">Característica / Derecho</th>
-                  <th className="py-3 px-4">Starter ($19 USD)</th>
-                  <th className="py-3 px-4">Growth ($39 USD)</th>
+                  <th className="py-3 px-4">Basic ($29 USD/mes)</th>
+                  <th className="py-3 px-4">Standard ($79 USD/mes)</th>
                   <th className="py-3 px-4 text-[#8B5CF6]">
-                    ⭐ Pro Studio ($79 USD)
+                    ⭐ Professional ($199 USD/mes)
                   </th>
                   <th className="py-3 px-4 text-emerald-400">
-                    Agency ($149 USD)
+                    Business ($499 USD/mes)
                   </th>
                 </tr>
               </thead>
