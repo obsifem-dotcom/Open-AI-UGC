@@ -226,8 +226,14 @@ export default function GalleryPage() {
     router.push("/");
   };
 
-  const handleDeleteCreation = (id, e) => {
+  const handleDeleteCreation = async (id, e) => {
     if (e) e.stopPropagation();
+    const confirmed = window.confirm(
+      "¿Estás seguro de que deseas eliminar este video de tu galería?"
+    );
+    if (!confirmed) return;
+
+    // Remove immediately from UI and local storage
     setCreations((prev) => {
       const next = prev.filter((item) => item.id !== id);
       writeLocalArchive(next);
@@ -235,6 +241,13 @@ export default function GalleryPage() {
     });
     if (selectedCreation?.id === id) {
       setSelectedCreation(null);
+    }
+
+    // Call server DELETE endpoint
+    try {
+      await fetch(`/api/creations/${id}`, { method: "DELETE" });
+    } catch (err) {
+      console.warn("Failed to delete creation from server:", err);
     }
   };
 
@@ -707,6 +720,18 @@ export default function GalleryPage() {
                     >
                       <FiDownload size={14} /> Descargar Video MP4
                     </a>
+                  )}
+
+                  {!selectedCreation.isShowcase && (
+                    <button
+                      type="button"
+                      onClick={(e) =>
+                        handleDeleteCreation(selectedCreation.id, e)
+                      }
+                      className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-full font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <FiTrash2 size={13} /> Eliminar este Video de la Galería
+                    </button>
                   )}
                 </div>
               </div>

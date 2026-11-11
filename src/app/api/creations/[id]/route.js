@@ -208,3 +208,36 @@ export async function GET(req, { params }) {
     );
   }
 }
+
+export async function DELETE(req, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    const { id } = await params;
+
+    // 1. Remove from in-memory runtime store
+    runtimeStore.creationsById.delete(id);
+
+    // 2. Remove from Prisma DB if connected
+    if (prisma?.creation && !id.startsWith("mu_") && !id.startsWith("mum_")) {
+      try {
+        await prisma.creation.deleteMany({
+          where: { id },
+        });
+      } catch (err) {
+        console.warn("[SAFE_CREATION_DELETE_FALLBACK]", err?.message || err);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Video ${id} eliminado correctamente.`,
+      id,
+    });
+  } catch (error) {
+    console.error("[CREATION_DELETE_ERROR]", error);
+    return NextResponse.json(
+      { error: error?.message || "No se pudo eliminar el video" },
+      { status: 500 }
+    );
+  }
+}
