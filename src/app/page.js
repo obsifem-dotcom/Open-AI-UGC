@@ -876,12 +876,6 @@ export default function Home() {
   };
 
   const handleCloneAndActivateDigitalTwin = () => {
-    if (!twinConsentAccepted) {
-      alert(
-        "Debes marcar la casilla de Consentimiento Biométrico Expreso (2 a 5 min) para clonar el rostro y voz del Gemelo Digital."
-      );
-      return;
-    }
     setIsProcessingTwin(true);
     setTimeout(() => {
       const langObj =
@@ -2239,6 +2233,219 @@ export default function Home() {
                   exit={{ opacity: 0, height: 0 }}
                   className="border-b border-glass-border bg-bg-card/50 p-4 space-y-3 overflow-hidden"
                 >
+                  {/* Selector Principal de Modo Avatar: (1) Stock/Estudio vs (2) Gemelo Digital */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-glass-border/60">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
+                        Modo de Avatar:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAvatarSourceType("stock")}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                          avatarSourceType === "stock"
+                            ? "bg-emerald-500 text-white shadow-sm"
+                            : "bg-glass-bg text-secondary-text hover:text-foreground border border-glass-border"
+                        }`}
+                      >
+                        <span>🎭 1. Avatares de Stock / Estudio ({AI_INFLUENCERS.length} Modelos)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAvatarSourceType("digital-twin")}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                          avatarSourceType === "digital-twin"
+                            ? "bg-[#8B5CF6] text-white shadow-sm ring-1 ring-white/30"
+                            : "bg-[#8B5CF6]/10 text-[#8B5CF6] border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/20"
+                        }`}
+                      >
+                        <span>🧬 2. Subir Gemelo Digital / Custom Avatar (#8B5CF6)</span>
+                      </button>
+                    </div>
+
+                    <span className="text-[9px] font-bold text-muted">
+                      {avatarSourceType === "stock"
+                        ? "15 modelos profesionales preconfigurados"
+                        : "Video 2 a 5 min • Clonación rostro y voz"}
+                    </span>
+                  </div>
+
+                  {avatarSourceType === "digital-twin" ? (
+                    /* Módulo 2: Subir Gemelo Digital / Custom Avatar (Video 2-5m • #8B5CF6) */
+                    <div className="p-3.5 rounded-xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/40 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] ring-2 ring-white" />
+                            <h4 className="text-xs font-black uppercase text-foreground">
+                              Subir Gemelo Digital / Custom Avatar (Video 2 a 5 Minutos • Identidad #8B5CF6)
+                            </h4>
+                          </div>
+                          <p className="text-[10px] text-muted mt-0.5">
+                            Sube un video de entrenamiento (2 a 5 min) para procesar la clonación del rostro y voz con armonía visual en tonos #8B5CF6 y blanco.
+                          </p>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded bg-[#8B5CF6] text-white text-[9px] font-black uppercase">
+                          Calibrado #8B5CF6 + #FFFFFF
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted block mb-1">
+                            Nombre del Gemelo Digital
+                          </label>
+                          <input
+                            type="text"
+                            value={twinName}
+                            onChange={(e) => setTwinName(e.target.value)}
+                            placeholder="Ej: Mi Gemelo IA (Carlos)"
+                            className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-xs font-semibold text-foreground outline-none focus:border-[#8B5CF6]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted block mb-1">
+                            Código UCID
+                          </label>
+                          <input
+                            type="text"
+                            value={twinUcid}
+                            onChange={(e) => setTwinUcid(e.target.value)}
+                            placeholder="UCID-TWIN-01"
+                            className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-xs font-mono font-bold text-[#8B5CF6] outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted block mb-1">
+                            Idioma & Voz de Clonación
+                          </label>
+                          <select
+                            value={twinVoiceLanguageId}
+                            onChange={(e) => setTwinVoiceLanguageId(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-xs font-bold text-foreground outline-none"
+                          >
+                            {INFLUENCER_LANGUAGES.map((l) => (
+                              <option key={l.id} value={l.id}>
+                                {l.flag} {l.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-muted block mb-1">
+                            Duración Calibrada: {twinVideoDurationMinutes} min
+                          </label>
+                          <input
+                            type="range"
+                            min={2.0}
+                            max={5.0}
+                            step={0.5}
+                            value={twinVideoDurationMinutes}
+                            onChange={(e) => setTwinVideoDurationMinutes(parseFloat(e.target.value))}
+                            className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-[#8B5CF6] mt-2"
+                          />
+                        </div>
+                      </div>
+
+                      {/* File Upload Buttons */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="p-3 rounded-lg bg-bg-card border border-dashed border-[#8B5CF6]/50 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-bold text-foreground flex items-center gap-1.5 truncate">
+                              <FiVideo className="text-[#8B5CF6] shrink-0" />
+                              <span className="truncate">
+                                {twinVideoFileName || "Video de Entrenamiento (2 a 5 min)"}
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-muted mt-0.5">
+                              MP4, MOV o WEBM hablando frente a cámara.
+                            </p>
+                          </div>
+                          <input
+                            type="file"
+                            ref={twinVideoInputRef}
+                            onChange={handleTwinVideoUpload}
+                            accept="video/*"
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => twinVideoInputRef.current?.click()}
+                            disabled={isUploadingTwinMedia}
+                            className="px-3 py-1.5 rounded bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-bold whitespace-nowrap cursor-pointer transition-all"
+                          >
+                            {isUploadingTwinMedia ? "Cargando..." : "Subir Video"}
+                          </button>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-bg-card border border-dashed border-emerald-500/50 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {twinFaceImageUrl ? (
+                              <img
+                                src={twinFaceImageUrl}
+                                alt="Face frame"
+                                className="w-8 h-8 rounded-full object-cover border border-emerald-500 shrink-0"
+                              />
+                            ) : (
+                              <FiImage className="text-emerald-500 text-lg shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-bold text-foreground truncate">
+                                Fotograma Facial (@image1)
+                              </div>
+                              <p className="text-[9px] text-muted truncate">
+                                {twinFaceImageUrl ? "Fotograma fijado" : "Sube una foto clara de rostro"}
+                              </p>
+                            </div>
+                          </div>
+                          <input
+                            type="file"
+                            ref={twinFaceInputRef}
+                            onChange={handleTwinFaceUpload}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => twinFaceInputRef.current?.click()}
+                            disabled={isUploadingTwinMedia}
+                            className="px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold whitespace-nowrap cursor-pointer transition-all"
+                          >
+                            Subir Rostro
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Action Button without biometric checkbox block */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-[#8B5CF6]/30">
+                        <div className="text-[10px] text-muted">
+                          Identidad visual en tonos <strong className="text-[#8B5CF6]">#8B5CF6</strong> y <strong className="text-foreground">#FFFFFF</strong> activa para todos los escenarios.
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCloneAndActivateDigitalTwin}
+                          disabled={isProcessingTwin}
+                          className="px-5 py-2.5 rounded-xl bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-[#8B5CF6]/25 whitespace-nowrap"
+                        >
+                          {isProcessingTwin ? (
+                            <>
+                              <FiLoader className="animate-spin" size={13} />
+                              <span>Procesando Clonación...</span>
+                            </>
+                          ) : (
+                            <>
+                              <FiCheck size={14} />
+                              <span>🧬 Procesar y Activar Gemelo Digital</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {/* Row 1: 15 AI Influencers Roster */}
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
