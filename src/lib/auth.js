@@ -27,8 +27,9 @@ const SERVER_ADMIN_KEYS = [
 
 export const DEFAULT_MUAPI_KEY =
   process.env.UGC_API_KEY ||
+  process.env.API_KEY ||
   process.env.MUAPIAPP_API_KEY ||
-  "57ece5065706c327b0c80638d0609f1d453d7a3a7f8bb3be815dc4008caf6cd9";
+  "88e6133af38f606478109f6a80320815d7b7b742812b908ec2c8e23da4adfe42";
 
 export function isAdminEmail(email) {
   if (!email || typeof email !== "string") return false;

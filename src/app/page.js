@@ -2018,37 +2018,26 @@ export default function Home() {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-b border-[#8B5CF6]/40 bg-bg-card/85 p-4 space-y-3.5 overflow-hidden"
+                  className="border-b border-[#8B5CF6]/40 bg-bg-card/95 p-4 space-y-3 max-h-[75vh] overflow-y-auto custom-scrollbar"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-glass-border/60">
                     <div>
                       <h4 className="text-xs font-black uppercase text-foreground flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] ring-2 ring-white inline-block" />
                         <span>
-                          Pipeline Universal YouTube Formato Largo (4 Capítulos ×
-                          5 Min = 20:00)
+                          Pipeline Universal YouTube Formato Largo (4 Capítulos × 5 Min = 20:00)
                         </span>
                       </h4>
                       <p className="text-[10px] text-muted">
-                        Inserción automática de B-Roll cada{" "}
-                        {YOUTUBE_LONGFORM_CONFIG.bRollIntervalSeconds} segundos
-                        (12 cortes por capítulo / 48 totales) • Identidad visual{" "}
-                        <span className="font-bold text-[#8B5CF6]">
-                          #8B5CF6 (Violeta)
-                        </span>{" "}
-                        y{" "}
-                        <span className="font-bold text-foreground">
-                          #FFFFFF (Blanco)
-                        </span>{" "}
-                        • Exportación de metadatos con marcas de tiempo.
+                        B-Roll cada {YOUTUBE_LONGFORM_CONFIG.bRollIntervalSeconds}s (48 cortes totales) • Identidad <span className="font-bold text-[#8B5CF6]">#8B5CF6</span> y <span className="font-bold text-foreground">#FFFFFF</span> • Marcas de tiempo SEO automáticas.
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="px-2 py-0.5 rounded bg-[#8B5CF6] text-white text-[9px] font-black uppercase tracking-wider">
-                        Identidad #8B5CF6 + #FFFFFF
+                        #8B5CF6 + #FFFFFF
                       </span>
                       <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase">
-                        48 B-Rolls (c/25s)
+                        48 B-Rolls
                       </span>
                     </div>
                   </div>
@@ -2062,23 +2051,25 @@ export default function Home() {
                         setYtTopic(e.target.value);
                         handleGenerateYouTubeBlueprint(e.target.value);
                       }}
-                      placeholder="Escribe aquí el tema de tu video largo de YouTube (ej: Cómo automatizar ventas con IA en 2026)..."
+                      placeholder="Tema del video de YouTube (ej: Cómo automatizar ventas con IA en 2026)..."
                       className="flex-1 px-3 py-2 rounded-lg bg-bg-card border border-[#8B5CF6]/50 text-xs font-semibold text-foreground placeholder-muted outline-none focus:border-[#8B5CF6]"
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleGenerateYouTubeBlueprint(ytTopic)}
-                      className="px-3 py-2 rounded-lg bg-[#8B5CF6]/15 hover:bg-[#8B5CF6]/25 border border-[#8B5CF6]/40 text-[#8B5CF6] text-xs font-black whitespace-nowrap cursor-pointer transition-all"
-                    >
-                      🔄 Estructurar 4 Capítulos
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyYouTubeToTimeline}
-                      className="px-3.5 py-2 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-black whitespace-nowrap cursor-pointer transition-all shadow-sm"
-                    >
-                      ⚡ Cargar 4 Capítulos al Timeline (16:9)
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateYouTubeBlueprint(ytTopic)}
+                        className="px-3 py-2 rounded-lg bg-[#8B5CF6]/15 hover:bg-[#8B5CF6]/25 border border-[#8B5CF6]/40 text-[#8B5CF6] text-xs font-black whitespace-nowrap cursor-pointer transition-all"
+                      >
+                        🔄 Estructurar 4 Capítulos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyYouTubeToTimeline}
+                        className="px-3.5 py-2 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-black whitespace-nowrap cursor-pointer transition-all shadow-sm"
+                      >
+                        ⚡ Cargar al Timeline (16:9)
+                      </button>
+                    </div>
                   </div>
 
                   {/* 4 Chapters Modular Grid */}
@@ -2086,14 +2077,11 @@ export default function Home() {
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                         {ytBlueprint.chapters.map((ch) => {
-                          const isSelected =
-                            selectedYtChapter === ch.chapterNumber;
+                          const isSelected = selectedYtChapter === ch.chapterNumber;
                           return (
                             <div
                               key={ch.chapterNumber}
-                              onClick={() =>
-                                setSelectedYtChapter(ch.chapterNumber)
-                              }
+                              onClick={() => setSelectedYtChapter(ch.chapterNumber)}
                               className={`p-2.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
                                 isSelected
                                   ? "border-[#8B5CF6] bg-[#8B5CF6]/10 ring-1 ring-[#8B5CF6]"
@@ -2138,19 +2126,16 @@ export default function Home() {
                         return (
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
                             {/* B-Roll Every 25s Inspector */}
-                            <div className="p-3 rounded-xl border border-glass-border bg-bg-card space-y-2">
+                            <div className="p-3 rounded-xl border border-glass-border bg-bg-card space-y-2 flex flex-col">
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase text-[#8B5CF6]">
-                                  Matriz B-Roll Cada 25s • Cap.{" "}
-                                  {activeCh.chapterNumber} (
-                                  {activeCh.startTimestamp} -{" "}
-                                  {activeCh.endTimestamp})
+                                  Matriz B-Roll Cada 25s • Cap. {activeCh.chapterNumber} ({activeCh.startTimestamp} - {activeCh.endTimestamp})
                                 </span>
                                 <span className="text-[9px] font-bold text-muted">
                                   Tonos #8B5CF6 & #FFFFFF
                                 </span>
                               </div>
-                              <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                              <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                                 {activeCh.bRollCues.map((cue) => (
                                   <div
                                     key={cue.cueNumber}
@@ -2161,8 +2146,7 @@ export default function Home() {
                                     </span>
                                     <span className="text-foreground font-medium leading-tight">
                                       <strong className="text-[#8B5CF6]">
-                                        B-Roll #{cue.cueNumber} (+
-                                        {cue.relativeSecond}s):
+                                        B-Roll #{cue.cueNumber} (+{cue.relativeSecond}s):
                                       </strong>{" "}
                                       {cue.visualDirection}
                                     </span>
@@ -2176,8 +2160,7 @@ export default function Home() {
                               <div className="space-y-1.5">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-black uppercase text-foreground">
-                                    ⏱️ Exportación de Metadatos + Marcas de
-                                    Tiempo Automáticas
+                                    ⏱️ Metadatos + Timestamps
                                   </span>
                                   <div className="flex items-center gap-1.5">
                                     <button
@@ -2187,7 +2170,7 @@ export default function Home() {
                                     >
                                       {copiedYtMeta
                                         ? "✓ ¡Copiado!"
-                                        : "📋 Copiar Metadatos + Timestamps"}
+                                        : "📋 Copiar"}
                                     </button>
                                     <button
                                       type="button"
@@ -2198,21 +2181,12 @@ export default function Home() {
                                     </button>
                                   </div>
                                 </div>
-                                <pre className="p-2 rounded bg-glass-bg border border-glass-border text-[10px] font-mono text-secondary-text whitespace-pre-wrap max-h-28 overflow-y-auto">
+                                <pre className="p-2 rounded bg-glass-bg border border-glass-border text-[10px] font-mono text-secondary-text whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
                                   {ytBlueprint.seoMetadata.description}
                                 </pre>
                               </div>
                               <p className="text-[9px] text-muted">
-                                Incluye: Título SEO, Capítulos de YouTube (00:00,
-                                05:00, 10:00, 15:00), Prompt de Miniatura en{" "}
-                                <span className="text-[#8B5CF6] font-bold">
-                                  #8B5CF6
-                                </span>{" "}
-                                y{" "}
-                                <span className="font-bold text-foreground">
-                                  #FFFFFF
-                                </span>{" "}
-                                + escaleta de 48 B-Rolls.
+                                Incluye: Título SEO, Capítulos (00:00, 05:00, 10:00, 15:00) y prompt miniatura en <span className="text-[#8B5CF6] font-bold">#8B5CF6</span> y <span className="font-bold text-foreground">#FFFFFF</span>.
                               </p>
                             </div>
                           </div>
