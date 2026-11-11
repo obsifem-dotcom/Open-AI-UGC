@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
-import { CREDIT_PACKAGES, FREE_DEMO_PACKAGE, getPackageById } from "@/lib/runtime-store";
+import { CREDIT_PACKAGES, FREE_DEMO_PACKAGE, getPackageById } from "@/lib/plans";
 import {
   FaCheck,
   FaCoins,

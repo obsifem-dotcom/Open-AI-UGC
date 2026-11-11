@@ -18,7 +18,7 @@ import {
   FiCreditCard,
 } from "react-icons/fi";
 import config from "@/lib/config";
-import { CREDIT_PACKAGES, getPackageById } from "@/lib/runtime-store";
+import { CREDIT_PACKAGES, getPackageById } from "@/lib/plans";
 import toast from "react-hot-toast";
 
 export default function Navbar() {

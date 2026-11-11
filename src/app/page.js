@@ -30,7 +30,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCoins } from "react-icons/fa";
 import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
-import { getPackageById } from "@/lib/runtime-store";
+import { getPackageById } from "@/lib/plans";
 import {
   AI_INFLUENCERS,
   INFLUENCER_LANGUAGES,
