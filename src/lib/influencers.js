@@ -637,6 +637,73 @@ export const INFLUENCER_COMPOSITING_MODES = [
   },
 ];
 
+// ============================================================================
+// Digital Twin / Custom Avatar (2-5 Min Training Video + Biometric Consent)
+// Compatible with #8B5CF6 & #FFFFFF Visual Identity
+// ============================================================================
+
+export const DIGITAL_TWIN_SPEC = {
+  minDurationSeconds: 120, // 2 minutes
+  maxDurationSeconds: 300, // 5 minutes
+  recommendedResolution: "1080p / 4K (30-60 fps)",
+  visualIdentityHex: "#8B5CF6",
+  secondaryHex: "#FFFFFF",
+  consentStatementTemplate: (userName = "el titular") =>
+    `Yo, ${userName}, autorizo expresamente a UGCore Studio a procesar mi video de entrenamiento (2 a 5 minutos) para generar mi Gemelo Digital (clonación biométrica de rostro y síntesis neural de voz) bajo mi control exclusivo.`,
+  trainingChecklist: [
+    "Video continuo de 2 a 5 minutos hablando frente a cámara a la altura de los ojos",
+    "Iluminación frontal uniforme o set con acentos #8B5CF6 y fondo limpio sin ruido visual",
+    "Audio claro sin música de fondo ni eco para clonación exacta de timbre y cadencia",
+    "Declaración de consentimiento biométrico verificada por el titular",
+  ],
+};
+
+export function buildDigitalTwinProfile({
+  twinName = "Mi Gemelo Digital",
+  ucid = "UCID-TWIN-CUSTOM-01",
+  avatarFrameUrl = "",
+  trainingVideoUrl = "",
+  trainingVideoName = "entrenamiento_gemelo_digital.mp4",
+  durationMinutes = 3.5,
+  voiceTimbre = "Clonación Neural Exacta (Voz Original del Usuario)",
+  visualNotes = "",
+  consentVerified = true,
+} = {}) {
+  const cleanName = twinName.trim() || "Mi Gemelo Digital";
+  const cleanUcid = ucid.trim() || "UCID-TWIN-CUSTOM-01";
+  const customTrait = visualNotes.trim()
+    ? `, ${visualNotes.trim()}`
+    : ", natural micro-expressions, authentic eye contact and exact facial geometry from the 2-5 min training capture";
+
+  return {
+    id: `digital-twin-${cleanUcid.toLowerCase()}`,
+    isDigitalTwin: true,
+    number: "TWIN",
+    ucid: cleanUcid,
+    name: cleanName,
+    niche: "Gemelo Digital Personalizado (Rostro + Voz Clonada)",
+    badge: "Gemelo #8B5CF6",
+    avatar:
+      avatarFrameUrl ||
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+    trainingVideoUrl,
+    trainingVideoName,
+    durationMinutes,
+    consentVerified,
+    voiceTimbre,
+    visualIdentity: "#8B5CF6 & #FFFFFF",
+    visualPrompt: `Photorealistic Digital Twin custom avatar (${cleanName}, ID: ${cleanUcid}) cloned from a ${durationMinutes}-minute high-definition training video${customTrait}, harmonized with UGCore Studio #8B5CF6 electric violet rim light and #FFFFFF pure white studio key lighting`,
+    tone: "Auténtico, idéntico al titular y calibrado con lip-sync neural",
+    defaultPromoType: "product",
+    defaultStyle: "showcase",
+    defaultVoiceProfileId: "es-latam-commercial",
+    defaultName: "nuestra solución principal",
+    defaultBenefit:
+      "multiplica tus resultados manteniendo tu identidad personal y voz real en cada video",
+    defaultCta: "Haz clic en el enlace de abajo para conocer más ahora mismo",
+  };
+}
+
 export const PROMO_CATEGORIES = [
   {
     id: "product",

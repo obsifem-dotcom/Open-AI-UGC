@@ -463,16 +463,16 @@ function LoginContent() {
                 className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs font-bold text-primary-text focus:outline-none focus:border-primary"
               >
                 <option value="basic">
-                  Pack Básico — 1,000 Créditos ($5 USD)
+                  Pack Starter / Creator — 1,500 Créditos ($19 USD)
                 </option>
                 <option value="standard">
-                  Pack Estándar — 2,500 Créditos ($10 USD)
+                  Pack Growth / E-Commerce — 4,000 Créditos ($39 USD)
                 </option>
                 <option value="pro">
-                  Pack Profesional — 6,000 Créditos ($20 USD)
+                  ⭐ Pack Pro Studio & YouTube — 10,000 Créditos ($79 USD)
                 </option>
                 <option value="business">
-                  Pack Business — 20,000 Créditos ($50 USD)
+                  Pack Agency / Enterprise — 25,000 Créditos ($149 USD)
                 </option>
               </select>
             </div>

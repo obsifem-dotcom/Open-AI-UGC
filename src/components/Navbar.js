@@ -18,6 +18,7 @@ import {
   FiCreditCard,
 } from "react-icons/fi";
 import config from "@/lib/config";
+import { CREDIT_PACKAGES, getPackageById } from "@/lib/runtime-store";
 import toast from "react-hot-toast";
 
 export default function Navbar() {
@@ -27,6 +28,7 @@ export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isAdminCreditsModalOpen, setIsAdminCreditsModalOpen] = useState(false);
+  const [isBuyerPlanModalOpen, setIsBuyerPlanModalOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [savingKey, setSavingKey] = useState(false);
 
@@ -55,16 +57,20 @@ export default function Navbar() {
       ? session.user.credits
       : isAdminUser
       ? 999999
-      : 1000;
+      : 1500;
 
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
       ? session.user.assignedCredits
       : userCredits;
 
+  const activeBuyerPackage = getPackageById(
+    session?.user?.planId || (assignedCredits >= 25000 ? "business" : assignedCredits >= 10000 ? "pro" : assignedCredits >= 4000 ? "standard" : "basic")
+  );
+
   const userPlanName =
     session?.user?.planName ||
-    (isAdminUser ? "Administrador Master" : "Pack Comprador");
+    (isAdminUser ? "Administrador Master" : activeBuyerPackage.name);
 
   const fetchAdminUsers = async () => {
     setLoadingBuyers(true);
@@ -150,7 +156,7 @@ export default function Navbar() {
         redirect: false,
       });
       if (!res?.error) {
-        toast.success("Sesión de Comprador Pro activada (6,000 Créditos)");
+        toast.success("Sesión de Comprador Pro activada ($79 USD • 10,000 Créditos)");
         window.location.reload();
       } else {
         window.location.href = "/login";
@@ -316,15 +322,17 @@ export default function Navbar() {
               {/* Credit Balance indicator (Visible for BOTH Admin & Buyers!) */}
               <div
                 onClick={() => {
-                  if (isAdminUser) openAdminCreditsModal();
+                  if (isAdminUser) {
+                    openAdminCreditsModal();
+                  } else {
+                    setIsBuyerPlanModalOpen(true);
+                  }
                 }}
-                className={`flex items-center h-9 border border-divider rounded-l bg-bg-page/40 overflow-hidden pr-2 ${
-                  isAdminUser ? "cursor-pointer hover:bg-bg-card" : ""
-                }`}
+                className="flex items-center h-9 border border-divider rounded-l bg-bg-page/40 overflow-hidden pr-2 cursor-pointer hover:bg-bg-card transition-colors"
                 title={
                   isAdminUser
                     ? "Créditos de Administrador (Haz clic para gestionar créditos de usuarios)"
-                    : `Créditos asignados según compra (${userPlanName})`
+                    : `Haz clic para ver tus derechos y beneficios según tu paquete (${userPlanName} • $${activeBuyerPackage.price} USD)`
                 }
               >
                 <span className="font-bold text-xs px-3 flex items-center text-primary-text gap-1.5">
@@ -345,13 +353,14 @@ export default function Navbar() {
                       </strong>{" "}
                       <span className="text-[10px] text-secondary-text">
                         / {Number(assignedCredits).toLocaleString()} CR •{" "}
-                        {userPlanName}
+                        {userPlanName} (${activeBuyerPackage.price})
                       </span>
                     </span>
                   )}
                 </span>
                 <Link
                   href="/pricing"
+                  onClick={(e) => e.stopPropagation()}
                   className="flex items-center justify-center w-5 h-5 rounded bg-primary/15 hover:bg-primary/30 text-primary transition-colors"
                   title="Comprar o asignar más créditos"
                 >
@@ -387,17 +396,25 @@ export default function Navbar() {
                       <div className="text-[10px] font-black text-emerald-500 uppercase tracking-wider mt-0.5">
                         {isAdminUser
                           ? `Administrador • ${Number(userCredits).toLocaleString()} Créditos`
-                          : `${userPlanName} • ${Number(userCredits).toLocaleString()} / ${Number(assignedCredits).toLocaleString()} CR`}
+                          : `${userPlanName} ($${activeBuyerPackage.price} USD) • ${Number(userCredits).toLocaleString()} / ${Number(assignedCredits).toLocaleString()} CR`}
                       </div>
                     </div>
 
-                    {isAdminUser && (
+                    {isAdminUser ? (
                       <button
                         onClick={openAdminCreditsModal}
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
                       >
                         <FiShield size={14} />
                         <span>Gestionar Créditos & Compradores</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setIsBuyerPlanModalOpen(true)}
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                      >
+                        <FiCheck size={14} />
+                        <span>💎 Mis Derechos según Compra (${activeBuyerPackage.price})</span>
                       </button>
                     )}
 
@@ -628,10 +645,11 @@ export default function Navbar() {
                   onChange={(e) => setTargetPlanId(e.target.value)}
                   className="px-3 py-2 rounded bg-bg-card border border-divider text-xs font-bold text-primary-text outline-none"
                 >
-                  <option value="basic">Pack Básico ($5 • 1,000 CR)</option>
-                  <option value="standard">Pack Estándar ($10 • 2,500 CR)</option>
-                  <option value="pro">Pack Profesional ($20 • 6,000 CR)</option>
-                  <option value="business">Pack Business ($50 • 20,000 CR)</option>
+                  {CREDIT_PACKAGES.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name} (${pkg.price} USD • {Number(pkg.credits).toLocaleString()} CR)
+                    </option>
+                  ))}
                 </select>
 
                 <input
@@ -806,6 +824,113 @@ export default function Navbar() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Buyer Plan Entitlements & Credits Modal */}
+      {isBuyerPlanModalOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="bg-bg-card border border-divider w-full max-w-xl rounded-xl p-6 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-divider/60 pb-3">
+              <div>
+                <div className="flex items-center gap-2 text-[#8B5CF6] font-black text-sm uppercase">
+                  <FiCreditCard className="text-base" />
+                  <span>
+                    💳 Mi Paquete Comercial y Derechos Activos ({userPlanName})
+                  </span>
+                </div>
+                <p className="text-[11px] text-secondary-text mt-0.5">
+                  Valor Comercial: <strong className="text-white">${activeBuyerPackage.price} USD</strong>{" "}
+                  <span className="line-through opacity-70">${activeBuyerPackage.originalPrice} USD</span> •{" "}
+                  Capacidad: <strong className="text-emerald-400">{activeBuyerPackage.videoEstimate}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setIsBuyerPlanModalOpen(false)}
+                className="text-secondary-text hover:text-white transition-colors cursor-pointer"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="p-3 rounded-lg bg-bg-page/60 border border-divider">
+                <div className="text-[10px] font-bold uppercase text-secondary-text">
+                  Créditos Disponibles
+                </div>
+                <div className="text-lg font-black text-emerald-400">
+                  {Number(userCredits).toLocaleString()} CR
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-bg-page/60 border border-divider">
+                <div className="text-[10px] font-bold uppercase text-secondary-text">
+                  Créditos Asignados
+                </div>
+                <div className="text-lg font-black text-primary-text">
+                  {Number(assignedCredits).toLocaleString()} CR
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-bg-page/60 border border-divider">
+                <div className="text-[10px] font-bold uppercase text-secondary-text">
+                  Paquete Activo
+                </div>
+                <div className="text-sm font-black text-[#8B5CF6]">
+                  {activeBuyerPackage.name} (${activeBuyerPackage.price} USD)
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+              <div className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                ✅ ¿A qué tienes derecho según tu compra de ${activeBuyerPackage.price} USD?
+              </div>
+              <div className="grid grid-cols-1 gap-1.5">
+                {(activeBuyerPackage.entitlements || []).map((right, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-2 text-xs font-semibold text-primary-text"
+                  >
+                    <FiCheck className="text-emerald-400 mt-0.5 shrink-0" />
+                    <span>{right}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-bg-page/60 border border-divider space-y-2">
+              <div className="text-[11px] font-black uppercase tracking-wider text-secondary-text">
+                ⚡ Características Técnicas Incluidas en tu Paquete
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {(activeBuyerPackage.features || []).map((feat, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-1.5 text-[11px] text-secondary-text"
+                  >
+                    <span className="text-[#8B5CF6] font-black">•</span>
+                    <span>{feat}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => setIsBuyerPlanModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-bg-page border border-divider text-xs font-bold text-secondary-text hover:text-white cursor-pointer"
+              >
+                Cerrar
+              </button>
+              <Link
+                href="/pricing"
+                onClick={() => setIsBuyerPlanModalOpen(false)}
+                className="px-4 py-2 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-bold shadow-md shadow-[#8B5CF6]/20"
+              >
+                Ver Todos los Paquetes Comerciales ($19 - $149 USD) →
+              </Link>
+            </div>
           </div>
         </div>
       )}

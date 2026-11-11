@@ -26,9 +26,11 @@ import {
   FiCpu,
 } from "react-icons/fi";
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCoins } from "react-icons/fa";
 import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
+import { getPackageById } from "@/lib/runtime-store";
 import {
   AI_INFLUENCERS,
   INFLUENCER_LANGUAGES,
@@ -37,7 +39,9 @@ import {
   INFLUENCER_WARDROBE_OPTIONS,
   INFLUENCER_VIRTUAL_ENVIRONMENTS,
   INFLUENCER_COMPOSITING_MODES,
+  DIGITAL_TWIN_SPEC,
   PROMO_CATEGORIES,
+  buildDigitalTwinProfile,
   buildInfluencerScript,
 } from "@/lib/influencers";
 import {
@@ -287,11 +291,23 @@ export default function Home() {
       ? session.user.credits
       : isAdminUser
       ? 999999
-      : 1000;
+      : 1500;
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
       ? session.user.assignedCredits
       : availableCredits;
+
+  const activeBuyerPackage = getPackageById(
+    session?.user?.planId ||
+      (assignedCredits >= 25000
+        ? "business"
+        : assignedCredits >= 10000
+        ? "pro"
+        : assignedCredits >= 4000
+        ? "standard"
+        : "basic")
+  );
+  const [showEntitlementsBanner, setShowEntitlementsBanner] = useState(false);
 
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
   const [modelSettings, setModelSettings] = useState(() =>
@@ -350,6 +366,23 @@ export default function Home() {
   const [isUploadingCustomEnv, setIsUploadingCustomEnv] = useState(false);
   const [useVirtualEnvImageRef, setUseVirtualEnvImageRef] = useState(true);
   const envInputRef = useRef(null);
+
+  // Dual Avatar Selector: (1) Stock / Studio Avatars vs (2) Digital Twin / Custom Avatar (2-5m + Consent • #8B5CF6)
+  const [avatarSourceType, setAvatarSourceType] = useState("stock"); // "stock" | "digital-twin"
+  const [customDigitalTwins, setCustomDigitalTwins] = useState([]);
+  const [twinName, setTwinName] = useState("Mi Gemelo Digital IA");
+  const [twinUcid, setTwinUcid] = useState("UCID-TWIN-01");
+  const [twinVideoFileName, setTwinVideoFileName] = useState("");
+  const [twinVideoDurationMinutes, setTwinVideoDurationMinutes] = useState(3.0);
+  const [twinVideoPreviewUrl, setTwinVideoPreviewUrl] = useState("");
+  const [twinFaceImageUrl, setTwinFaceImageUrl] = useState("");
+  const [isUploadingTwinMedia, setIsUploadingTwinMedia] = useState(false);
+  const [twinVoiceLanguageId, setTwinVoiceLanguageId] = useState("es-latam");
+  const [twinConsentAccepted, setTwinConsentAccepted] = useState(false);
+  const [twinConsentSignerName, setTwinConsentSignerName] = useState("");
+  const [isProcessingTwin, setIsProcessingTwin] = useState(false);
+  const twinVideoInputRef = useRef(null);
+  const twinFaceInputRef = useRef(null);
 
   // UGCore Studio v3.0 — Active Architectural Module Tab
   // null | "intelligence" | "ecommerce" | "timeline" | "consistency"
@@ -773,6 +806,130 @@ export default function Home() {
       setIsUploadingCustomFace(false);
       if (faceInputRef.current) faceInputRef.current.value = "";
     }
+  };
+
+  // Digital Twin / Custom Avatar (2 to 5 min training video + Biometric Consent • #8B5CF6) handlers
+  const handleTwinVideoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingTwinMedia(true);
+    try {
+      setTwinVideoFileName(file.name);
+      const localUrl = URL.createObjectURL(file);
+      setTwinVideoPreviewUrl(localUrl);
+
+      // Inspect video duration & extract a reference keyframe for @image1 face lock
+      const videoEl = document.createElement("video");
+      videoEl.preload = "metadata";
+      videoEl.muted = true;
+      videoEl.playsInline = true;
+      videoEl.src = localUrl;
+
+      await new Promise((resolve) => {
+        const timeout = setTimeout(resolve, 1800);
+        videoEl.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          if (videoEl.duration && Number.isFinite(videoEl.duration)) {
+            const mins = Number((videoEl.duration / 60).toFixed(1));
+            // Keep within 2.0 - 5.0 min spec or default to 3.0 min calibration
+            setTwinVideoDurationMinutes(
+              Math.min(5.0, Math.max(2.0, mins >= 0.1 ? mins : 3.0))
+            );
+          }
+          resolve();
+        };
+        videoEl.onerror = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
+      });
+    } catch (err) {
+      console.error("Error reading training video:", err);
+    } finally {
+      setIsUploadingTwinMedia(false);
+      if (twinVideoInputRef.current) twinVideoInputRef.current.value = "";
+    }
+  };
+
+  const handleTwinFaceUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingTwinMedia(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("No se pudo subir el fotograma facial");
+      const data = await response.json();
+      setTwinFaceImageUrl(data.url);
+      setCustomFaceUrl(data.url);
+    } catch (err) {
+      console.error("Twin face upload error:", err);
+      alert("Error al subir el fotograma facial del Gemelo Digital.");
+    } finally {
+      setIsUploadingTwinMedia(false);
+      if (twinFaceInputRef.current) twinFaceInputRef.current.value = "";
+    }
+  };
+
+  const handleCloneAndActivateDigitalTwin = () => {
+    if (!twinConsentAccepted) {
+      alert(
+        "Debes marcar la casilla de Consentimiento Biométrico Expreso (2 a 5 min) para clonar el rostro y voz del Gemelo Digital."
+      );
+      return;
+    }
+    setIsProcessingTwin(true);
+    setTimeout(() => {
+      const langObj =
+        INFLUENCER_LANGUAGES.find((l) => l.id === twinVoiceLanguageId) ||
+        INFLUENCER_LANGUAGES[0];
+
+      const newTwin = buildDigitalTwinProfile({
+        name: twinName.trim() || "Mi Gemelo Digital IA",
+        ucid:
+          twinUcid.trim() ||
+          `UCID-TWIN-${String(customDigitalTwins.length + 1).padStart(2, "0")}`,
+        avatarUrl:
+          twinFaceImageUrl ||
+          customFaceUrl ||
+          selectedInfluencer?.avatar ||
+          AI_INFLUENCERS[0].avatar,
+        trainingVideoName:
+          twinVideoFileName ||
+          `entrenamiento_gemelo_${twinVideoDurationMinutes}min.mp4`,
+        trainingDurationMinutes: twinVideoDurationMinutes,
+        consentVerified: true,
+        voiceProfileLabel: `Voz Clonada Neural (${langObj.label})`,
+        customTraits:
+          customFaceTrait.trim() ||
+          `Clonación facial y vocal de alta fidelidad (${twinVideoDurationMinutes} min) con identidad visual #8B5CF6 y blanco #FFFFFF`,
+      });
+
+      setCustomDigitalTwins((prev) => [
+        newTwin,
+        ...prev.filter((t) => t.id !== newTwin.id),
+      ]);
+      setSelectedInfluencer(newTwin);
+      setUcidCode(newTwin.ucid);
+      setInfluencerLanguage(twinVoiceLanguageId);
+      if (langObj?.voiceProfileId) {
+        setVoiceProfileId(langObj.voiceProfileId);
+      }
+      if (twinFaceImageUrl) {
+        setCustomFaceUrl(twinFaceImageUrl);
+        setInfluencerFacePresetId("custom-upload");
+      } else {
+        setInfluencerFacePresetId("preset");
+      }
+      setUseInfluencerReferenceImage(true);
+      setInfluencerVirtualEnvId("wellness-violet-white");
+      setIsProcessingTwin(false);
+      applyInfluencerPromoToScript(newTwin);
+    }, 350);
   };
 
   const handlePromoTypeChange = (newType) => {
