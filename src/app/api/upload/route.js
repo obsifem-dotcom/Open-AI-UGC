@@ -1,25 +1,43 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
+import { safeGetUserCustomApiKey } from "@/lib/runtime-store";
 
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json(
+        { error: "Inicia sesión para subir imágenes o archivos." },
+        { status: 401 }
+      );
     }
 
     const formData = await req.formData();
     const file = formData.get("file");
 
     if (!file) {
-      return new NextResponse("No file provided", { status: 400 });
+      return NextResponse.json(
+        { error: "No se recibió ningún archivo." },
+        { status: 400 }
+      );
     }
 
-    const apiKey = session.user.customApiKey || process.env.UGC_API_KEY || process.env.MUAPIAPP_API_KEY;
+    const storedCustomKey = await safeGetUserCustomApiKey({
+      userId: session.user.id,
+      email: session.user.email,
+    });
+    const customKey =
+      storedCustomKey && !isServerMasterKey(storedCustomKey)
+        ? storedCustomKey
+        : null;
+    const apiKey = customKey || DEFAULT_MUAPI_KEY;
     if (!apiKey) {
-      return new NextResponse("API Key not configured", { status: 500 });
+      return NextResponse.json(
+        { error: "API Key del motor de subida no configurada en el servidor." },
+        { status: 500 }
+      );
     }
 
     // Prepare for MuAPI

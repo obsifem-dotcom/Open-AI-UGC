@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, isAdminEmail, DEFAULT_MUAPI_KEY } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray, formatCreationResponse } from "@/lib/creations";
 import {
   runtimeStore,
   STUDIO_SHOWCASE_CREATIONS,
+  safeGetUserCustomApiKey,
 } from "@/lib/runtime-store";
 
 async function refreshPendingCreationIfNeeded(creation, apiKey) {
@@ -131,13 +132,10 @@ async function refreshPendingCreationIfNeeded(creation, apiKey) {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const activeUser = session?.user;
+    const activeUser = session?.user || null;
 
     const isAdmin = Boolean(
-      !activeUser ||
-        activeUser.isAdmin ||
-        activeUser.role === "admin" ||
-        isAdminEmail(activeUser.email)
+      activeUser && (activeUser.isAdmin || activeUser.role === "admin")
     );
 
     const byId = new Map();
@@ -148,12 +146,16 @@ export async function GET() {
     }
 
     for (const [id, item] of runtimeStore.creationsById.entries()) {
-      if (isAdmin || item.isShowcase || item.userId === activeUser?.id) {
+      if (
+        item.isShowcase ||
+        isAdmin ||
+        (activeUser?.id && item.userId === activeUser.id)
+      ) {
         byId.set(id, item);
       }
     }
 
-    if (prisma?.creation) {
+    if (prisma?.creation && activeUser) {
       try {
         const dbCreations = await prisma.creation.findMany({
           where: isAdmin ? {} : { userId: activeUser.id },
@@ -168,11 +170,17 @@ export async function GET() {
       }
     }
 
-    const apiKey =
-      activeUser?.customApiKey ||
-      process.env.UGC_API_KEY ||
-      process.env.MUAPIAPP_API_KEY ||
-      DEFAULT_MUAPI_KEY;
+    const storedCustomKey = activeUser
+      ? await safeGetUserCustomApiKey({
+          userId: activeUser.id,
+          email: activeUser.email,
+        })
+      : null;
+    const customKey =
+      storedCustomKey && !isServerMasterKey(storedCustomKey)
+        ? storedCustomKey
+        : null;
+    const apiKey = customKey || DEFAULT_MUAPI_KEY;
 
     const rawList = Array.from(byId.values());
     const refreshedList = await Promise.all(

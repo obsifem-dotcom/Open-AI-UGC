@@ -9,6 +9,8 @@ export const CREDIT_PACKAGES = [
   {
     id: "basic",
     name: "Basic",
+    price: 29,
+    originalPrice: 39,
     priceUsd: 29,
     priceLabel: "$29 USD",
     originalPriceLabel: "$39 USD",
@@ -42,6 +44,8 @@ export const CREDIT_PACKAGES = [
   {
     id: "standard",
     name: "Standard",
+    price: 79,
+    originalPrice: 99,
     priceUsd: 79,
     priceLabel: "$79 USD",
     originalPriceLabel: "$99 USD",
@@ -75,6 +79,8 @@ export const CREDIT_PACKAGES = [
   {
     id: "professional",
     name: "Professional",
+    price: 199,
+    originalPrice: 249,
     priceUsd: 199,
     priceLabel: "$199 USD",
     originalPriceLabel: "$249 USD",
@@ -108,6 +114,8 @@ export const CREDIT_PACKAGES = [
   {
     id: "business",
     name: "Business",
+    price: 499,
+    originalPrice: 599,
     priceUsd: 499,
     priceLabel: "$499 USD",
     originalPriceLabel: "$599 USD",
@@ -143,6 +151,8 @@ export const CREDIT_PACKAGES = [
 export const FREE_DEMO_PACKAGE = {
   id: "demo",
   name: "Demo Gratuito",
+  price: 0,
+  originalPrice: 0,
   priceUsd: 0,
   priceLabel: "GRATIS",
   originalPriceLabel: "",

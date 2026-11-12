@@ -10,10 +10,11 @@ const config = {
     secretKey: process.env.STRIPE_SECRET_KEY,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     plans: {
-      basic:    { id: "basic",    name: "Basic Pack",        credits: 1000,  price: 500   },
-      standard: { id: "standard", name: "Standard Pack",     credits: 2000,  price: 1000  },
-      pro:      { id: "pro",      name: "Professional Pack", credits: 4000,  price: 2000  },
-      business: { id: "business", name: "Business Pack",     credits: 10000, price: 5000  },
+      basic:        { id: "basic",        name: "Basic",        credits: 2000,  price: 2900  },
+      standard:     { id: "standard",     name: "Standard",     credits: 6000,  price: 7900  },
+      pro:          { id: "professional", name: "Professional", credits: 20000, price: 19900 },
+      professional: { id: "professional", name: "Professional", credits: 20000, price: 19900 },
+      business:     { id: "business",     name: "Business",     credits: 60000, price: 49900 },
     },
   },
   ai: {

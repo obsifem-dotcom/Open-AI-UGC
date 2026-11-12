@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions, isAdminEmail } from "@/lib/auth";
+import { isStripeConfigured } from "@/lib/stripe";
+import { BillingService } from "@/lib/services/billing";
 import {
   CREDIT_PACKAGES,
   FREE_DEMO_PACKAGE,
@@ -8,6 +10,7 @@ import {
   runtimeStore,
   safeAssignOrPurchaseCredits,
   safeGetUserBalance,
+  safeHasClaimedDemo,
 } from "@/lib/runtime-store";
 
 export async function GET() {
@@ -23,6 +26,7 @@ export async function GET() {
 
     return NextResponse.json({
       enabled: true,
+      stripeConfigured: isStripeConfigured(),
       packages: CREDIT_PACKAGES,
       demo: FREE_DEMO_PACKAGE,
       currentUser: balance,
@@ -30,6 +34,7 @@ export async function GET() {
   } catch (err) {
     return NextResponse.json({
       enabled: true,
+      stripeConfigured: isStripeConfigured(),
       packages: CREDIT_PACKAGES,
       error: err?.message,
     });
@@ -41,60 +46,124 @@ export async function POST(req) {
     const session = await getServerSession(authOptions);
     const body = await req.json();
 
-    const planId = body.planId || "pro";
+    const planId = body.planId || "demo";
     const pkg = getPackageById(planId);
-    const targetEmail = (
-      body.email ||
-      session?.user?.email ||
-      "comprador@ugcorestudio.com"
-    )
+    const targetEmail = (body.email || session?.user?.email || "")
       .toLowerCase()
       .trim();
+
+    if (!targetEmail || !targetEmail.includes("@")) {
+      return NextResponse.json(
+        { error: "Ingresa un correo electrónico válido para continuar." },
+        { status: 400 }
+      );
+    }
+
     const targetName =
       body.name || session?.user?.name || targetEmail.split("@")[0];
 
-    // Free demo: one claim per email, never overrides a paid plan
+    const isSessionAdmin = Boolean(
+      session?.user && (session.user.isAdmin || session.user.role === "admin")
+    );
+
+    // Free demo: strict 1-time claim checked against both runtimeStore & Prisma DB
     if (pkg.id === "demo") {
-      const existing = runtimeStore.usersByEmail.get(targetEmail);
-      if (existing?.demoClaimed) {
+      if (isAdminEmail(targetEmail)) {
         return NextResponse.json(
-          { error: "Este correo ya reclamó su demo gratuito. Elige un plan de pago para continuar." },
+          { error: "Las cuentas de administrador no usan el demo de comprador." },
+          { status: 403 }
+        );
+      }
+
+      const alreadyClaimed = await safeHasClaimedDemo({
+        userId: session?.user?.id,
+        email: targetEmail,
+      });
+
+      if (alreadyClaimed) {
+        return NextResponse.json(
+          {
+            error:
+              "Este correo ya reclamó su demo gratuito o ya tiene una cuenta registrada. Inicia sesión o elige un plan de pago.",
+          },
           { status: 409 }
         );
       }
-      if (existing && existing.planId && existing.planId !== "demo") {
-        return NextResponse.json(
-          { error: "Tu cuenta ya tiene un plan activo; el demo gratuito no aplica." },
-          { status: 409 }
-        );
-      }
-    }
 
-    const updatedUser = await safeAssignOrPurchaseCredits({
-      email: targetEmail,
-      userId: session?.user?.id,
-      name: targetName,
-      planId: pkg.id,
-      customCredits: body.customCredits ?? null,
-      mode: pkg.id === "demo" ? "set" : body.mode || "add",
-    });
+      const updatedUser = await safeAssignOrPurchaseCredits({
+        email: targetEmail,
+        userId: session?.user?.id,
+        name: targetName,
+        planId: "demo",
+        customCredits: FREE_DEMO_PACKAGE.credits,
+        mode: "set",
+      });
 
-    if (pkg.id === "demo") {
       const rec = runtimeStore.usersByEmail.get(targetEmail);
-      if (rec) runtimeStore.usersByEmail.set(targetEmail, { ...rec, demoClaimed: true });
+      if (rec) {
+        runtimeStore.usersByEmail.set(targetEmail, { ...rec, demoClaimed: true });
+      }
+
+      return NextResponse.json({
+        success: true,
+        approved: true,
+        demo: true,
+        message: `¡Demo activado! Se asignaron ${FREE_DEMO_PACKAGE.credits} créditos gratuitos a ${updatedUser.email}.`,
+        package: FREE_DEMO_PACKAGE,
+        user: updatedUser,
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      approved: true,
-      message: `¡Compra aprobada! Se asignaron +${pkg.credits.toLocaleString()} créditos (${pkg.name}) a ${updatedUser.email}.`,
-      package: pkg,
-      user: updatedUser,
-    });
+    // Paid plan: allow explicit Admin assignment OR real Stripe Checkout
+    if (isSessionAdmin) {
+      const updatedUser = await safeAssignOrPurchaseCredits({
+        email: targetEmail,
+        userId: session?.user?.id,
+        name: targetName,
+        planId: pkg.id,
+        customCredits: body.customCredits ?? null,
+        mode: body.mode || "add",
+      });
+
+      return NextResponse.json({
+        success: true,
+        approved: true,
+        message: `Plan asignado por Administrador: +${pkg.credits.toLocaleString()} créditos (${pkg.name}) a ${updatedUser.email}.`,
+        package: pkg,
+        user: updatedUser,
+      });
+    }
+
+    if (isStripeConfigured()) {
+      const originUrl = new URL(req.url).origin;
+      const checkoutUrl = await BillingService.createCheckoutSession(
+        session?.user?.id || "",
+        pkg.id,
+        targetEmail,
+        originUrl
+      );
+
+      return NextResponse.json({
+        success: true,
+        approved: false,
+        requiresPayment: true,
+        checkoutUrl,
+        package: pkg,
+      });
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          "Pagos en línea con Stripe pendientes de configuración (STRIPE_SECRET_KEY). Activa Stripe o solicita recarga al administrador.",
+        stripeConfigured: false,
+      },
+      { status: 503 }
+    );
   } catch (error) {
     console.error("[CHECKOUT_ERROR]", error);
     return NextResponse.json(
-      { error: error.message || "Error al procesar la asignación de créditos" },
+      { error: error.message || "Error al procesar la solicitud de plan" },
       { status: 500 }
     );
   }

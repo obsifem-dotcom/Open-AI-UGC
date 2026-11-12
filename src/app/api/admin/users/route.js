@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, isAdminEmail } from "@/lib/auth";
+import { authOptions } from "@/lib/auth";
 import {
   ADMIN_INITIAL_CREDITS,
   CREDIT_PACKAGES,
@@ -10,6 +10,23 @@ import {
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Autenticación requerida" },
+        { status: 401 }
+      );
+    }
+    const isAdmin = Boolean(
+      session.user.isAdmin || session.user.role === "admin"
+    );
+    if (!isAdmin) {
+      return NextResponse.json(
+        { error: "Permisos de Administrador requeridos" },
+        { status: 403 }
+      );
+    }
+
     const users = await safeListUsers();
     return NextResponse.json({
       adminCredits: ADMIN_INITIAL_CREDITS,
@@ -28,11 +45,15 @@ export async function GET() {
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Autenticación requerida" },
+        { status: 401 }
+      );
+    }
+
     const isAdmin = Boolean(
-      !session?.user ||
-        session.user.isAdmin ||
-        session.user.role === "admin" ||
-        isAdminEmail(session.user.email)
+      session.user.isAdmin || session.user.role === "admin"
     );
 
     if (!isAdmin) {

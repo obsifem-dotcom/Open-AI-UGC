@@ -45,11 +45,9 @@ export default function Navbar() {
   const appName = config?.appName || "UGCore Studio";
   const logoLetter = appName.trim().charAt(0).toUpperCase();
 
-  const isApiKeyActive = Boolean(session?.user?.customApiKey);
+  const isApiKeyActive = Boolean(session?.user?.hasCustomApiKey);
   const isAdminUser = Boolean(
-    session?.user?.isAdmin ||
-      session?.user?.role === "admin" ||
-      session?.user?.email === "obsifem@gmail.com"
+    session?.user?.isAdmin || session?.user?.role === "admin"
   );
 
   const userCredits =
@@ -57,7 +55,7 @@ export default function Navbar() {
       ? session.user.credits
       : isAdminUser
       ? 999999
-      : 1500;
+      : 150;
 
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
@@ -65,7 +63,16 @@ export default function Navbar() {
       : userCredits;
 
   const activeBuyerPackage = getPackageById(
-    session?.user?.planId || (assignedCredits >= 25000 ? "business" : assignedCredits >= 10000 ? "pro" : assignedCredits >= 4000 ? "standard" : "basic")
+    session?.user?.planId ||
+      (assignedCredits >= 60000
+        ? "business"
+        : assignedCredits >= 20000
+        ? "professional"
+        : assignedCredits >= 6000
+        ? "standard"
+        : assignedCredits >= 2000
+        ? "basic"
+        : "demo")
   );
 
   const userPlanName =
@@ -129,45 +136,8 @@ export default function Navbar() {
     }
   };
 
-  const handleQuickAdminSignIn = async () => {
-    try {
-      const res = await signIn("credentials", {
-        loginType: "admin",
-        email: "obsifem@gmail.com",
-        redirect: false,
-      });
-      if (!res?.error) {
-        toast.success("Sesión de Administrador activada (999,999 Créditos)");
-        window.location.reload();
-      } else {
-        window.location.href = "/login";
-      }
-    } catch {
-      window.location.href = "/login";
-    }
-  };
-
-  const handleQuickBuyerSignIn = async () => {
-    try {
-      const res = await signIn("credentials", {
-        loginType: "buyer",
-        email: "comprador@ugcorestudio.com",
-        planId: "pro",
-        redirect: false,
-      });
-      if (!res?.error) {
-        toast.success("Sesión de Comprador Pro activada ($79 USD • 10,000 Créditos)");
-        window.location.reload();
-      } else {
-        window.location.href = "/login";
-      }
-    } catch {
-      window.location.href = "/login";
-    }
-  };
-
   const openApiKeyModal = () => {
-    setApiKeyInput(session?.user?.customApiKey || "");
+    setApiKeyInput("");
     setIsApiKeyModalOpen(true);
   };
 
@@ -204,7 +174,7 @@ export default function Navbar() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to save API key");
 
-        await updateSession({ customApiKey: key });
+        await updateSession({ hasCustomApiKey: true });
         toast.success("¡API Key actualizada!");
         setIsApiKeyModalOpen(false);
         window.location.reload();
@@ -235,7 +205,7 @@ export default function Navbar() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to remove API key");
 
-      await updateSession({ customApiKey: null });
+      await updateSession({ hasCustomApiKey: false });
       setApiKeyInput("");
       toast.success("API Key eliminada");
       setIsApiKeyModalOpen(false);
@@ -456,27 +426,17 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleQuickAdminSignIn}
-                className="border border-emerald-500/40 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
-                title="Acceso directo Administrador (999,999 Créditos)"
+              <Link
+                href="/pricing"
+                className="border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
               >
-                👑 Admin
-              </button>
-              <button
-                type="button"
-                onClick={handleQuickBuyerSignIn}
-                className="border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer"
-                title="Acceso rápido Usuario Comprador"
-              >
-                💳 Comprador
-              </button>
+                💎 Planes
+              </Link>
               <Link
                 href="/login"
                 className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-md shadow-[#8B5CF6]/20"
               >
-                ✉️ Ingresar con Email
+                🎁 Demo Gratis / Ingresar
               </Link>
             </div>
           )}
@@ -565,20 +525,20 @@ export default function Navbar() {
               </button>
             ) : (
               <div className="flex flex-col gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={handleQuickAdminSignIn}
-                  className="w-full py-2.5 rounded bg-emerald-500 text-white text-xs font-bold"
+                <Link
+                  href="/pricing"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full py-2.5 rounded bg-primary/15 border border-primary/30 text-primary text-center text-xs font-bold"
                 >
-                  👑 Entrar como Administrador
-                </button>
-                <button
-                  type="button"
-                  onClick={handleQuickBuyerSignIn}
-                  className="w-full py-2.5 rounded bg-primary text-white text-xs font-bold"
+                  💎 Ver Planes y Créditos
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full py-2.5 rounded bg-[#8B5CF6] text-white text-center text-xs font-bold"
                 >
-                  💳 Entrar como Comprador
-                </button>
+                  🎁 Activar Demo Gratis / Ingresar
+                </Link>
               </div>
             )}
           </nav>
@@ -786,7 +746,7 @@ export default function Navbar() {
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
                   placeholder="mu_..."
-                  className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-secondary-text/50 focus:outline-none focus:border-amber-400 transition-colors"
+                  className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-amber-400 transition-colors"
                 />
               </div>
 
@@ -928,7 +888,7 @@ export default function Navbar() {
                 onClick={() => setIsBuyerPlanModalOpen(false)}
                 className="px-4 py-2 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-bold shadow-md shadow-[#8B5CF6]/20"
               >
-                Ver Todos los Paquetes Comerciales ($19 - $149 USD) →
+                Ver Todos los Paquetes Comerciales ($29 - $499 USD) →
               </Link>
             </div>
           </div>

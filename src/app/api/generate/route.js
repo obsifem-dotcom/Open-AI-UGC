@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_MUAPI_KEY, isAdminEmail } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
 import { TIMELINE_TRANSITIONS } from "@/lib/ugcore-v3";
 import {
-  ADMIN_INITIAL_CREDITS,
   safeGetUserBalance,
+  safeGetUserCustomApiKey,
   safeCreateCreation,
   safeDeductCredits,
 } from "@/lib/runtime-store";
@@ -205,13 +205,16 @@ function calculateCreditsForDuration(modelId, duration, resolution) {
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
-    const activeUser = session?.user || {
-      id: "admin-obsifem",
-      email: "obsifem@gmail.com",
-      isAdmin: true,
-      role: "admin",
-      credits: ADMIN_INITIAL_CREDITS,
-    };
+    if (!session?.user) {
+      return NextResponse.json(
+        {
+          error:
+            "Inicia sesión o activa tu Demo Gratis (+150 CR) para generar videos.",
+        },
+        { status: 401 }
+      );
+    }
+    const activeUser = session.user;
 
     const body = await req.json();
     const { modelId } = body;
@@ -227,27 +230,31 @@ export async function POST(req) {
       : [];
 
     const isAdmin = Boolean(
-      activeUser.isAdmin ||
-        activeUser.role === "admin" ||
-        isAdminEmail(activeUser.email)
+      activeUser.isAdmin || activeUser.role === "admin"
     );
 
     const headerApiKey = req.headers.get("x-custom-api-key");
-    const customApiKey =
-      headerApiKey || body.customApiKey || activeUser.customApiKey || null;
+    const bodyApiKey =
+      typeof body.customApiKey === "string" ? body.customApiKey.trim() : "";
+    const storedCustomKey = await safeGetUserCustomApiKey({
+      userId: activeUser.id,
+      email: activeUser.email,
+    });
+    const rawCustomKey = (
+      headerApiKey ||
+      bodyApiKey ||
+      storedCustomKey ||
+      ""
+    ).trim();
+
     const isUsingCustomKey = Boolean(
-      (customApiKey && customApiKey.trim().length > 0) || isAdmin
+      rawCustomKey.length > 0 && !isServerMasterKey(rawCustomKey)
     );
 
-    const apiKey =
-      customApiKey && customApiKey.trim().length > 0
-        ? customApiKey.trim()
-        : process.env.UGC_API_KEY ||
-          process.env.MUAPIAPP_API_KEY ||
-          DEFAULT_MUAPI_KEY;
+    const apiKey = isUsingCustomKey ? rawCustomKey : DEFAULT_MUAPI_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "API Key not configured" },
+        { error: "API Key del motor de video no configurada en el servidor." },
         { status: 500 }
       );
     }
@@ -309,7 +316,7 @@ export async function POST(req) {
           ? userBalance.credits
           : typeof activeUser.credits === "number"
           ? activeUser.credits
-          : 1000;
+          : 0;
 
       if (availableCredits < creditCost) {
         return NextResponse.json(

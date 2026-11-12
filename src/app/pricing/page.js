@@ -14,7 +14,7 @@ import {
   FaVideo,
   FaGem,
 } from "react-icons/fa";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 const COMMERCIAL_COMPARISON_ROWS = [
   {
@@ -84,9 +84,7 @@ export default function Pricing() {
   const [adminUsers, setAdminUsers] = useState([]);
 
   const isAdmin = Boolean(
-    session?.user?.isAdmin ||
-      session?.user?.role === "admin" ||
-      session?.user?.email === "obsifem@gmail.com"
+    session?.user?.isAdmin || session?.user?.role === "admin"
   );
 
   const currentCredits =
@@ -94,14 +92,14 @@ export default function Pricing() {
       ? session.user.credits
       : isAdmin
       ? 999999
-      : 1500;
+      : 0;
 
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
       ? session.user.assignedCredits
       : currentCredits;
 
-  const activePackageObj = getPackageById(session?.user?.planId || "pro");
+  const activePackageObj = getPackageById(session?.user?.planId || "demo");
 
   const currentPlanName =
     session?.user?.planName ||
@@ -124,16 +122,12 @@ export default function Pricing() {
   }, [isAdmin]);
 
   const handlePurchasePlan = async (plan) => {
-    const emailToUse = (
-      buyerEmailInput ||
-      session?.user?.email ||
-      "comprador@ugcorestudio.com"
-    )
+    const emailToUse = (buyerEmailInput || session?.user?.email || "")
       .toLowerCase()
       .trim();
 
-    if (!emailToUse.includes("@")) {
-      toast.error("Ingresa tu correo electrónico para asignarte los créditos");
+    if (!emailToUse || !emailToUse.includes("@")) {
+      toast.error("Ingresa tu correo electrónico arriba para continuar");
       return;
     }
 
@@ -155,9 +149,16 @@ export default function Pricing() {
         throw new Error(data.error || "No se pudo procesar el paquete");
       }
 
+      if (data.checkoutUrl) {
+        toast.loading("Redirigiendo a pago seguro en Stripe...");
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
       if (
         status === "authenticated" &&
-        session?.user?.email?.toLowerCase() === emailToUse
+        session?.user?.email?.toLowerCase() === emailToUse &&
+        data.user
       ) {
         await updateSession({
           credits: data.user.credits,
@@ -165,18 +166,19 @@ export default function Pricing() {
           planName: `${plan.name} (${plan.priceLabel})`,
           planId: data.user.planId,
         });
-      } else if (status !== "authenticated") {
+      } else if (status !== "authenticated" && data.demo) {
         await signIn("credentials", {
-          loginType: "buyer",
+          loginType: "email",
           email: emailToUse,
           name: buyerNameInput.trim() || emailToUse.split("@")[0],
-          planId: plan.id,
+          planId: "demo",
           redirect: false,
         });
       }
 
       toast.success(
-        `¡${plan.name} (${plan.priceLabel}) activado! +${plan.credits.toLocaleString()} créditos asignados a ${emailToUse}.`
+        data.message ||
+          `¡${plan.name} (${plan.priceLabel}) activado! +${plan.credits.toLocaleString()} créditos asignados a ${emailToUse}.`
       );
 
       if (isAdmin) {
@@ -193,7 +195,6 @@ export default function Pricing() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg-page select-none text-primary-text overflow-hidden">
-      <Toaster position="top-right" />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-10 sm:px-6 lg:px-8 flex flex-col gap-8 overflow-y-auto scrollbar-subtle items-center">
         {/* Header */}
         <div className="text-center space-y-3">

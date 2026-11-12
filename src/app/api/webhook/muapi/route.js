@@ -1,6 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray } from "@/lib/creations";
+import { runtimeStore } from "@/lib/runtime-store";
+
+async function updateCreationEverywhere(creation, data) {
+  const updated = { ...creation, ...data };
+  runtimeStore.creationsById.set(creation.id, updated);
+
+  if (
+    prisma?.creation &&
+    creation.id &&
+    !String(creation.id).startsWith("mu_") &&
+    !String(creation.id).startsWith("mum_")
+  ) {
+    try {
+      await prisma.creation.update({
+        where: { id: creation.id },
+        data,
+      });
+    } catch (err) {
+      console.warn("[MUAPI_WEBHOOK_DB_FALLBACK]", err?.message || err);
+    }
+  }
+}
 
 export async function POST(req) {
   try {
@@ -14,14 +36,32 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing request id" }, { status: 400 });
     }
 
-    let creation = await prisma.creation.findUnique({
-      where: { requestId },
-    });
+    let creation = null;
+    if (prisma?.creation) {
+      try {
+        creation = await prisma.creation.findUnique({
+          where: { requestId },
+        });
+        if (!creation) {
+          creation = await prisma.creation.findFirst({
+            where: { requestId: { contains: requestId } },
+          });
+        }
+      } catch (err) {
+        console.warn("[MUAPI_WEBHOOK_FIND_FALLBACK]", err?.message || err);
+      }
+    }
 
     if (!creation) {
-      creation = await prisma.creation.findFirst({
-        where: { requestId: { contains: requestId } },
-      });
+      for (const item of runtimeStore.creationsById.values()) {
+        if (
+          item?.requestId === requestId ||
+          (typeof item?.requestId === "string" && item.requestId.includes(requestId))
+        ) {
+          creation = item;
+          break;
+        }
+      }
     }
 
     if (!creation) {
@@ -53,27 +93,18 @@ export async function POST(req) {
       );
 
       if (allCompleted) {
-        await prisma.creation.update({
-          where: { id: creation.id },
-          data: {
-            status: "completed",
-            url: JSON.stringify(updatedUrls),
-          },
+        await updateCreationEverywhere(creation, {
+          status: "completed",
+          url: JSON.stringify(updatedUrls),
         });
       } else if (data.status === "failed" && !updatedUrls.some(Boolean)) {
-        await prisma.creation.update({
-          where: { id: creation.id },
-          data: {
-            status: "failed",
-            error: data.error || "Generation failed",
-          },
+        await updateCreationEverywhere(creation, {
+          status: "failed",
+          error: data.error || "Generation failed",
         });
       } else {
-        await prisma.creation.update({
-          where: { id: creation.id },
-          data: {
-            url: JSON.stringify(updatedUrls),
-          },
+        await updateCreationEverywhere(creation, {
+          url: JSON.stringify(updatedUrls),
         });
       }
 
@@ -81,30 +112,21 @@ export async function POST(req) {
     }
 
     if (data.status === "failed" || (data.error && data.error !== "")) {
-      await prisma.creation.update({
-        where: { id: creation.id },
-        data: {
-          status: "failed",
-          error: data.error || "Generation failed",
-        },
+      await updateCreationEverywhere(creation, {
+        status: "failed",
+        error: data.error || "Generation failed",
       });
     } else if (data.status === "completed" || data.outputs) {
       const outputs = data.outputs || [];
       const videoUrl = outputs.length > 0 ? outputs[0] : null;
 
-      await prisma.creation.update({
-        where: { id: creation.id },
-        data: {
-          status: "completed",
-          url: videoUrl,
-        },
+      await updateCreationEverywhere(creation, {
+        status: "completed",
+        url: videoUrl,
       });
     } else {
-      await prisma.creation.update({
-        where: { id: creation.id },
-        data: {
-          status: data.status || "processing",
-        },
+      await updateCreationEverywhere(creation, {
+        status: data.status || "processing",
       });
     }
 

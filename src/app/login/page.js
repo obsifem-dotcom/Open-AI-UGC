@@ -2,6 +2,7 @@
 
 import { signIn, useSession } from "next-auth/react";
 import { useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   FaKey,
@@ -9,11 +10,10 @@ import {
   FaArrowRight,
   FaUserShield,
   FaCheckCircle,
-  FaCreditCard,
   FaCoins,
   FaEnvelope,
 } from "react-icons/fa";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 function LoginContent() {
   const { data: session, status } = useSession();
@@ -22,22 +22,17 @@ function LoginContent() {
   const next =
     searchParams.get("callbackUrl") || searchParams.get("next") || "/";
 
-  // "email" | "admin" | "buyer" | "apikey"
+  // "email" | "admin" | "apikey"
   const [activeTab, setActiveTab] = useState("email");
 
-  // Direct Email Login state
+  // Email / Demo Login state
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [userPassword, setUserPassword] = useState("");
 
   // Admin Login state
-  const [adminEmail, setAdminEmail] = useState("obsifem@gmail.com");
+  const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-
-  // Buyer Login state
-  const [buyerEmail, setBuyerEmail] = useState("comprador@ugcorestudio.com");
-  const [buyerName, setBuyerName] = useState("Usuario Comprador Pro");
-  const [buyerPlanId, setBuyerPlanId] = useState("pro");
 
   // API Key Login state
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -68,13 +63,17 @@ function LoginContent() {
         email: cleanEmail,
         name: userName.trim() || cleanEmail.split("@")[0],
         password: userPassword.trim(),
-        planId: "standard",
+        planId: "demo",
         redirect: false,
         callbackUrl: next,
       });
 
       if (res?.error) {
-        toast.error(res.error || "No se pudo ingresar con este correo");
+        toast.error(
+          res.error === "CredentialsSignin"
+            ? "Este correo requiere acceso por la pestaña Admin con contraseña."
+            : res.error || "No se pudo ingresar con este correo"
+        );
       } else {
         toast.success(`¡Bienvenido! Sesión iniciada con ${cleanEmail}`);
         completeRedirect();
@@ -89,21 +88,30 @@ function LoginContent() {
 
   const handleAdminLogin = async (e) => {
     if (e) e.preventDefault();
-    const email = adminEmail.trim() || "obsifem@gmail.com";
+    const email = adminEmail.trim().toLowerCase();
+    const password = adminPassword.trim();
+    if (!email || !email.includes("@")) {
+      toast.error("Ingresa el correo de administrador");
+      return;
+    }
+    if (!password) {
+      toast.error("Ingresa la contraseña de administrador");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const res = await signIn("credentials", {
         loginType: "admin",
         email,
-        password: adminPassword.trim(),
+        password,
         redirect: false,
         callbackUrl: next,
       });
 
       if (res?.error) {
         toast.error(
-          res.error || "No se pudo iniciar sesión como Administrador"
+          "Credenciales de Administrador inválidas o ADMIN_PASSWORD no configurado."
         );
       } else {
         toast.success(
@@ -114,41 +122,6 @@ function LoginContent() {
     } catch (err) {
       console.error(err);
       toast.error("Error al iniciar sesión como Administrador");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleBuyerLogin = async (e) => {
-    if (e) e.preventDefault();
-    const email = buyerEmail.trim().toLowerCase();
-    if (!email || !email.includes("@")) {
-      toast.error("Ingresa un correo electrónico válido");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const res = await signIn("credentials", {
-        loginType: "buyer",
-        email,
-        name: buyerName.trim() || email.split("@")[0],
-        planId: buyerPlanId,
-        redirect: false,
-        callbackUrl: next,
-      });
-
-      if (res?.error) {
-        toast.error(res.error || "No se pudo iniciar sesión como Comprador");
-      } else {
-        toast.success(
-          "¡Sesión de Comprador iniciada con tus créditos activos!"
-        );
-        completeRedirect();
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error al iniciar sesión como Comprador");
     } finally {
       setIsSubmitting(false);
     }
@@ -191,7 +164,6 @@ function LoginContent() {
 
   return (
     <div className="min-h-dvh flex items-center justify-center bg-bg-page px-4 py-8 text-primary-text select-none">
-      <Toaster position="top-right" />
       <div className="relative bg-bg-card border border-divider w-full max-w-md rounded-xl p-7 space-y-5 shadow-2xl animate-scale-up">
         <div className="flex flex-col items-center text-center space-y-2">
           <div className="w-13 h-13 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 flex items-center justify-center text-2xl text-[#8B5CF6] font-black shadow-md">
@@ -201,8 +173,7 @@ function LoginContent() {
             UGCore Studio
           </h2>
           <p className="text-xs font-semibold text-secondary-text leading-relaxed px-2">
-            Ingresa con tu Correo Electrónico, como Administrador, como
-            Comprador o mediante tu API Key.
+            Ingresa con tu correo electrónico (+150 CR Demo Gratis para cuentas nuevas), usa tu MuAPI Key (BYOK) o accede como Administrador.
           </p>
         </div>
 
@@ -222,8 +193,8 @@ function LoginContent() {
           </div>
         )}
 
-        {/* Auth Method Selector Tabs (4 Clear Options including Email!) */}
-        <div className="grid grid-cols-4 bg-bg-page p-1 rounded-lg border border-divider/60 gap-1">
+        {/* Auth Method Selector Tabs */}
+        <div className="grid grid-cols-3 bg-bg-page p-1 rounded-lg border border-divider/60 gap-1">
           <button
             type="button"
             onClick={() => setActiveTab("email")}
@@ -239,32 +210,6 @@ function LoginContent() {
 
           <button
             type="button"
-            onClick={() => setActiveTab("admin")}
-            className={`py-2 px-1.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === "admin"
-                ? "bg-emerald-500 text-white shadow-sm"
-                : "text-secondary-text hover:text-primary-text"
-            }`}
-          >
-            <FaUserShield className="text-[10px]" />
-            <span>Admin</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("buyer")}
-            className={`py-2 px-1.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === "buyer"
-                ? "bg-primary text-white shadow-sm"
-                : "text-secondary-text hover:text-primary-text"
-            }`}
-          >
-            <FaCreditCard className="text-[10px]" />
-            <span>Comprador</span>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveTab("apikey")}
             className={`py-2 px-1.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
               activeTab === "apikey"
@@ -274,6 +219,19 @@ function LoginContent() {
           >
             <FaKey className="text-[10px]" />
             <span>API Key</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("admin")}
+            className={`py-2 px-1.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              activeTab === "admin"
+                ? "bg-emerald-500 text-white shadow-sm"
+                : "text-secondary-text hover:text-primary-text"
+            }`}
+          >
+            <FaUserShield className="text-[10px]" />
+            <span>Admin</span>
           </button>
         </div>
 
@@ -288,7 +246,7 @@ function LoginContent() {
                 type="email"
                 value={userEmail}
                 onChange={(e) => setUserEmail(e.target.value)}
-                placeholder="Escribe tu correo (ej: tu@email.com o obsifem@gmail.com)"
+                placeholder="tu@correo.com"
                 className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6] transition-colors"
                 required
               />
@@ -325,13 +283,10 @@ function LoginContent() {
             <div className="rounded-lg bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 p-3 space-y-1">
               <div className="text-[11px] font-bold text-[#8B5CF6] flex items-center gap-1.5">
                 <FaEnvelope />
-                <span>Ingreso Directo con Email Habilitado:</span>
+                <span>Acceso con Correo Electrónico:</span>
               </div>
               <p className="text-[11px] text-secondary-text leading-relaxed">
-                Ingresa con cualquier correo electrónico para acceder al estudio
-                con créditos activos, o usa{" "}
-                <strong className="text-foreground">obsifem@gmail.com</strong>{" "}
-                para entrar con permisos de Administrador.
+                Si eres usuario nuevo recibirás <strong>150 Créditos Demo Gratis</strong> automáticamente para probar el estudio. Si ya compraste un paquete, conservarás tu saldo acumulado.
               </p>
             </div>
 
@@ -362,20 +317,22 @@ function LoginContent() {
                 type="email"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="obsifem@gmail.com"
+                placeholder="admin@tudominio.com"
+                required
                 className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-emerald-500 transition-colors"
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
-                Clave Admin (Opcional para {adminEmail || "admin"})
+                Contraseña de Administrador
               </label>
               <input
                 type="password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Dejar vacío o ingresar clave maestra..."
+                placeholder="Ingresa ADMIN_PASSWORD configurado..."
+                required
                 className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-emerald-500 transition-colors"
               />
             </div>
@@ -423,87 +380,6 @@ function LoginContent() {
           </form>
         )}
 
-        {/* Tab 3: Buyer Login */}
-        {activeTab === "buyer" && (
-          <form onSubmit={handleBuyerLogin} className="space-y-4 pt-1">
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
-                Correo del Usuario Comprador
-              </label>
-              <input
-                type="email"
-                value={buyerEmail}
-                onChange={(e) => setBuyerEmail(e.target.value)}
-                placeholder="tu@correo.com"
-                className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-primary transition-colors"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
-                Nombre o Empresa
-              </label>
-              <input
-                type="text"
-                value={buyerName}
-                onChange={(e) => setBuyerName(e.target.value)}
-                placeholder="Ej: Mi Marca E-Commerce"
-                className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-primary transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
-                Paquete de Créditos Asignado Según Compra
-              </label>
-              <select
-                value={buyerPlanId}
-                onChange={(e) => setBuyerPlanId(e.target.value)}
-                className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs font-bold text-primary-text focus:outline-none focus:border-primary"
-              >
-                <option value="basic">
-                  Pack Starter / Creator — 1,500 Créditos ($19 USD)
-                </option>
-                <option value="standard">
-                  Pack Growth / E-Commerce — 4,000 Créditos ($39 USD)
-                </option>
-                <option value="pro">
-                  ⭐ Pack Pro Studio & YouTube — 10,000 Créditos ($79 USD)
-                </option>
-                <option value="business">
-                  Pack Agency / Enterprise — 25,000 Créditos ($149 USD)
-                </option>
-              </select>
-            </div>
-
-            <div className="rounded-lg bg-primary/10 border border-primary/25 p-3 space-y-1">
-              <div className="text-[11px] font-bold text-primary flex items-center gap-1.5">
-                <FaCoins />
-                <span>Acceso Comprador Aprobado:</span>
-              </div>
-              <p className="text-[11px] text-secondary-text leading-relaxed">
-                Verás en la barra superior tus créditos asignados según tu
-                compra y el consumo en tiempo real por cada video generado.
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-            >
-              <FaCreditCard className="text-xs" />
-              <span>
-                {isSubmitting
-                  ? "Activando acceso comprador..."
-                  : "Entrar como Comprador con Créditos"}
-              </span>
-              <FaArrowRight className="text-xs" />
-            </button>
-          </form>
-        )}
-
         {/* Tab 4: API Key Login */}
         {activeTab === "apikey" && (
           <form onSubmit={handleApiKeyLogin} className="space-y-4 pt-2">
@@ -535,36 +411,21 @@ function LoginContent() {
           </form>
         )}
 
-        {/* Quick 1-Click Access Footer */}
-        <div className="pt-2 border-t border-divider/60 space-y-2">
-          <div className="text-[10px] font-bold uppercase text-secondary-text text-center">
-            Accesos Rápidos 1-Click:
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleAdminLogin}
-              disabled={isSubmitting}
-              className="py-2 px-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-[11px] font-bold cursor-pointer transition-all"
-            >
-              👑 Entrar Admin Directo
-            </button>
-            <button
-              type="button"
-              onClick={handleBuyerLogin}
-              disabled={isSubmitting}
-              className="py-2 px-3 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-bold cursor-pointer transition-all"
-            >
-              💳 Entrar Comprador Demo
-            </button>
-          </div>
+        <div className="pt-2 border-t border-divider/60 flex items-center justify-between gap-2 text-[11px]">
+          <span className="text-secondary-text">¿Necesitas más créditos?</span>
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-1.5 font-bold text-[#8B5CF6] hover:underline"
+          >
+            <FaCoins className="text-[10px]" />
+            <span>Ver Paquetes y Precios →</span>
+          </Link>
         </div>
 
         <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/10 p-3 rounded text-[11px] leading-relaxed text-secondary-text">
           <FaInfoCircle className="text-primary text-xs shrink-0 mt-0.5" />
           <span>
-            Todos los accesos por Email, Administrador, Comprador y paquetes de
-            créditos están habilitados y listos para producción inmediata.
+            Inicia sesión con tu correo para activar tu Demo Gratuito de 150 créditos o recarga un paquete en la sección de Precios.
           </span>
         </div>
       </div>

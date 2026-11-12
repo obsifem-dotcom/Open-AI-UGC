@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_MUAPI_KEY } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray, formatCreationResponse } from "@/lib/creations";
 import {
   runtimeStore,
+  STUDIO_SHOWCASE_CREATIONS,
   decodeStatelessCreationId,
+  safeGetUserCustomApiKey,
 } from "@/lib/runtime-store";
 
 async function safeUpdateCreationRecord(id, isDbRecord, data) {
@@ -81,13 +83,30 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: "Not Found" }, { status: 404 });
     }
 
+    const isAdmin = Boolean(
+      session?.user && (session.user.isAdmin || session.user.role === "admin")
+    );
+    if (
+      isDbRecord &&
+      !creation.isShowcase &&
+      (!session?.user || (!isAdmin && creation.userId !== session.user.id))
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const activeStatuses = ["processing", "pending", "starting", "queued"];
     if (activeStatuses.includes(creation.status) && creation.requestId) {
-      const apiKey =
-        session?.user?.customApiKey ||
-        process.env.UGC_API_KEY ||
-        process.env.MUAPIAPP_API_KEY ||
-        DEFAULT_MUAPI_KEY;
+      const storedCustomKey = session?.user
+        ? await safeGetUserCustomApiKey({
+            userId: session.user.id,
+            email: session.user.email,
+          })
+        : null;
+      const customKey =
+        storedCustomKey && !isServerMasterKey(storedCustomKey)
+          ? storedCustomKey
+          : null;
+      const apiKey = customKey || DEFAULT_MUAPI_KEY;
 
       if (apiKey) {
         const multiRequestIds = parseJsonArray(creation.requestId);
@@ -212,7 +231,39 @@ export async function GET(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Inicia sesión para eliminar videos." },
+        { status: 401 }
+      );
+    }
+
     const { id } = await params;
+    const isAdmin = Boolean(
+      session.user.isAdmin || session.user.role === "admin"
+    );
+
+    if (STUDIO_SHOWCASE_CREATIONS.some((item) => item.id === id)) {
+      return NextResponse.json(
+        { error: "Los videos demo de la galería no se pueden eliminar." },
+        { status: 403 }
+      );
+    }
+
+    const memExisting = runtimeStore.creationsById.get(id);
+    if (
+      memExisting &&
+      !isAdmin &&
+      memExisting.userId &&
+      memExisting.userId !== session.user.id &&
+      !id.startsWith("mu_") &&
+      !id.startsWith("mum_")
+    ) {
+      return NextResponse.json(
+        { error: "No tienes permiso para eliminar este video." },
+        { status: 403 }
+      );
+    }
 
     // 1. Remove from in-memory runtime store
     runtimeStore.creationsById.delete(id);
@@ -221,7 +272,7 @@ export async function DELETE(req, { params }) {
     if (prisma?.creation && !id.startsWith("mu_") && !id.startsWith("mum_")) {
       try {
         await prisma.creation.deleteMany({
-          where: { id },
+          where: isAdmin ? { id } : { id, userId: session.user.id },
         });
       } catch (err) {
         console.warn("[SAFE_CREATION_DELETE_FALLBACK]", err?.message || err);

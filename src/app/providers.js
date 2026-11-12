@@ -2,6 +2,7 @@
 
 import { SessionProvider } from "next-auth/react";
 import { useEffect } from "react";
+import { Toaster } from "react-hot-toast";
 import config from "@/lib/config";
 
 export function Providers({ children }) {
@@ -14,6 +15,7 @@ export function Providers({ children }) {
 
   return (
     <SessionProvider>
+      <Toaster position="top-right" />
       {children}
     </SessionProvider>
   );

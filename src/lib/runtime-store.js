@@ -158,14 +158,15 @@ if (!globalStore.__ugcoreRuntimeStore) {
         "comprador@ugcorestudio.com",
         {
           id: "buyer-demo-01",
-          name: "Usuario Comprador Pro",
+          name: "Usuario Demo",
           email: "comprador@ugcorestudio.com",
           role: "buyer",
           isAdmin: false,
-          planId: "pro",
-          planName: "Pack Pro Studio & YouTube ($79 USD)",
-          assignedCredits: 10000,
-          credits: 10000,
+          planId: "demo",
+          planName: "Demo Gratuito",
+          assignedCredits: 150,
+          credits: 150,
+          demoClaimed: true,
           approved: true,
           updatedAt: new Date().toISOString(),
         },
@@ -238,15 +239,20 @@ export async function safeGetOrCreateUser({
   email,
   name,
   isAdmin = false,
-  planId = "standard",
+  planId = "demo",
   initialCredits = null,
   customApiKey = null,
 }) {
-  const cleanEmail = (email || "comprador@ugcorestudio.com")
-    .toLowerCase()
-    .trim();
+  const cleanEmail = (email || "").toLowerCase().trim();
+  if (!cleanEmail) {
+    return null;
+  }
   const pkg = getPackageById(planId);
   const existingMem = runtimeStore.usersByEmail.get(cleanEmail);
+  const cleanCustomKey =
+    typeof customApiKey === "string" && customApiKey.trim().length > 0
+      ? customApiKey.trim()
+      : null;
 
   const defaultCredits = isAdmin
     ? ADMIN_INITIAL_CREDITS
@@ -264,6 +270,7 @@ export async function safeGetOrCreateUser({
     ? "Administrador Master"
     : existingMem?.planName || pkg.name;
 
+  let existedInDb = false;
   const dbUser = await tryDbQuery(async () => {
     let found = await prisma.user.findUnique({
       where: { email: cleanEmail },
@@ -273,17 +280,27 @@ export async function safeGetOrCreateUser({
         data: {
           name:
             name ||
-            (isAdmin ? "Administrador (UGCore Studio)" : "Usuario Comprador"),
+            (isAdmin ? "Administrador (UGCore Studio)" : "Usuario UGCore"),
           email: cleanEmail,
           credits: defaultCredits,
-          customApiKey: customApiKey || null,
+          customApiKey: cleanCustomKey,
         },
       });
-    } else if (isAdmin && found.credits < ADMIN_INITIAL_CREDITS) {
-      found = await prisma.user.update({
-        where: { id: found.id },
-        data: { credits: ADMIN_INITIAL_CREDITS },
-      });
+    } else {
+      existedInDb = true;
+      const updateData = {};
+      if (isAdmin && found.credits < ADMIN_INITIAL_CREDITS) {
+        updateData.credits = ADMIN_INITIAL_CREDITS;
+      }
+      if (cleanCustomKey !== null && found.customApiKey !== cleanCustomKey) {
+        updateData.customApiKey = cleanCustomKey;
+      }
+      if (Object.keys(updateData).length > 0) {
+        found = await prisma.user.update({
+          where: { id: found.id },
+          data: updateData,
+        });
+      }
     }
     return found;
   });
@@ -312,13 +329,65 @@ export async function safeGetOrCreateUser({
     assignedCredits: Math.max(assignedCredits, finalCredits),
     credits: finalCredits,
     customApiKey:
-      dbUser?.customApiKey || existingMem?.customApiKey || customApiKey || null,
+      cleanCustomKey ?? dbUser?.customApiKey ?? existingMem?.customApiKey ?? null,
+    demoClaimed: Boolean(
+      existingMem?.demoClaimed || existedInDb || planId === "demo"
+    ),
     approved: true,
     updatedAt: new Date().toISOString(),
   };
 
   runtimeStore.usersByEmail.set(cleanEmail, userRecord);
   return userRecord;
+}
+
+export async function safeGetUserCustomApiKey({ userId, email }) {
+  const cleanEmail = email ? email.toLowerCase().trim() : null;
+  const memUser = cleanEmail ? runtimeStore.usersByEmail.get(cleanEmail) : null;
+
+  const dbUser =
+    userId || cleanEmail
+      ? await tryDbQuery(() =>
+          prisma.user.findFirst({
+            where: userId
+              ? {
+                  OR: [
+                    { id: userId },
+                    ...(cleanEmail ? [{ email: cleanEmail }] : []),
+                  ],
+                }
+              : { email: cleanEmail },
+            select: { customApiKey: true, email: true },
+          })
+        )
+      : null;
+
+  const key = dbUser?.customApiKey ?? memUser?.customApiKey ?? null;
+  return typeof key === "string" && key.trim().length > 0 ? key.trim() : null;
+}
+
+export async function safeHasClaimedDemo({ userId, email }) {
+  const cleanEmail = email ? email.toLowerCase().trim() : null;
+  if (!cleanEmail && !userId) return false;
+  const memUser = cleanEmail ? runtimeStore.usersByEmail.get(cleanEmail) : null;
+  if (memUser?.demoClaimed || (memUser && (memUser.credits > 0 || memUser.assignedCredits > 0))) {
+    return true;
+  }
+
+  const dbUser = await tryDbQuery(() =>
+    prisma.user.findFirst({
+      where: userId
+        ? {
+            OR: [
+              { id: userId },
+              ...(cleanEmail ? [{ email: cleanEmail }] : []),
+            ],
+          }
+        : { email: cleanEmail },
+      select: { id: true },
+    })
+  );
+  return Boolean(dbUser);
 }
 
 export async function safeGetUserBalance({ userId, email, isAdmin = false }) {
@@ -373,10 +442,21 @@ export async function safeGetUserBalance({ userId, email, isAdmin = false }) {
     return memUser;
   }
 
+  if (!userId && !cleanEmail) {
+    return {
+      credits: 0,
+      assignedCredits: 0,
+      planId: "none",
+      planName: "Inicia sesión (+150 CR)",
+      approved: false,
+    };
+  }
+
   return {
-    credits: 1000,
-    assignedCredits: 1000,
-    planName: "Pack Básico (Activo)",
+    credits: 150,
+    assignedCredits: 150,
+    planId: "demo",
+    planName: "Demo Gratuito",
     approved: true,
   };
 }
@@ -452,6 +532,8 @@ export async function safeAssignOrPurchaseCredits({
     planName: pkg.name,
     assignedCredits: assignedTotal,
     credits: baseCredits,
+    customApiKey: existingMem?.customApiKey || null,
+    demoClaimed: true,
     approved: true,
     updatedAt: new Date().toISOString(),
   };
@@ -476,15 +558,18 @@ export async function safeDeductCredits({ userId, email, amount }) {
 
   try {
     if (prisma?.user && (userId || cleanEmail)) {
-      if (userId && !String(userId).startsWith("buyer-") && userId !== "admin-obsifem") {
+      const targetUser =
+        userId && !String(userId).startsWith("buyer-") && userId !== "admin-obsifem"
+          ? await prisma.user.findUnique({ where: { id: userId } })
+          : cleanEmail
+          ? await prisma.user.findUnique({ where: { email: cleanEmail } })
+          : null;
+
+      if (targetUser) {
+        const nextCredits = Math.max(0, (Number(targetUser.credits) || 0) - cleanAmount);
         await prisma.user.update({
-          where: { id: userId },
-          data: { credits: { decrement: cleanAmount } },
-        });
-      } else if (cleanEmail) {
-        await prisma.user.update({
-          where: { email: cleanEmail },
-          data: { credits: { decrement: cleanAmount } },
+          where: { id: targetUser.id },
+          data: { credits: nextCredits },
         });
       }
     }
@@ -516,10 +601,10 @@ export async function safeListUsers() {
           email: key,
           role: isAdm ? "admin" : "buyer",
           isAdmin: isAdm,
-          planId: mem?.planId || (isAdm ? "admin" : "standard"),
+          planId: mem?.planId || (isAdm ? "admin" : "demo"),
           planName:
             mem?.planName ||
-            (isAdm ? "Administrador Master" : "Paquete Comprador Activo"),
+            (isAdm ? "Administrador Master" : "Demo Gratuito"),
           assignedCredits: isAdm
             ? ADMIN_INITIAL_CREDITS
             : Math.max(mem?.assignedCredits || 0, dbu.credits || 0),
@@ -559,7 +644,7 @@ export async function safeCreateCreation({
 
   const fallbackCreation = {
     id: statelessId,
-    userId: userId || "admin-obsifem",
+    userId: userId || "anon",
     type: "video",
     title: (prompt || "UGCore Video").substring(0, 50) + "...",
     prompt: prompt || "",
@@ -579,47 +664,51 @@ export async function safeCreateCreation({
   runtimeStore.creationsById.set(statelessId, fallbackCreation);
 
   try {
-    if (prisma?.creation && prisma?.user) {
+    if (prisma?.creation && prisma?.user && (userEmail || userId)) {
       let validDbUserId = userId;
-      const cleanEmail = (userEmail || "obsifem@gmail.com")
+      const cleanEmail = (userEmail || "")
         .toLowerCase()
         .trim();
 
-      const dbUser = await prisma.user.upsert({
-        where: { email: cleanEmail },
-        update: {},
-        create: {
-          name:
-            cleanEmail === "obsifem@gmail.com"
-              ? "Administrador (UGCore Studio)"
-              : cleanEmail.split("@")[0],
-          email: cleanEmail,
-          credits:
-            cleanEmail === "obsifem@gmail.com" ? ADMIN_INITIAL_CREDITS : 1000,
-        },
-      });
-      validDbUserId = dbUser.id;
+      if (cleanEmail) {
+        const dbUser = await prisma.user.upsert({
+          where: { email: cleanEmail },
+          update: {},
+          create: {
+            name:
+              cleanEmail === "obsifem@gmail.com"
+                ? "Administrador (UGCore Studio)"
+                : cleanEmail.split("@")[0],
+            email: cleanEmail,
+            credits:
+              cleanEmail === "obsifem@gmail.com" ? ADMIN_INITIAL_CREDITS : 150,
+          },
+        });
+        validDbUserId = dbUser.id;
+      }
 
-      const dbCreation = await prisma.creation.create({
-        data: {
-          userId: validDbUserId,
-          type: "video",
-          title: fallbackCreation.title,
-          prompt: fallbackCreation.prompt,
-          requestId: serializedRequestId,
-          url: initialUrl,
-          status: "processing",
-          modelId,
-          aspectRatio: aspectRatio || null,
-          resolution: resolution || null,
-          duration: duration || null,
-          mode: mode || null,
-          inputImages: fallbackCreation.inputImages,
-        },
-      });
+      if (validDbUserId) {
+        const dbCreation = await prisma.creation.create({
+          data: {
+            userId: validDbUserId,
+            type: "video",
+            title: fallbackCreation.title,
+            prompt: fallbackCreation.prompt,
+            requestId: serializedRequestId,
+            url: initialUrl,
+            status: "processing",
+            modelId,
+            aspectRatio: aspectRatio || null,
+            resolution: resolution || null,
+            duration: duration || null,
+            mode: mode || null,
+            inputImages: fallbackCreation.inputImages,
+          },
+        });
 
-      runtimeStore.creationsById.set(dbCreation.id, dbCreation);
-      return dbCreation;
+        runtimeStore.creationsById.set(dbCreation.id, dbCreation);
+        return dbCreation;
+      }
     }
   } catch (err) {
     console.warn(

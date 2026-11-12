@@ -4,32 +4,34 @@ import { Pool } from "pg";
 
 const globalForPrisma = globalThis;
 
-const DEFAULT_DATABASE_URL =
-  process.env.DATABASE_URL ||
-  process.env.DIRECT_URL ||
-  "postgresql://postgres.xlandgxujchkfshybicy:K65FZuJ4bhCRaCwD@aws-0-ca-central-1.pooler.supabase.com:5432/postgres";
+const DATABASE_CONNECTION_URL =
+  process.env.DATABASE_URL || process.env.DIRECT_URL || "";
 
 let prismaInstance = globalForPrisma.prisma;
 
 if (!prismaInstance) {
-  try {
-    const pool = new Pool({
-      connectionString: DEFAULT_DATABASE_URL,
-      connectionTimeoutMillis: 1200,
-      idleTimeoutMillis: 5000,
-      max: 3,
-    });
-    pool.on("error", (err) => {
-      console.warn("[PRISMA_POOL_WARN]", err?.message || err);
-    });
-    const adapter = new PrismaPg(pool);
-    prismaInstance = new PrismaClient({
-      adapter,
-      log: ["error"],
-    });
-  } catch (err) {
-    console.warn("[PRISMA_INIT_FALLBACK]", err?.message || err);
+  if (!DATABASE_CONNECTION_URL) {
     prismaInstance = {};
+  } else {
+    try {
+      const pool = new Pool({
+        connectionString: DATABASE_CONNECTION_URL,
+        connectionTimeoutMillis: 1500,
+        idleTimeoutMillis: 5000,
+        max: 3,
+      });
+      pool.on("error", (err) => {
+        console.warn("[PRISMA_POOL_WARN]", err?.message || err);
+      });
+      const adapter = new PrismaPg(pool);
+      prismaInstance = new PrismaClient({
+        adapter,
+        log: ["error"],
+      });
+    } catch (err) {
+      console.warn("[PRISMA_INIT_FALLBACK]", err?.message || err);
+      prismaInstance = {};
+    }
   }
 }
 

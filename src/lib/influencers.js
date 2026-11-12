@@ -659,20 +659,30 @@ export const DIGITAL_TWIN_SPEC = {
 };
 
 export function buildDigitalTwinProfile({
-  twinName = "Mi Gemelo Digital",
+  twinName,
+  name,
   ucid = "UCID-TWIN-CUSTOM-01",
   avatarFrameUrl = "",
+  avatarUrl = "",
   trainingVideoUrl = "",
   trainingVideoName = "entrenamiento_gemelo_digital.mp4",
-  durationMinutes = 3.5,
-  voiceTimbre = "Clonación Neural Exacta (Voz Original del Usuario)",
-  visualNotes = "",
+  durationMinutes,
+  trainingDurationMinutes,
+  voiceTimbre,
+  voiceProfileLabel,
+  visualNotes,
+  customTraits,
   consentVerified = true,
 } = {}) {
-  const cleanName = twinName.trim() || "Mi Gemelo Digital";
+  const cleanName = (twinName || name || "Mi Gemelo Digital").trim() || "Mi Gemelo Digital";
   const cleanUcid = ucid.trim() || "UCID-TWIN-CUSTOM-01";
-  const customTrait = visualNotes.trim()
-    ? `, ${visualNotes.trim()}`
+  const effectiveDuration = Number(durationMinutes ?? trainingDurationMinutes ?? 3.5) || 3.5;
+  const effectiveNotes = (visualNotes ?? customTraits ?? "").trim();
+  const effectiveFrame = avatarFrameUrl || avatarUrl || "";
+  const effectiveVoice =
+    voiceTimbre || voiceProfileLabel || "Clonación Neural Exacta (Voz Original del Usuario)";
+  const customTrait = effectiveNotes
+    ? `, ${effectiveNotes}`
     : ", natural micro-expressions, authentic eye contact and exact facial geometry from the 2-5 min training capture";
 
   return {
@@ -684,15 +694,15 @@ export function buildDigitalTwinProfile({
     niche: "Gemelo Digital Personalizado (Rostro + Voz Clonada)",
     badge: "Gemelo #8B5CF6",
     avatar:
-      avatarFrameUrl ||
+      effectiveFrame ||
       "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
     trainingVideoUrl,
     trainingVideoName,
-    durationMinutes,
+    durationMinutes: effectiveDuration,
     consentVerified,
-    voiceTimbre,
+    voiceTimbre: effectiveVoice,
     visualIdentity: "#8B5CF6 & #FFFFFF",
-    visualPrompt: `Photorealistic Digital Twin custom avatar (${cleanName}, ID: ${cleanUcid}) cloned from a ${durationMinutes}-minute high-definition training video${customTrait}, harmonized with UGCore Studio #8B5CF6 electric violet rim light and #FFFFFF pure white studio key lighting`,
+    visualPrompt: `Photorealistic Digital Twin custom avatar (${cleanName}, ID: ${cleanUcid}) cloned from a ${effectiveDuration}-minute high-definition training video${customTrait}, harmonized with UGCore Studio #8B5CF6 electric violet rim light and #FFFFFF pure white studio key lighting`,
     tone: "Auténtico, idéntico al titular y calibrado con lip-sync neural",
     defaultPromoType: "product",
     defaultStyle: "showcase",

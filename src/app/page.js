@@ -27,6 +27,7 @@ import {
 } from "react-icons/fi";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCoins } from "react-icons/fa";
 import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
@@ -279,19 +280,19 @@ function RangeParameter({
 
 export default function Home() {
   const { data: session, status, update: updateSession } = useSession();
+  const router = useRouter();
   const [isModelsModalOpen, setIsModelsModalOpen] = useState(false);
+  const [modelSearch, setModelSearch] = useState("");
 
   const isAdminUser = Boolean(
-    session?.user?.isAdmin ||
-      session?.user?.role === "admin" ||
-      session?.user?.email === "obsifem@gmail.com"
+    session?.user?.isAdmin || session?.user?.role === "admin"
   );
   const availableCredits =
     typeof session?.user?.credits === "number"
       ? session.user.credits
       : isAdminUser
       ? 999999
-      : 1500;
+      : 0;
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
       ? session.user.assignedCredits
@@ -299,13 +300,15 @@ export default function Home() {
 
   const activeBuyerPackage = getPackageById(
     session?.user?.planId ||
-      (assignedCredits >= 25000
+      (assignedCredits >= 60000
         ? "business"
-        : assignedCredits >= 10000
-        ? "pro"
-        : assignedCredits >= 4000
+        : assignedCredits >= 20000
+        ? "professional"
+        : assignedCredits >= 6000
         ? "standard"
-        : "basic")
+        : assignedCredits >= 2000
+        ? "basic"
+        : "demo")
   );
   const [showEntitlementsBanner, setShowEntitlementsBanner] = useState(false);
 
@@ -883,11 +886,11 @@ export default function Home() {
         INFLUENCER_LANGUAGES[0];
 
       const newTwin = buildDigitalTwinProfile({
-        name: twinName.trim() || "Mi Gemelo Digital IA",
+        twinName: twinName.trim() || "Mi Gemelo Digital IA",
         ucid:
           twinUcid.trim() ||
           `UCID-TWIN-${String(customDigitalTwins.length + 1).padStart(2, "0")}`,
-        avatarUrl:
+        avatarFrameUrl:
           twinFaceImageUrl ||
           customFaceUrl ||
           selectedInfluencer?.avatar ||
@@ -895,10 +898,10 @@ export default function Home() {
         trainingVideoName:
           twinVideoFileName ||
           `entrenamiento_gemelo_${twinVideoDurationMinutes}min.mp4`,
-        trainingDurationMinutes: twinVideoDurationMinutes,
+        durationMinutes: twinVideoDurationMinutes,
         consentVerified: true,
-        voiceProfileLabel: `Voz Clonada Neural (${langObj.label})`,
-        customTraits:
+        voiceTimbre: `Voz Clonada Neural (${langObj.label})`,
+        visualNotes:
           customFaceTrait.trim() ||
           `Clonación facial y vocal de alta fidelidad (${twinVideoDurationMinutes} min) con identidad visual #8B5CF6 y blanco #FFFFFF`,
       });
@@ -1069,9 +1072,14 @@ export default function Home() {
   };
 
   const handleImageUpload = async (e) => {
+    if (status !== "authenticated") {
+      alert("Inicia sesión o activa tu Demo Gratis (+150 CR) para subir imágenes de producto.");
+      return;
+    }
+
     const files = Array.from(e.target.files);
     if (uploadedImages.length + files.length > 7) {
-      alert("Maximum 7 reference images allowed.");
+      alert("Máximo 7 imágenes de referencia permitidas.");
       return;
     }
 
@@ -1170,9 +1178,14 @@ export default function Home() {
   };
 
   const handleGenerate = async () => {
+    if (status !== "authenticated") {
+      alert("Inicia sesión o activa tu Demo Gratis (+150 CR) en /login para generar videos.");
+      router.push("/login");
+      return;
+    }
     if (!hasEffectiveInput()) return;
     if (uploadedImages.some((img) => img.status !== "ready")) {
-      alert("Wait for image uploads to finish or remove any failed uploads.");
+      alert("Espera a que terminen de subirse las imágenes o elimina las que fallaron.");
       return;
     }
     if (!hasEffectiveReferenceImage() && !selectedModel.supportsTextToVideo) {
@@ -1324,7 +1337,9 @@ export default function Home() {
       });
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Error al iniciar la generación");
+      }
 
       if (
         typeof data.remainingCredits === "number" &&
@@ -2401,7 +2416,7 @@ export default function Home() {
                           >
                             {INFLUENCER_LANGUAGES.map((l) => (
                               <option key={l.id} value={l.id}>
-                                {l.flag} {l.label}
+                                {l.label}
                               </option>
                             ))}
                           </select>
@@ -2562,7 +2577,7 @@ export default function Home() {
                     </div>
 
                     <div className="lg:hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
-                      {AI_INFLUENCERS.map((inf) => {
+                      {[...customDigitalTwins, ...AI_INFLUENCERS].map((inf) => {
                         const isSelected = selectedInfluencer?.id === inf.id;
                         return (
                           <button
@@ -3366,8 +3381,10 @@ export default function Home() {
                     <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary-text" />
                     <input
                       type="text"
-                      placeholder="Search models..."
-                      className="w-full pl-12 pr-4 py-2 bg-glass-bg border border-glass-border rounded text-xs font-bold outline-none focus:bg-bg-card focus:border-divider transition-all"
+                      value={modelSearch}
+                      onChange={(e) => setModelSearch(e.target.value)}
+                      placeholder="Buscar modelos..."
+                      className="w-full pl-12 pr-4 py-2 bg-glass-bg border border-glass-border rounded text-xs font-bold text-primary-text outline-none focus:bg-bg-card focus:border-divider transition-all"
                     />
                   </div>
                   <button
@@ -3380,7 +3397,15 @@ export default function Home() {
 
                 <div className="flex-1 p-6 custom-scrollbar">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {MODELS.map((model) => (
+                    {MODELS.filter((m) => {
+                      const q = modelSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        m.name.toLowerCase().includes(q) ||
+                        m.description.toLowerCase().includes(q) ||
+                        m.type.toLowerCase().includes(q)
+                      );
+                    }).map((model) => (
                       <div
                         key={model.id}
                         onClick={() => handleModelSelect(model)}
@@ -3405,15 +3430,15 @@ export default function Home() {
                           </span>
                         </div>
                         <div className="space-y-2">
-                          <h4 className="text-xs font-medium text-slate-900">
+                          <h4 className="text-xs font-medium text-primary-text">
                             {model.name}
                           </h4>
-                          <p className="text-xs text-slate-400 font-bold leading-relaxed">
+                          <p className="text-xs text-secondary-text font-bold leading-relaxed">
                             {model.description}
                           </p>
                         </div>
                         <div className="pt-2 flex items-center gap-2">
-                          <span className="text-xs font-medium text-slate-300">
+                          <span className="text-xs font-medium text-secondary-text/80">
                             {model.params
                               ? Object.keys(model.params).join(" • ")
                               : model.metadata}
