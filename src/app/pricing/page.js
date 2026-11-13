@@ -168,7 +168,11 @@ export default function Pricing() {
       }
 
       if (data.checkoutUrl) {
-        toast.loading("Redirigiendo a pago seguro en Stripe...");
+        toast.loading(
+          data.provider === "lemonsqueezy"
+            ? "Redirigiendo a pago seguro en Lemon Squeezy..."
+            : "Redirigiendo a pago seguro..."
+        );
         window.location.href = data.checkoutUrl;
         return;
       }

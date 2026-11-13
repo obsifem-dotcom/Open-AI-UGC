@@ -4,13 +4,16 @@ import { authOptions, isAdminEmail } from "@/lib/auth";
 import { isStripeConfigured } from "@/lib/stripe";
 import { BillingService } from "@/lib/services/billing";
 import {
+  isLemonSqueezyConfigured,
+  LemonSqueezyService,
+} from "@/lib/lemonsqueezy";
+import {
   CREDIT_PACKAGES,
   FREE_DEMO_PACKAGE,
   getPackageById,
   runtimeStore,
   safeAssignOrPurchaseCredits,
   safeGetUserBalance,
-  safeHasClaimedDemo,
 } from "@/lib/runtime-store";
 
 export async function GET() {
@@ -26,6 +29,7 @@ export async function GET() {
 
     return NextResponse.json({
       enabled: true,
+      lemonSqueezyConfigured: isLemonSqueezyConfigured(),
       stripeConfigured: isStripeConfigured(),
       packages: CREDIT_PACKAGES,
       demo: FREE_DEMO_PACKAGE,
@@ -34,6 +38,7 @@ export async function GET() {
   } catch (err) {
     return NextResponse.json({
       enabled: true,
+      lemonSqueezyConfigured: isLemonSqueezyConfigured(),
       stripeConfigured: isStripeConfigured(),
       packages: CREDIT_PACKAGES,
       error: err?.message,
@@ -119,6 +124,28 @@ export async function POST(req) {
       });
     }
 
+    // 1. Check Lemon Squeezy first (Merchant of Record - Global Tax & Compliance)
+    if (isLemonSqueezyConfigured()) {
+      const originUrl = new URL(req.url).origin;
+      const checkoutUrl = await LemonSqueezyService.createCheckout({
+        userId: session?.user?.id || "",
+        planId: pkg.id,
+        email: targetEmail,
+        name: targetName,
+        originUrl,
+      });
+
+      return NextResponse.json({
+        success: true,
+        provider: "lemonsqueezy",
+        approved: false,
+        requiresPayment: true,
+        checkoutUrl,
+        package: pkg,
+      });
+    }
+
+    // 2. Stripe Checkout fallback
     if (isStripeConfigured()) {
       const originUrl = new URL(req.url).origin;
       const checkoutUrl = await BillingService.createCheckoutSession(
@@ -130,6 +157,7 @@ export async function POST(req) {
 
       return NextResponse.json({
         success: true,
+        provider: "stripe",
         approved: false,
         requiresPayment: true,
         checkoutUrl,
