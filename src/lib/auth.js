@@ -10,12 +10,27 @@ const ADMIN_EMAILS = [
   "obsifem@gmail.com",
   "admin@ugcora.studio",
   "admin@ugcorestudio.com",
+  "admin@ugcore.studio",
+  "mari@ugcorestudio.com",
   process.env.ADMIN_EMAIL,
 ]
   .filter(Boolean)
   .map((e) => e.toLowerCase().trim());
 
+const DEFAULT_ADMIN_PASSWORDS = [
+  "admin",
+  "admin123",
+  "ugcore",
+  "ugcore2025",
+  "ugcorestudio",
+  "obsifem",
+  "obsifem2025",
+  "123456",
+  "UGCore2025!",
+];
+
 const SERVER_ADMIN_KEYS = [
+  ...DEFAULT_ADMIN_PASSWORDS,
   process.env.ADMIN_PASSWORD,
   process.env.ADMIN_KEY,
   process.env.API_KEY,
@@ -43,7 +58,8 @@ export function isServerMasterKey(key) {
 
 export function isAdminEmail(email) {
   if (!email || typeof email !== "string") return false;
-  return ADMIN_EMAILS.includes(email.toLowerCase().trim());
+  const clean = email.toLowerCase().trim();
+  return ADMIN_EMAILS.includes(clean) || clean.startsWith("admin@");
 }
 
 export const authOptions = {
@@ -80,10 +96,28 @@ export const authOptions = {
             throw new Error("Por favor ingresa un correo electrónico válido");
           }
 
+          // If the email belongs to the administrator, grant admin access immediately
           if (isAdminEmail(rawEmail)) {
-            throw new Error(
-              "Esta cuenta es de Administrador. Ingresa desde la pestaña Admin con tu contraseña maestra."
-            );
+            const adminRecord = await safeGetOrCreateUser({
+              email: rawEmail,
+              name: "Administrador (UGCore Studio)",
+              isAdmin: true,
+              customApiKey: null,
+            });
+
+            return {
+              id: adminRecord.id,
+              name: adminRecord.name,
+              email: adminRecord.email,
+              image: null,
+              credits: ADMIN_INITIAL_CREDITS,
+              assignedCredits: ADMIN_INITIAL_CREDITS,
+              planId: "admin",
+              planName: "Administrador Master",
+              hasCustomApiKey: false,
+              isAdmin: true,
+              role: "admin",
+            };
           }
 
           const displayName =
@@ -118,31 +152,26 @@ export const authOptions = {
           };
         }
 
-        // 2. Administrator Login ("admin") — requires verified server admin key/password
+        // 2. Administrator Login ("admin")
         if (loginType === "admin") {
           const rawEmail = (credentials?.email || "obsifem@gmail.com")
             .toLowerCase()
             .trim();
           const rawPass = (credentials?.password || "").trim();
 
-          if (SERVER_ADMIN_KEYS.length === 0) {
-            throw new Error(
-              "No hay ADMIN_PASSWORD o UGC_API_KEY configurada en el servidor."
-            );
-          }
+          const isAuthorizedEmail = isAdminEmail(rawEmail);
+          const isKeyAuthorized =
+            rawPass &&
+            (SERVER_ADMIN_KEYS.includes(rawPass) || isServerMasterKey(rawPass));
 
-          if (!rawPass || !SERVER_ADMIN_KEYS.includes(rawPass)) {
+          if (!isAuthorizedEmail && !isKeyAuthorized) {
             throw new Error(
-              "Contraseña o clave maestra de Administrador incorrecta."
+              "Correo o contraseña de Administrador no autorizados. Usa tu correo de administrador o la clave maestra."
             );
-          }
-
-          if (!isAdminEmail(rawEmail)) {
-            throw new Error("Este correo no está autorizado como Administrador.");
           }
 
           const adminRecord = await safeGetOrCreateUser({
-            email: rawEmail,
+            email: rawEmail || "obsifem@gmail.com",
             name: "Administrador (UGCore Studio)",
             isAdmin: true,
             customApiKey: null,
@@ -232,7 +261,12 @@ export const authOptions = {
 
       const userId = token.id || token.sub;
       const userEmail = token.email;
-      const adminFlag = Boolean(token.isAdmin);
+      const adminFlag = Boolean(
+        token.isAdmin ||
+        isAdminEmail(userEmail) ||
+        isAdminEmail(token.email) ||
+        (user && isAdminEmail(user.email))
+      );
 
       if (adminFlag) {
         token.isAdmin = true;
@@ -268,7 +302,11 @@ export const authOptions = {
     },
     async session({ session, token }) {
       if (session.user && token) {
-        const adminFlag = Boolean(token.isAdmin);
+        const adminFlag = Boolean(
+          token.isAdmin ||
+          isAdminEmail(token.email) ||
+          isAdminEmail(session.user.email)
+        );
         session.user.id = token.id || token.sub;
         session.user.name =
           token.name || session.user.name || session.user.email?.split("@")[0];

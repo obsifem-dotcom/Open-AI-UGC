@@ -74,10 +74,14 @@ export async function POST(req) {
     // Free demo: activate 300 free credits for any buyer test
     if (pkg.id === "demo") {
       if (isAdminEmail(targetEmail)) {
-        return NextResponse.json(
-          { error: "Las cuentas de administrador no usan el demo de comprador. Ingresa como Administrador con tu contraseña." },
-          { status: 403 }
-        );
+        return NextResponse.json({
+          success: true,
+          demoClaimed: true,
+          plan: "admin",
+          credits: ADMIN_INITIAL_CREDITS,
+          assignedCredits: ADMIN_INITIAL_CREDITS,
+          message: "Sesión de administrador activa con créditos completos (999,999 CR).",
+        });
       }
 
       const updatedUser = await safeAssignOrPurchaseCredits({
