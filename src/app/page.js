@@ -288,13 +288,14 @@ export default function Home() {
   const [modelSearch, setModelSearch] = useState("");
 
   const isAdminUser = Boolean(
-    session?.user?.isAdmin ||
-    session?.user?.role === "admin" ||
-    (session?.user?.email &&
-      (session.user.email.includes("obsifem") ||
-        session.user.email.includes("admin") ||
-        session.user.email.includes("mari") ||
-        session.user.email.includes("bizbox")))
+    status === "authenticated" &&
+    (session?.user?.isAdmin ||
+      session?.user?.role === "admin" ||
+      (session?.user?.email &&
+        (session.user.email.includes("obsifem") ||
+          session.user.email.includes("admin") ||
+          session.user.email.includes("mari") ||
+          session.user.email.includes("bizbox"))))
   );
   const availableCredits = isAdminUser
     ? 999999
@@ -1164,12 +1165,12 @@ export default function Home() {
     if (status !== "authenticated") {
       try {
         await signIn("credentials", {
-          loginType: "admin",
-          email: "obsifem@gmail.com",
-          password: "UGCore2026*",
+          loginType: "buyer",
+          email: "comprador@ugcorestudio.com",
+          planId: "demo",
           redirect: false,
         });
-        toast.success("¡Sesión de Administrador activada (999,999 CR)!");
+        toast.success("¡Demo Gratuito Activo (+300 CR)!");
       } catch (err) {
         console.error(err);
       }
@@ -1279,12 +1280,12 @@ export default function Home() {
     if (status !== "authenticated") {
       try {
         await signIn("credentials", {
-          loginType: "admin",
-          email: "obsifem@gmail.com",
-          password: "UGCore2026*",
+          loginType: "buyer",
+          email: "comprador@ugcorestudio.com",
+          planId: "demo",
           redirect: false,
         });
-        toast.success("¡Sesión de Administrador activada (999,999 CR)!");
+        toast.success("¡Demo Gratuito Activo (+300 CR)!");
       } catch (err) {
         console.error(err);
       }
