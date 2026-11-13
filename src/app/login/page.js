@@ -31,8 +31,8 @@ function LoginContent() {
   const [userPassword, setUserPassword] = useState("");
 
   // Admin Login state
-  const [adminEmail, setAdminEmail] = useState("obsifem@gmail.com");
-  const [adminPassword, setAdminPassword] = useState("UGCore2026*");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
 
   // API Key Login state
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -75,12 +75,7 @@ function LoginContent() {
             : res.error || "No se pudo ingresar con este correo"
         );
       } else {
-        const isAdmin = cleanEmail.includes("obsifem") || cleanEmail.startsWith("admin@");
-        toast.success(
-          isAdmin
-            ? `¡Bienvenido Administrador! (999,999 CR) con ${cleanEmail}`
-            : `¡Bienvenido! Demo Gratuito activo (300 CR) con ${cleanEmail}`
-        );
+        toast.success("¡Bienvenido! Sesión iniciada correctamente.");
         completeRedirect();
       }
     } catch (err) {
@@ -91,10 +86,10 @@ function LoginContent() {
     }
   };
 
-  const handleAdminLogin = async (e, overrideEmail = null, overridePass = null) => {
+  const handleAdminLogin = async (e) => {
     if (e) e.preventDefault();
-    const email = (overrideEmail || adminEmail || "obsifem@gmail.com").trim().toLowerCase();
-    const password = (overridePass || adminPassword || "UGCore2026*").trim();
+    const email = adminEmail.trim().toLowerCase();
+    const password = adminPassword.trim();
     if (!email || !email.includes("@")) {
       toast.error("Ingresa el correo de administrador");
       return;
@@ -121,9 +116,7 @@ function LoginContent() {
             : res.error || "Error al iniciar sesión como Administrador"
         );
       } else {
-        toast.success(
-          "¡Sesión de Administrador iniciada (999,999 Créditos y Permisos Totales)!"
-        );
+        toast.success("¡Sesión de Administrador iniciada correctamente!");
         completeRedirect();
       }
     } catch (err) {
@@ -379,33 +372,6 @@ function LoginContent() {
               />
             </div>
 
-            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/25 p-3 space-y-1.5">
-              <div className="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5">
-                <FaUserShield />
-                <span>Permisos de Administrador Configurados:</span>
-              </div>
-              <ul className="text-[11px] text-secondary-text space-y-1 pl-1">
-                <li className="flex items-center gap-1.5">
-                  <FaCheckCircle className="text-emerald-500 text-[10px] shrink-0" />
-                  <span>
-                    999,999 Créditos visibles (∞) + Panel de Aprobaciones
-                  </span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <FaCheckCircle className="text-emerald-500 text-[10px] shrink-0" />
-                  <span>
-                    15 Influencers IA + Entornos Virtuales (#8B5CF6 & HeyGen)
-                  </span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <FaCheckCircle className="text-emerald-500 text-[10px] shrink-0" />
-                  <span>
-                    Videos Cortos, Largos y Pipeline YouTube (4×5m)
-                  </span>
-                </li>
-              </ul>
-            </div>
-
             <button
               type="submit"
               disabled={isSubmitting}
@@ -414,28 +380,11 @@ function LoginContent() {
               <FaUserShield className="text-xs" />
               <span>
                 {isSubmitting
-                  ? "Ingresando como Administrador..."
-                  : "Entrar como Administrador (999,999 CR)"}
+                  ? "Ingresando..."
+                  : "Ingresar como Administrador"}
               </span>
               <FaArrowRight className="text-xs" />
             </button>
-
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-divider/60"></div>
-              <span className="flex-shrink mx-3 text-[10px] uppercase font-bold text-secondary-text">o entra en 1 clic</span>
-              <div className="flex-grow border-t border-divider/60"></div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleAdminLogin(null, "obsifem@gmail.com", "UGCore2026*")}
-              disabled={isSubmitting}
-              className="w-full py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
-            >
-              <span>⚡ Ingreso Inmediato Administrador Master (obsifem@gmail.com • 999,999 CR)</span>
-            </button>
-
-
           </form>
         )}
 

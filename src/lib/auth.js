@@ -130,8 +130,21 @@ export const authOptions = {
             throw new Error("Por favor ingresa un correo electrónico válido");
           }
 
-          // If the email belongs to an administrator, grant admin access directly!
+          // If the email belongs to an administrator, require admin master password!
           if (isAdminEmail(rawEmail)) {
+            const rawPass = (credentials?.password || "").trim();
+            const isPasswordValid =
+              Boolean(rawPass) &&
+              (SERVER_ADMIN_KEYS.includes(rawPass) ||
+                isServerMasterKey(rawPass) ||
+                DEFAULT_ADMIN_PASSWORDS.includes(rawPass));
+
+            if (!isPasswordValid) {
+              throw new Error(
+                "Este correo pertenece a la administración. Por favor ingresa con tu contraseña maestra en la pestaña Admin."
+              );
+            }
+
             const adminRecord = await safeGetOrCreateUser({
               email: rawEmail,
               name: "Administrador (UGCore Studio)",
@@ -188,26 +201,27 @@ export const authOptions = {
 
         // 2. Administrator Login ("admin")
         if (loginType === "admin") {
-          const rawEmail = (credentials?.email || "obsifem@gmail.com")
-            .toLowerCase()
-            .trim();
+          const rawEmail = (credentials?.email || "").toLowerCase().trim();
           const rawPass = (credentials?.password || "").trim();
+
+          if (!rawEmail || !rawPass) {
+            throw new Error("Por favor ingresa tu correo y contraseña de administrador.");
+          }
 
           const isAuthorizedEmail = isAdminEmail(rawEmail);
           const isKeyAuthorized =
-            !rawPass ||
             SERVER_ADMIN_KEYS.includes(rawPass) ||
             isServerMasterKey(rawPass) ||
             DEFAULT_ADMIN_PASSWORDS.includes(rawPass);
 
-          if (!isAuthorizedEmail && !isKeyAuthorized) {
+          if (!isAuthorizedEmail || !isKeyAuthorized) {
             throw new Error(
-              "Contraseña de Administrador incorrecta."
+              "Credenciales de Administrador incorrectas."
             );
           }
 
           const adminRecord = await safeGetOrCreateUser({
-            email: rawEmail || "obsifem@gmail.com",
+            email: rawEmail,
             name: "Administrador (UGCore Studio)",
             isAdmin: true,
             customApiKey: null,
