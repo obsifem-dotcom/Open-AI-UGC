@@ -707,6 +707,10 @@ export async function safeCreateCreation({
         });
 
         runtimeStore.creationsById.set(dbCreation.id, dbCreation);
+        // Remove transient stateless token so the exact same video is never duplicated in gallery
+        if (statelessId !== dbCreation.id) {
+          runtimeStore.creationsById.delete(statelessId);
+        }
         return dbCreation;
       }
     }

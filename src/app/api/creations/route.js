@@ -182,7 +182,26 @@ export async function GET() {
         : null;
     const apiKey = customKey || DEFAULT_MUAPI_KEY;
 
-    const rawList = Array.from(byId.values());
+    // Deduplicate by requestId and cleanId so identical videos never show twice
+    const byRequestId = new Map();
+    for (const item of byId.values()) {
+      if (!item) continue;
+      const key = item.requestId || item.id;
+      if (!byRequestId.has(key)) {
+        byRequestId.set(key, item);
+      } else {
+        const existing = byRequestId.get(key);
+        const preferItem =
+          (item.url && !existing.url) ||
+          (item.status === "completed" && existing.status !== "completed") ||
+          (!String(item.id).startsWith("mu_") && String(existing.id).startsWith("mu_"));
+        if (preferItem) {
+          byRequestId.set(key, { ...existing, ...item });
+        }
+      }
+    }
+
+    const rawList = Array.from(byRequestId.values());
     const refreshedList = await Promise.all(
       rawList.map((item) => refreshPendingCreationIfNeeded(item, apiKey))
     );

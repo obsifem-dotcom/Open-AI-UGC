@@ -24,6 +24,7 @@ import {
   FiLink,
   FiLayers,
   FiCpu,
+  FiMic,
 } from "react-icons/fi";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -51,6 +52,7 @@ import {
   MICRO_EXPRESSIONS,
   TIMELINE_TRANSITIONS,
   COMMERCIAL_VOICE_PROFILES,
+  VOICE_SPEED_OPTIONS,
   YOUTUBE_LONGFORM_CONFIG,
   generatePredictiveHooks,
   buildCharacterConsistencyLock,
@@ -415,6 +417,11 @@ export default function Home() {
   const [lightingLock, setLightingLock] = useState(true);
   const [emotionId, setEmotionId] = useState("euphoric-viral");
   const [voiceProfileId, setVoiceProfileId] = useState("es-latam-commercial");
+  const [voiceSpeedId, setVoiceSpeedId] = useState("natural");
+  const [customVoiceAudioUrl, setCustomVoiceAudioUrl] = useState("");
+  const [customVoiceFileName, setCustomVoiceFileName] = useState("");
+  const [isUploadingCustomVoice, setIsUploadingCustomVoice] = useState(false);
+  const voiceAudioInputRef = useRef(null);
   const [microExpressionIds, setMicroExpressionIds] = useState([
     "eye-contact-lock",
     "natural-breathing",
@@ -811,6 +818,63 @@ export default function Home() {
     }
   };
 
+  const handleCustomVoiceUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingCustomVoice(true);
+    try {
+      setCustomVoiceFileName(file.name);
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!response.ok) throw new Error("No se pudo subir la muestra de voz");
+      const data = await response.json();
+      setCustomVoiceAudioUrl(data.url);
+      setVoiceProfileId("custom-voice");
+    } catch (error) {
+      console.error("Custom voice upload error:", error);
+      alert("Error al subir el archivo de audio de tu propia voz.");
+    } finally {
+      setIsUploadingCustomVoice(false);
+      if (voiceAudioInputRef.current) voiceAudioInputRef.current.value = "";
+    }
+  };
+
+  const handleGenerateYouTubeChapter = (chapterNumber = selectedYtChapter) => {
+    const bp = ytBlueprint || handleGenerateYouTubeBlueprint(ytTopic);
+    const ch =
+      bp.chapters.find((c) => c.chapterNumber === chapterNumber) ||
+      bp.chapters[0];
+    setVideoMode("short");
+    if (selectedModel?.params?.aspect_ratio?.options?.includes("16:9")) {
+      setModelSettings((prev) => ({ ...prev, aspect_ratio: "16:9" }));
+    }
+    setPrompt(ch.scenePrompt);
+    setOverlayCtaBadge(`YOUTUBE CAP.${ch.chapterNumber} • 16:9`);
+    setOverlayLowerThird(ch.title.slice(0, 68));
+    setOverlaySubtitle(`${ch.startTimestamp} - ${ch.endTimestamp}`);
+    setActiveV3Module(null);
+  };
+
+  const handleApplyYouTubeFullAndClose = () => {
+    handleApplyYouTubeToTimeline();
+    setActiveV3Module(null);
+  };
+
+  const handleGenerateTikTokHook = (hookItem) => {
+    setVideoMode("short");
+    if (selectedModel?.params?.aspect_ratio?.options?.includes("9:16")) {
+      setModelSettings((prev) => ({ ...prev, aspect_ratio: "9:16" }));
+    }
+    setPrompt(hookItem.hookText);
+    setOverlaySubtitle(hookItem.hookText.slice(0, 50));
+    setOverlayCtaBadge("TIKTOK VIRAL • 9:16");
+    setActiveV3Module(null);
+  };
+
   // Digital Twin / Custom Avatar (2 to 5 min training video + Biometric Consent • #8B5CF6) handlers
   const handleTwinVideoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -964,6 +1028,14 @@ export default function Home() {
     const activeVoiceObj =
       COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
       COMMERCIAL_VOICE_PROFILES[0];
+    const speedObj =
+      VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId) ||
+      VOICE_SPEED_OPTIONS[1];
+    const voiceDirectiveText =
+      voiceProfileId === "custom-voice" && customVoiceAudioUrl
+        ? `Voice Cloning: custom speaker voice reference from ${customVoiceAudioUrl}, speaking in natural lip-sync with ${speedObj.directive}`
+        : `${activeVoiceObj.directive}. Pacing: ${speedObj.directive}`;
+
     const effectiveAvatar = getEffectiveInfluencerAvatar(activeInf);
     const effectiveEnvUrl = getEffectiveVirtualEnvUrl();
     const hasAvatarRef =
@@ -996,7 +1068,10 @@ export default function Home() {
       compositingModeId: influencerCompositingModeId,
       customEnvironmentText: customEnvText,
       customEnvironmentImageTag: envImageTag,
-      voiceDirective: activeVoiceObj.directive,
+      voiceDirective: voiceDirectiveText,
+      voiceSpeedDirective: speedObj.directive,
+      customVoiceAudioUrl:
+        voiceProfileId === "custom-voice" ? customVoiceAudioUrl : null,
       useInfluencerAvatar: hasAvatarRef,
       hasUploadedAsset: readyUploads.length > 0,
     });
@@ -1235,6 +1310,13 @@ export default function Home() {
       const voiceObj =
         COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
         COMMERCIAL_VOICE_PROFILES[0];
+      const speedObj =
+        VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId) ||
+        VOICE_SPEED_OPTIONS[1];
+      const voiceDirectiveText =
+        voiceProfileId === "custom-voice" && customVoiceAudioUrl
+          ? `Voice Cloning: custom speaker voice reference from ${customVoiceAudioUrl}, speaking in natural lip-sync with ${speedObj.directive}`
+          : `${voiceObj.directive}. Pacing: ${speedObj.directive}`;
 
       const autoBuilt = isInfluencerMode
         ? buildInfluencerScript({
@@ -1254,7 +1336,10 @@ export default function Home() {
             compositingModeId: influencerCompositingModeId,
             customEnvironmentText: customEnvText,
             customEnvironmentImageTag: envImageTag,
-            voiceDirective: voiceObj.directive,
+            voiceDirective: voiceDirectiveText,
+            voiceSpeedDirective: speedObj.directive,
+            customVoiceAudioUrl:
+              voiceProfileId === "custom-voice" ? customVoiceAudioUrl : null,
             useInfluencerAvatar: hasAvatarRef,
             hasUploadedAsset: readyUserUrls.length > 0,
           })
@@ -1288,8 +1373,11 @@ export default function Home() {
             lightingLock,
             emotionId,
             microExpressionIds,
-          })} Audio Synthesizer: ${voiceObj.directive}.${virtualStudioDirective}`
-        : `Audio Synthesizer: ${voiceObj.directive}.${virtualStudioDirective}`;
+            voiceSpeedId,
+            customVoiceAudioUrl:
+              voiceProfileId === "custom-voice" ? customVoiceAudioUrl : null,
+          })} Audio Synthesizer: ${voiceDirectiveText}.${virtualStudioDirective}`
+        : `Audio Synthesizer: ${voiceDirectiveText}.${virtualStudioDirective}`;
 
       let activeScenes = [];
       let finalPrompt = prompt.trim();
@@ -1844,20 +1932,30 @@ export default function Home() {
                               &ldquo;{hk.hookText}&rdquo;
                             </p>
                           </div>
-                          <div className="flex items-center gap-1.5 pt-1">
+                          <div className="flex flex-col gap-1.5 pt-1">
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => applyViralHook(hk, false)}
+                                className="flex-1 py-1 rounded bg-primary/15 text-primary hover:bg-primary/25 text-[10px] font-bold transition-colors cursor-pointer"
+                              >
+                                Usar en Guion
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => applyViralHook(hk, true)}
+                                className="flex-1 py-1 rounded bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 text-[10px] font-bold transition-colors cursor-pointer"
+                              >
+                                Armar 3 Escenas
+                              </button>
+                            </div>
                             <button
                               type="button"
-                              onClick={() => applyViralHook(hk, false)}
-                              className="flex-1 py-1 rounded bg-primary/15 text-primary hover:bg-primary/25 text-[10px] font-bold transition-colors cursor-pointer"
+                              onClick={() => handleGenerateTikTokHook(hk)}
+                              className="w-full py-1.5 rounded-lg bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white text-[10px] font-black transition-all shadow flex items-center justify-center gap-1 cursor-pointer"
                             >
-                              Usar en Guion
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => applyViralHook(hk, true)}
-                              className="flex-1 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 text-[10px] font-bold transition-colors cursor-pointer"
-                            >
-                              Armar 3 Escenas
+                              <FiZap className="w-3 h-3" />
+                              <span>🎬 Generar TikTok Ahora (9:16)</span>
                             </button>
                           </div>
                         </div>
@@ -2168,20 +2266,27 @@ export default function Home() {
                       placeholder="Tema del video de YouTube (ej: Cómo automatizar ventas con IA en 2026)..."
                       className="flex-1 px-3 py-2 rounded-lg bg-bg-card border border-[#8B5CF6]/50 text-xs font-semibold text-foreground placeholder-muted outline-none focus:border-[#8B5CF6]"
                     />
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => handleGenerateYouTubeBlueprint(ytTopic)}
                         className="px-3 py-2 rounded-lg bg-[#8B5CF6]/15 hover:bg-[#8B5CF6]/25 border border-[#8B5CF6]/40 text-[#8B5CF6] text-xs font-black whitespace-nowrap cursor-pointer transition-all"
                       >
-                        🔄 Estructurar 4 Capítulos
+                        🔄 4 Capítulos
                       </button>
                       <button
                         type="button"
-                        onClick={handleApplyYouTubeToTimeline}
-                        className="px-3.5 py-2 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-black whitespace-nowrap cursor-pointer transition-all shadow-sm"
+                        onClick={handleGenerateYouTubeChapter}
+                        className="px-3.5 py-2 rounded-lg bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-black whitespace-nowrap cursor-pointer transition-all shadow-md flex items-center gap-1.5"
                       >
-                        ⚡ Cargar al Timeline (16:9)
+                        <span>🎬 Generar Cap. {selectedYtChapter} (16:9)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyYouTubeFullAndClose}
+                        className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black whitespace-nowrap cursor-pointer transition-all shadow-md flex items-center gap-1.5"
+                      >
+                        <span>🚀 Preparar Todo (16:9)</span>
                       </button>
                     </div>
                   </div>
@@ -3062,6 +3167,92 @@ export default function Home() {
               )}
             </AnimatePresence>
 
+            {/* Dedicated Voice, Speed & Custom Audio Selector (Directly visible before generation) */}
+            <div className="px-4 py-2.5 border-b border-glass-border/70 bg-bg-card/40 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  <FiMic className="text-indigo-400" />
+                  <span className="text-[11px] uppercase tracking-wide">Voz IA:</span>
+                </div>
+
+                <select
+                  value={voiceProfileId}
+                  onChange={(e) => setVoiceProfileId(e.target.value)}
+                  className="px-2.5 py-1 rounded-lg bg-bg-card border border-glass-border text-xs font-semibold text-foreground outline-none focus:border-indigo-500 cursor-pointer"
+                >
+                  {COMMERCIAL_VOICE_PROFILES.map((vp) => (
+                    <option key={vp.id} value={vp.id}>
+                      {vp.label}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="flex items-center gap-1 bg-glass-bg border border-glass-border rounded-lg p-0.5">
+                  <span className="text-[10px] font-bold text-muted px-1.5">Velocidad:</span>
+                  {VOICE_SPEED_OPTIONS.map((sp) => (
+                    <button
+                      key={sp.id}
+                      type="button"
+                      onClick={() => setVoiceSpeedId(sp.id)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        voiceSpeedId === sp.id
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-muted hover:text-foreground"
+                      }`}
+                      title={sp.description}
+                    >
+                      {sp.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={voiceAudioInputRef}
+                  onChange={handleCustomVoiceUpload}
+                  accept="audio/mp3,audio/wav,audio/m4a,audio/mpeg,.mp3,.wav,.m4a"
+                  className="hidden"
+                />
+                {customVoiceAudioUrl ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold">
+                    <span>🎤 Audio Propio: {customVoiceFileName || "Cargado"}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomVoiceAudioUrl(null);
+                        setCustomVoiceFileName("");
+                      }}
+                      className="hover:text-red-400 cursor-pointer ml-1 text-xs"
+                      title="Quitar audio propio"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => voiceAudioInputRef.current?.click()}
+                    disabled={isUploadingCustomVoice}
+                    className="px-2.5 py-1 rounded-lg bg-indigo-600/15 hover:bg-indigo-600/25 border border-indigo-500/40 text-indigo-400 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    {isUploadingCustomVoice ? (
+                      <>
+                        <FiLoader className="animate-spin text-xs" />
+                        <span>Subiendo voz...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiMic className="text-xs" />
+                        <span>+ Subir Mi Propia Voz (Audio)</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Prompt Input OR Hybrid Text-Timeline Scene Builder */}
             {videoMode === "long" && longSubMode === "scenes" ? (
               <div className="p-4 space-y-2.5 max-h-[210px] overflow-y-auto custom-scrollbar">
@@ -3346,12 +3537,25 @@ export default function Home() {
                     (!hasEffectiveReferenceImage() &&
                       !selectedModel.supportsTextToVideo)
                   }
-                  className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-hover hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-primary/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  title={
+                    !hasEffectiveInput()
+                      ? "Escribe un guion o selecciona un avatar / hook para generar"
+                      : !hasEffectiveReferenceImage() && !selectedModel.supportsTextToVideo
+                        ? "Seedance 2 requiere una imagen de referencia o avatar"
+                        : "Generar Video con IA"
+                  }
                 >
                   {isGenerating ? (
-                    <FiLoader className="text-lg animate-spin" />
+                    <>
+                      <FiLoader className="text-sm animate-spin" />
+                      <span>Generando...</span>
+                    </>
                   ) : (
-                    <FiArrowUp className="text-lg group-hover:-translate-y-1 group-hover:scale-110 transition-all" />
+                    <>
+                      <FiZap className="text-sm" />
+                      <span>🎬 Generar Video IA</span>
+                    </>
                   )}
                 </button>
               </div>

@@ -214,6 +214,8 @@ export function buildCharacterConsistencyLock({
   lightingLock = true,
   emotionId = "euphoric-viral",
   microExpressionIds = ["eye-contact-lock", "natural-breathing", "hand-gestures"],
+  voiceSpeedId = "natural",
+  customVoiceAudioUrl = null,
 }) {
   const emotion =
     EMOTION_PROFILES.find((e) => e.id === emotionId) || EMOTION_PROFILES[0];
@@ -222,6 +224,10 @@ export function buildCharacterConsistencyLock({
   )
     .map((m) => m.directive)
     .join(", ");
+
+  const speedObj =
+    VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId) ||
+    VOICE_SPEED_OPTIONS[1];
 
   const baseIdentity = influencer
     ? `[Character Lock ${ucid}: ${influencer.name} — ${influencer.visualPrompt}]`
@@ -239,7 +245,11 @@ export function buildCharacterConsistencyLock({
     );
   }
 
-  return `${baseIdentity} ${locks.join(", ")}. Emotional sync: ${emotion.promptDirective}. Micro-expressions: ${microDirectives}.`;
+  const voiceCloningNote = customVoiceAudioUrl
+    ? `Voice Cloning: matched authentic user voice timbre from audio file reference (${customVoiceAudioUrl}), ${speedObj.directive}`
+    : `Voice Pacing: ${speedObj.directive}`;
+
+  return `${baseIdentity} ${locks.join(", ")}. Emotional sync: ${emotion.promptDirective}. Micro-expressions: ${microDirectives}. ${voiceCloningNote}.`;
 }
 
 
@@ -279,82 +289,140 @@ export const COMMERCIAL_COMPLIANCE_FRAMEWORK = {
   ],
 };
 
+export const VOICE_SPEED_OPTIONS = [
+  {
+    id: "calm",
+    label: "🐢 Pausada y Serena (0.85x)",
+    shortLabel: "0.85x (Pausada)",
+    directive:
+      "speaking at a relaxed, calm, articulate pace with clear natural pauses between ideas, perfectly legible diction, never rushed",
+  },
+  {
+    id: "natural",
+    label: "🗣️ Natural y Conversacional (1.0x)",
+    shortLabel: "1.0x (Natural)",
+    directive:
+      "speaking at a balanced, natural human conversational pace, friendly and warm with organic breathing and steady rhythm",
+  },
+  {
+    id: "dynamic",
+    label: "⚡ Dinámica y Comercial (1.1x)",
+    shortLabel: "1.1x (Dinámica)",
+    directive:
+      "speaking with energetic commercial cadence, upbeat and engaging yet clearly articulated without racing",
+  },
+];
+
 export const COMMERCIAL_VOICE_PROFILES = [
   {
     id: "es-latam-commercial",
-    label: "🎙️ Voz Femenina Cálida & Cercana (LATAM)",
+    label: "🎙️ Voz Femenina Cálida & Natural (LATAM)",
+    gender: "female",
     directive:
-      "Warm charismatic female Latin American Spanish UGC creator voiceover with natural commercial cadence and accurate lip-sync",
+      "Warm charismatic female Latin American Spanish UGC creator voiceover with natural conversational cadence, clear diction, and accurate lip-sync",
   },
   {
     id: "es-latam-female-viral",
-    label: "⚡ Voz Femenina Viral & Enérgica (TikTok LATAM)",
+    label: "✨ Voz Femenina Amigable & Emprendedora (LATAM)",
+    gender: "female",
     directive:
-      "High-energy enthusiastic female Latin American Spanish TikTok creator voiceover with fast-paced viral delivery and lip-sync",
+      "Friendly enthusiastic female Latin American Spanish creator voiceover with engaging upbeat tone, balanced speaking pace, and lip-sync",
+  },
+  {
+    id: "es-latam-female-young",
+    label: "🌸 Voz Femenina Joven & Fresca (LATAM)",
+    gender: "female",
+    directive:
+      "Fresh authentic young female Latin American Spanish UGC creator voiceover with relatable friendly tone, relaxed pacing, and lip-sync",
   },
   {
     id: "es-latam-male-dynamic",
     label: "🎙️ Voz Masculina Dinámica & Persuasiva (LATAM)",
+    gender: "male",
     directive:
-      "Confident dynamic male Latin American Spanish creator voiceover with persuasive commercial inflection and lip-sync",
+      "Confident dynamic male Latin American Spanish creator voiceover with persuasive commercial inflection, natural pauses, and lip-sync",
   },
   {
     id: "es-latam-male-deep",
     label: "🎬 Voz Masculina Profunda & Ejecutiva (LATAM)",
+    gender: "male",
     directive:
-      "Deep authoritative male Latin American Spanish executive voiceover with trustworthy studio tone and lip-sync",
+      "Deep authoritative male Latin American Spanish executive voiceover with trustworthy studio tone, calm measured pace, and lip-sync",
+  },
+  {
+    id: "es-latam-male-young",
+    label: "🧢 Voz Masculina Joven & Relatable (LATAM)",
+    gender: "male",
+    directive:
+      "Young approachable male Latin American Spanish creator voiceover with casual conversational style, clear speech, and lip-sync",
   },
   {
     id: "es-es-commercial",
     label: "🇪🇸 Voz Femenina Editorial (España)",
+    gender: "female",
     directive:
-      "Crisp Castilian Spanish female commercial voiceover with dynamic brand presenter intonation and lip-sync",
+      "Crisp Castilian Spanish female commercial voiceover with modern brand presenter intonation, steady cadence, and lip-sync",
   },
   {
     id: "es-es-male-pro",
     label: "🇪🇸 Voz Masculina Presentador (España)",
+    gender: "male",
     directive:
-      "Articulate Castilian Spanish male presenter voiceover with modern commercial energy and lip-sync",
+      "Articulate Castilian Spanish male presenter voiceover with professional broadcast energy, clear pacing, and lip-sync",
   },
   {
     id: "en-us-commercial",
     label: "🇺🇸 Female Creator Voice (English US)",
+    gender: "female",
     directive:
-      "Native American English female UGC creator voiceover with high-retention commercial inflection and lip-sync",
+      "Native American English female UGC creator voiceover with warm conversational inflection, natural pacing, and lip-sync",
   },
   {
     id: "en-us-male-pro",
     label: "🇺🇸 Male Commercial Voice (English US)",
+    gender: "male",
     directive:
-      "Native American English male creator voiceover with confident persuasive delivery and lip-sync",
+      "Native American English male creator voiceover with confident persuasive delivery, clear articulation, and lip-sync",
+  },
+  {
+    id: "custom-voice",
+    label: "🎤 Mi Propia Voz (Audio / Nota de Voz subida)",
+    gender: "custom",
+    directive:
+      "Custom user cloned voice matching the timbre, tone, and vocal pitch from user provided audio reference, with synchronized natural lip-sync",
   },
   {
     id: "pt-br-commercial",
     label: "🇧🇷 Voz Feminina Comercial (Português Brasil)",
+    gender: "female",
     directive:
       "Natural Brazilian Portuguese female creator voiceover with warm commercial energy and lip-sync",
   },
   {
     id: "pt-br-male-dynamic",
     label: "🇧🇷 Voz Masculina Dinâmica (Português Brasil)",
+    gender: "male",
     directive:
       "Energetic Brazilian Portuguese male creator voiceover with engaging commercial cadence and lip-sync",
   },
   {
     id: "fr-fr-commercial",
     label: "🇫🇷 Voix Créateur (Français)",
+    gender: "female",
     directive:
       "Natural native French UGC creator voiceover with expressive commercial intonation and lip-sync",
   },
   {
     id: "it-it-commercial",
     label: "🇮🇹 Voce Creatore (Italiano)",
+    gender: "male",
     directive:
       "Charismatic native Italian UGC creator voiceover with warm expressive cadence and lip-sync",
   },
   {
     id: "de-de-commercial",
     label: "🇩🇪 Creator-Stimme (Deutsch)",
+    gender: "male",
     directive:
       "Clear confident native German UGC creator voiceover with trustworthy commercial delivery and lip-sync",
   },

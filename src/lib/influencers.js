@@ -947,6 +947,8 @@ export function buildInfluencerScript({
   customEnvironmentText = "",
   customEnvironmentImageTag = "",
   voiceDirective = "",
+  voiceSpeedDirective = "",
+  customVoiceAudioUrl = "",
   extraNotes = "",
   useInfluencerAvatar = true,
   hasUploadedAsset = false,
@@ -1039,8 +1041,16 @@ export function buildInfluencerScript({
     );
   }
 
-  if (voiceDirective.trim()) {
+  if (customVoiceAudioUrl) {
+    customTraitFragments.push(
+      `Voice Cloning: replicate authentic user voice timbre from audio file reference ${customVoiceAudioUrl}`
+    );
+  } else if (voiceDirective.trim()) {
     customTraitFragments.push(`Voice & tone: ${voiceDirective.trim()}`);
+  }
+
+  if (voiceSpeedDirective.trim()) {
+    customTraitFragments.push(`Voice pacing: ${voiceSpeedDirective.trim()}`);
   }
 
   const baseActorPrompt = influencer

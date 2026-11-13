@@ -24,6 +24,33 @@ import { useRouter } from "next/navigation";
 import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
 
 const LOCAL_ARCHIVE_KEY = "ugcore_creations_archive_v1";
+const DISMISSED_ARCHIVE_KEY = "ugcore_dismissed_creations_v1";
+
+function readDismissedArchive() {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(DISMISSED_ARCHIVE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addDismissedArchive(id, requestId = null) {
+  if (typeof window === "undefined" || !id) return;
+  try {
+    const set = readDismissedArchive();
+    set.add(id);
+    if (requestId) set.add(requestId);
+    window.localStorage.setItem(
+      DISMISSED_ARCHIVE_KEY,
+      JSON.stringify(Array.from(set))
+    );
+  } catch {
+    // ignore
+  }
+}
 
 function readLocalArchive() {
   if (typeof window === "undefined") return [];
@@ -47,34 +74,31 @@ function writeLocalArchive(items) {
 }
 
 function mergeCreationsList(localItems, serverItems) {
-  const byId = new Map();
-  for (const item of localItems) {
-    if (item && item.id) {
-      byId.set(item.id, item);
-    }
-  }
-  for (const sItem of serverItems) {
-    if (sItem && sItem.id) {
-      const existing = byId.get(sItem.id);
-      if (existing) {
-        byId.set(sItem.id, {
-          ...existing,
-          ...sItem,
-          url: sItem.url || existing.url,
-          urls:
-            Array.isArray(sItem.urls) && sItem.urls.length > 0
-              ? sItem.urls
-              : existing.urls || (sItem.url ? [sItem.url] : []),
-          status:
-            existing.status === "completed" ? "completed" : sItem.status,
-        });
-      } else {
-        byId.set(sItem.id, sItem);
-      }
+  const dismissed = readDismissedArchive();
+  const byRequestId = new Map();
+
+  const allItems = [...(localItems || []), ...(serverItems || [])];
+  for (const item of allItems) {
+    if (!item || !item.id || dismissed.has(item.id)) continue;
+    const reqKey = item.requestId || item.id;
+    if (dismissed.has(reqKey)) continue;
+
+    if (!byRequestId.has(reqKey)) {
+      byRequestId.set(reqKey, item);
+    } else {
+      const existing = byRequestId.get(reqKey);
+      const isBetter =
+        (item.url && !existing.url) ||
+        (item.status === "completed" && existing.status !== "completed") ||
+        (!String(item.id).startsWith("mu_") && String(existing.id).startsWith("mu_"));
+      byRequestId.set(
+        reqKey,
+        isBetter ? { ...existing, ...item } : { ...item, ...existing }
+      );
     }
   }
 
-  return Array.from(byId.values()).sort((a, b) => {
+  return Array.from(byRequestId.values()).sort((a, b) => {
     const aShow = Boolean(a.isShowcase);
     const bShow = Boolean(b.isShowcase);
     if (aShow !== bShow) return aShow ? 1 : -1;
@@ -226,16 +250,23 @@ export default function GalleryPage() {
     router.push("/");
   };
 
-  const handleDeleteCreation = async (id, e) => {
+  const handleDeleteCreation = async (itemOrId, e) => {
     if (e) e.stopPropagation();
+    const id = typeof itemOrId === "object" ? itemOrId.id : itemOrId;
+    const reqId = typeof itemOrId === "object" ? itemOrId.requestId : null;
     const confirmed = window.confirm(
       "¿Estás seguro de que deseas eliminar este video de tu galería?"
     );
     if (!confirmed) return;
 
+    // Register as permanently dismissed on this client so it never reappears
+    addDismissedArchive(id, reqId);
+
     // Remove immediately from UI and local storage
     setCreations((prev) => {
-      const next = prev.filter((item) => item.id !== id);
+      const next = prev.filter(
+        (item) => item.id !== id && (!reqId || item.requestId !== reqId)
+      );
       writeLocalArchive(next);
       return next;
     });
@@ -512,16 +543,14 @@ export default function GalleryPage() {
                           <FiZap size={10} />
                           <span>Usar Guion</span>
                         </button>
-                        {!item.isShowcase && (
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteCreation(item.id, e)}
-                            title="Eliminar de mi archivo"
-                            className="p-1.5 rounded bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 cursor-pointer"
-                          >
-                            <FiTrash2 size={11} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteCreation(item, e)}
+                          title="Eliminar de mi galería"
+                          className="p-1.5 rounded bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 cursor-pointer transition-colors"
+                        >
+                          <FiTrash2 size={11} />
+                        </button>
                         <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
                           <FiMaximize2 size={11} />
                         </div>
@@ -722,17 +751,15 @@ export default function GalleryPage() {
                     </a>
                   )}
 
-                  {!selectedCreation.isShowcase && (
-                    <button
-                      type="button"
-                      onClick={(e) =>
-                        handleDeleteCreation(selectedCreation.id, e)
-                      }
-                      className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-full font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                    >
-                      <FiTrash2 size={13} /> Eliminar este Video de la Galería
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={(e) =>
+                      handleDeleteCreation(selectedCreation, e)
+                    }
+                    className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 rounded-full font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <FiTrash2 size={13} /> Eliminar este Video de la Galería
+                  </button>
                 </div>
               </div>
 

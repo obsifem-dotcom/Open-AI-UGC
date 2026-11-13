@@ -243,36 +243,38 @@ export async function DELETE(req, { params }) {
       session.user.isAdmin || session.user.role === "admin"
     );
 
-    if (STUDIO_SHOWCASE_CREATIONS.some((item) => item.id === id)) {
-      return NextResponse.json(
-        { error: "Los videos demo de la galería no se pueden eliminar." },
-        { status: 403 }
-      );
-    }
-
-    const memExisting = runtimeStore.creationsById.get(id);
-    if (
-      memExisting &&
-      !isAdmin &&
-      memExisting.userId &&
-      memExisting.userId !== session.user.id &&
-      !id.startsWith("mu_") &&
-      !id.startsWith("mum_")
-    ) {
-      return NextResponse.json(
-        { error: "No tienes permiso para eliminar este video." },
-        { status: 403 }
-      );
-    }
-
     // 1. Remove from in-memory runtime store
     runtimeStore.creationsById.delete(id);
 
-    // 2. Remove from Prisma DB if connected
-    if (prisma?.creation && !id.startsWith("mu_") && !id.startsWith("mum_")) {
+    // Also check if any memory item matches by requestId
+    const decoded = decodeStatelessCreationId(id);
+    const targetReqIds = decoded?.requestIds || [];
+    for (const [memKey, memVal] of runtimeStore.creationsById.entries()) {
+      if (
+        memVal?.requestId === id ||
+        (targetReqIds.length > 0 && targetReqIds.includes(memVal?.requestId))
+      ) {
+        runtimeStore.creationsById.delete(memKey);
+      }
+    }
+
+    // 2. Remove from Prisma DB if connected (handles both direct ID and stateless requestId)
+    if (prisma?.creation) {
       try {
+        const orConditions = [{ id }];
+        if (id.startsWith("mu_") || id.startsWith("mum_")) {
+          for (const reqId of targetReqIds) {
+            orConditions.push({ requestId: reqId });
+            orConditions.push({ requestId: { contains: reqId } });
+          }
+        } else {
+          orConditions.push({ requestId: id });
+        }
+
         await prisma.creation.deleteMany({
-          where: isAdmin ? { id } : { id, userId: session.user.id },
+          where: isAdmin
+            ? { OR: orConditions }
+            : { AND: [{ OR: orConditions }, { userId: session.user.id }] },
         });
       } catch (err) {
         console.warn("[SAFE_CREATION_DELETE_FALLBACK]", err?.message || err);
@@ -281,7 +283,7 @@ export async function DELETE(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: `Video ${id} eliminado correctamente.`,
+      message: `Video eliminado correctamente.`,
       id,
     });
   } catch (error) {
