@@ -255,32 +255,17 @@ function LoginContent() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div className="space-y-1">
-                <label className="block text-[10px] uppercase font-bold text-secondary-text tracking-wider">
-                  Tu Nombre (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  placeholder="Ej: María / Creador"
-                  className="w-full bg-bg-page border border-divider rounded-lg px-3 py-2 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[10px] uppercase font-bold text-secondary-text tracking-wider">
-                  Contraseña (Opcional)
-                </label>
-                <input
-                  type="password"
-                  value={userPassword}
-                  onChange={(e) => setUserPassword(e.target.value)}
-                  placeholder="Acceso directo habilitado"
-                  className="w-full bg-bg-page border border-divider rounded-lg px-3 py-2 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="block text-[10px] uppercase font-bold text-secondary-text tracking-wider">
+                Tu Nombre (Opcional)
+              </label>
+              <input
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Ej: María / Creador"
+                className="w-full bg-bg-page border border-divider rounded-lg px-3 py-2 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
+              />
             </div>
 
             <div className="rounded-lg bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 p-3 space-y-1">
@@ -341,18 +326,7 @@ function LoginContent() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
-                Contraseña de Administrador (Opcional si usas tu correo autorizado)
-              </label>
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Ingresa contraseña o deja en blanco con obsifem@gmail.com..."
-                className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-emerald-500 transition-colors"
-              />
-            </div>
+
 
             <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/25 p-3 space-y-1.5">
               <div className="text-[11px] font-bold text-emerald-500 flex items-center gap-1.5">
