@@ -48,9 +48,9 @@ function LoginContent() {
     }
   };
 
-  const handleEmailLogin = async (e) => {
+  const handleEmailLogin = async (e, overrideEmail = null) => {
     if (e) e.preventDefault();
-    const cleanEmail = userEmail.trim().toLowerCase();
+    const cleanEmail = (overrideEmail || userEmail).trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes("@")) {
       toast.error("Por favor ingresa un correo electrónico válido");
       return;
@@ -75,7 +75,7 @@ function LoginContent() {
             : res.error || "No se pudo ingresar con este correo"
         );
       } else {
-        toast.success(`¡Bienvenido! Sesión iniciada con ${cleanEmail}`);
+        toast.success(`¡Bienvenido! Demo Gratuito activo (300 CR) con ${cleanEmail}`);
         completeRedirect();
       }
     } catch (err) {
@@ -298,10 +298,25 @@ function LoginContent() {
               <FaEnvelope className="text-xs" />
               <span>
                 {isSubmitting
-                  ? "Ingresando con tu correo..."
-                  : "Ingresar con mi Email"}
+                  ? "Activando tu acceso..."
+                  : "Ingresar / Activar Demo con mi Email"}
               </span>
               <FaArrowRight className="text-xs" />
+            </button>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-divider/60"></div>
+              <span className="flex-shrink mx-3 text-[10px] uppercase font-bold text-secondary-text">o prueba en 1 clic</span>
+              <div className="flex-grow border-t border-divider/60"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleEmailLogin(null, "comprador@ugcorestudio.com")}
+              disabled={isSubmitting}
+              className="w-full py-2.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/40 text-emerald-400 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <span>🎁 Entrar con Demo Gratuito Comprador (1 Clic • 300 CR)</span>
             </button>
           </form>
         )}

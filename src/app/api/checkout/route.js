@@ -66,27 +66,12 @@ export async function POST(req) {
       session?.user && (session.user.isAdmin || session.user.role === "admin")
     );
 
-    // Free demo: strict 1-time claim checked against both runtimeStore & Prisma DB
+    // Free demo: activate 300 free credits for any buyer test
     if (pkg.id === "demo") {
       if (isAdminEmail(targetEmail)) {
         return NextResponse.json(
-          { error: "Las cuentas de administrador no usan el demo de comprador." },
+          { error: "Las cuentas de administrador no usan el demo de comprador. Ingresa como Administrador con tu contraseña." },
           { status: 403 }
-        );
-      }
-
-      const alreadyClaimed = await safeHasClaimedDemo({
-        userId: session?.user?.id,
-        email: targetEmail,
-      });
-
-      if (alreadyClaimed) {
-        return NextResponse.json(
-          {
-            error:
-              "Este correo ya reclamó su demo gratuito o ya tiene una cuenta registrada. Inicia sesión o elige un plan de pago.",
-          },
-          { status: 409 }
         );
       }
 
@@ -108,7 +93,7 @@ export async function POST(req) {
         success: true,
         approved: true,
         demo: true,
-        message: `¡Demo activado! Se asignaron ${FREE_DEMO_PACKAGE.credits} créditos gratuitos a ${updatedUser.email}.`,
+        message: `¡Demo Gratuito activado! Se asignaron ${FREE_DEMO_PACKAGE.credits} créditos a ${updatedUser.email}.`,
         package: FREE_DEMO_PACKAGE,
         user: updatedUser,
       });

@@ -291,6 +291,8 @@ export async function safeGetOrCreateUser({
       const updateData = {};
       if (isAdmin && found.credits < ADMIN_INITIAL_CREDITS) {
         updateData.credits = ADMIN_INITIAL_CREDITS;
+      } else if (!isAdmin && (found.credits === 0 || found.credits < (pkg.credits || 300))) {
+        updateData.credits = pkg.credits || 300;
       }
       if (cleanCustomKey !== null && found.customApiKey !== cleanCustomKey) {
         updateData.customApiKey = cleanCustomKey;
@@ -307,7 +309,13 @@ export async function safeGetOrCreateUser({
 
   const finalCredits = isAdmin
     ? ADMIN_INITIAL_CREDITS
-    : dbUser?.credits ?? existingMem?.credits ?? defaultCredits;
+    : initialCredits !== null
+    ? Number(initialCredits)
+    : Math.max(
+        Number(dbUser?.credits) || 0,
+        Number(existingMem?.credits) || 0,
+        Number(pkg.credits) || 300
+      );
 
   const userRecord = {
     id:

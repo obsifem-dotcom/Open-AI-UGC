@@ -173,25 +173,26 @@ export default function Pricing() {
         return;
       }
 
-      if (
-        status === "authenticated" &&
-        session?.user?.email?.toLowerCase() === emailToUse &&
-        data.user
-      ) {
-        await updateSession({
-          credits: data.user.credits,
-          assignedCredits: data.user.assignedCredits,
-          planName: `${plan.name} (${plan.priceLabel})`,
-          planId: data.user.planId,
-        });
-      } else if (status !== "authenticated" && (data.user || data.demo)) {
-        await signIn("credentials", {
-          loginType: "email",
-          email: emailToUse,
-          name: buyerNameInput.trim() || emailToUse.split("@")[0],
-          planId: plan.id || "demo",
-          redirect: false,
-        });
+      if (data.user) {
+        if (
+          status === "authenticated" &&
+          session?.user?.email?.toLowerCase() === emailToUse
+        ) {
+          await updateSession({
+            credits: data.user.credits,
+            assignedCredits: data.user.assignedCredits,
+            planName: `${plan.name} (${plan.priceLabel})`,
+            planId: data.user.planId,
+          });
+        } else {
+          await signIn("credentials", {
+            loginType: "email",
+            email: emailToUse,
+            name: buyerNameInput.trim() || emailToUse.split("@")[0],
+            planId: plan.id || "demo",
+            redirect: false,
+          });
+        }
       }
 
       toast.success(

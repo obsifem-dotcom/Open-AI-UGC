@@ -294,7 +294,7 @@ export default function Home() {
       ? session.user.credits
       : isAdminUser
       ? 999999
-      : 0;
+      : 300;
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
       ? session.user.assignedCredits
