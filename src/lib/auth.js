@@ -1,4 +1,5 @@
 import GitHubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import {
   ADMIN_INITIAL_CREDITS,
@@ -18,15 +19,10 @@ const ADMIN_EMAILS = [
   .map((e) => e.toLowerCase().trim());
 
 const DEFAULT_ADMIN_PASSWORDS = [
-  "admin",
+  "UGCore2026*",
+  "ugcore2026",
   "admin123",
-  "ugcore",
-  "ugcore2025",
-  "ugcorestudio",
-  "obsifem",
-  "obsifem2025",
-  "123456",
-  "UGCore2025!",
+  "obsifem2026",
 ];
 
 const SERVER_ADMIN_KEYS = [
@@ -67,6 +63,15 @@ export const authOptions = {
     strategy: "jwt",
   },
   providers: [
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
     ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
       ? [
           GitHubProvider({
@@ -96,8 +101,19 @@ export const authOptions = {
             throw new Error("Por favor ingresa un correo electrónico válido");
           }
 
-          // If the email belongs to the administrator, grant admin access immediately
+          // Protected Administrator Account Check
           if (isAdminEmail(rawEmail)) {
+            const rawPass = (credentials?.password || "").trim();
+            const isAuthorizedKey =
+              rawPass &&
+              (SERVER_ADMIN_KEYS.includes(rawPass) || isServerMasterKey(rawPass));
+
+            if (!isAuthorizedKey) {
+              throw new Error(
+                "Esta cuenta es de Administrador protegida. Inicia sesión con el botón oficial de Google o ingresa con tu contraseña maestra en la pestaña Admin."
+              );
+            }
+
             const adminRecord = await safeGetOrCreateUser({
               email: rawEmail,
               name: "Administrador (UGCore Studio)",
@@ -164,9 +180,9 @@ export const authOptions = {
             rawPass &&
             (SERVER_ADMIN_KEYS.includes(rawPass) || isServerMasterKey(rawPass));
 
-          if (!isAuthorizedEmail && !isKeyAuthorized) {
+          if (!isAuthorizedEmail || !isKeyAuthorized) {
             throw new Error(
-              "Correo o contraseña de Administrador no autorizados. Usa tu correo de administrador o la clave maestra."
+              "Contraseña de Administrador incorrecta. Acceso protegido."
             );
           }
 
