@@ -7,6 +7,21 @@ import {
   safeGetUserBalance,
 } from "./runtime-store";
 
+// Normalize production URL on Vercel to ensure NextAuth session cookies are persistent
+if (
+  process.env.VERCEL_URL &&
+  (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
+) {
+  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+}
+
+if (
+  process.env.NODE_ENV === "production" &&
+  (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
+) {
+  process.env.NEXTAUTH_URL = "https://ugcorestudio.vercel.app";
+}
+
 const ADMIN_EMAILS = [
   "obsifem@gmail.com",
   "bizboxmari777@gmail.com",
@@ -73,7 +88,9 @@ export function isAdminEmail(email) {
 export const authOptions = {
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  useSecureCookies: process.env.NODE_ENV === "production",
   providers: [
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [

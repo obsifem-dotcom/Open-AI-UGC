@@ -431,6 +431,30 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              {/* Botón Exclusivo Demo Gratis con activación directa */}
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await signIn("credentials", {
+                      loginType: "buyer",
+                      email: "comprador@ugcorestudio.com",
+                      planId: "demo",
+                      redirect: false,
+                    });
+                    toast.success("¡Demo Gratuito Activo (+300 CR)!");
+                    window.location.reload();
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+                className="bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Probar estudio con 300 créditos gratis en 1 clic"
+              >
+                <span>🎁 Demo Gratis (300 CR)</span>
+              </button>
+
+              {/* Botón Administrador */}
               <button
                 type="button"
                 onClick={async () => {
@@ -447,22 +471,26 @@ export default function Navbar() {
                     console.error(err);
                   }
                 }}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-md shadow-emerald-600/25 flex items-center gap-1.5 cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-md shadow-emerald-600/25 flex items-center gap-1.5 cursor-pointer"
                 title="Acceder como Administrador Master"
               >
                 <span>👑 Entrar Admin</span>
               </button>
+
+              {/* Planes */}
               <Link
                 href="/pricing"
                 className="border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
               >
                 💎 Planes
               </Link>
+
+              {/* Botón Separado Ingresar */}
               <Link
                 href="/login"
-                className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-md shadow-[#8B5CF6]/20"
+                className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-md shadow-[#8B5CF6]/20"
               >
-                🎁 Demo Gratis / Ingresar
+                🔑 Ingresar
               </Link>
             </div>
           )}
@@ -551,6 +579,48 @@ export default function Navbar() {
               </button>
             ) : (
               <div className="flex flex-col gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsOpen(false);
+                    try {
+                      await signIn("credentials", {
+                        loginType: "buyer",
+                        email: "comprador@ugcorestudio.com",
+                        planId: "demo",
+                        redirect: false,
+                      });
+                      toast.success("¡Demo Gratuito Activo (+300 CR)!");
+                      window.location.reload();
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center text-xs font-bold"
+                >
+                  🎁 Probar Demo Gratis (300 CR)
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsOpen(false);
+                    try {
+                      await signIn("credentials", {
+                        loginType: "admin",
+                        email: "obsifem@gmail.com",
+                        password: "UGCore2026*",
+                        redirect: false,
+                      });
+                      toast.success("¡Sesión de Administrador iniciada (999,999 CR)!");
+                      window.location.reload();
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded bg-emerald-600 text-white text-center text-xs font-bold"
+                >
+                  👑 Entrar como Administrador
+                </button>
                 <Link
                   href="/pricing"
                   onClick={() => setIsOpen(false)}
@@ -563,7 +633,7 @@ export default function Navbar() {
                   onClick={() => setIsOpen(false)}
                   className="w-full py-2.5 rounded bg-[#8B5CF6] text-white text-center text-xs font-bold"
                 >
-                  🎁 Activar Demo Gratis / Ingresar
+                  🔑 Iniciar Sesión / Ingresar
                 </Link>
               </div>
             )}
