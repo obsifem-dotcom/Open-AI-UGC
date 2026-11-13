@@ -425,18 +425,33 @@ export async function safeGetUserBalance({ userId, email, isAdmin = false }) {
       })
     );
     if (dbUser) {
+      const effectiveCredits =
+        typeof dbUser.credits === "number" && dbUser.credits > 0
+          ? dbUser.credits
+          : 300;
+
+      if (dbUser.credits === 0 || dbUser.credits === null) {
+        tryDbQuery(() =>
+          prisma.user.update({
+            where: { id: dbUser.id },
+            data: { credits: 300 },
+          })
+        ).catch(() => {});
+      }
+
       const assigned = Math.max(
         memUser?.assignedCredits || 0,
-        dbUser.credits || 0
+        effectiveCredits
       );
       const updated = {
         ...(memUser || {}),
         id: dbUser.id,
         email: dbUser.email || cleanEmail,
         name: dbUser.name || memUser?.name || "Usuario Comprador",
-        credits: dbUser.credits,
-        assignedCredits: assigned || dbUser.credits,
-        planName: memUser?.planName || "Paquete de Créditos Activo",
+        credits: effectiveCredits,
+        assignedCredits: assigned || effectiveCredits,
+        planId: memUser?.planId || "demo",
+        planName: memUser?.planName || "Demo Gratuito",
         approved: true,
       };
       if (updated.email) {
@@ -447,16 +462,26 @@ export async function safeGetUserBalance({ userId, email, isAdmin = false }) {
   }
 
   if (memUser) {
-    return memUser;
+    const memCredits =
+      typeof memUser.credits === "number" && memUser.credits > 0
+        ? memUser.credits
+        : 300;
+    return {
+      ...memUser,
+      credits: memCredits,
+      assignedCredits: Math.max(memUser.assignedCredits || 0, memCredits),
+      planId: memUser.planId || "demo",
+      planName: memUser.planName || "Demo Gratuito",
+    };
   }
 
   if (!userId && !cleanEmail) {
     return {
-      credits: 0,
-      assignedCredits: 0,
-      planId: "none",
-      planName: "Inicia sesión (+300 CR)",
-      approved: false,
+      credits: 300,
+      assignedCredits: 300,
+      planId: "demo",
+      planName: "Demo Gratuito (+300 CR)",
+      approved: true,
     };
   }
 
