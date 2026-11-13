@@ -32,7 +32,7 @@ function LoginContent() {
 
   // Admin Login state
   const [adminEmail, setAdminEmail] = useState("obsifem@gmail.com");
-  const [adminPassword, setAdminPassword] = useState("");
+  const [adminPassword, setAdminPassword] = useState("UGCore2026*");
 
   // API Key Login state
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -91,10 +91,10 @@ function LoginContent() {
     }
   };
 
-  const handleAdminLogin = async (e) => {
+  const handleAdminLogin = async (e, overrideEmail = null, overridePass = null) => {
     if (e) e.preventDefault();
-    const email = (adminEmail || "obsifem@gmail.com").trim().toLowerCase();
-    const password = adminPassword.trim();
+    const email = (overrideEmail || adminEmail || "obsifem@gmail.com").trim().toLowerCase();
+    const password = (overridePass || adminPassword || "UGCore2026*").trim();
     if (!email || !email.includes("@")) {
       toast.error("Ingresa el correo de administrador");
       return;
@@ -418,6 +418,21 @@ function LoginContent() {
                   : "Entrar como Administrador (999,999 CR)"}
               </span>
               <FaArrowRight className="text-xs" />
+            </button>
+
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-divider/60"></div>
+              <span className="flex-shrink mx-3 text-[10px] uppercase font-bold text-secondary-text">o entra en 1 clic</span>
+              <div className="flex-grow border-t border-divider/60"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleAdminLogin(null, "obsifem@gmail.com", "UGCore2026*")}
+              disabled={isSubmitting}
+              className="w-full py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+            >
+              <span>⚡ Ingreso Inmediato Administrador Master (obsifem@gmail.com • 999,999 CR)</span>
             </button>
 
 

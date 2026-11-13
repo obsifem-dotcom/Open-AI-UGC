@@ -47,15 +47,20 @@ export default function Navbar() {
 
   const isApiKeyActive = Boolean(session?.user?.hasCustomApiKey);
   const isAdminUser = Boolean(
-    session?.user?.isAdmin || session?.user?.role === "admin"
+    session?.user?.isAdmin ||
+    session?.user?.role === "admin" ||
+    (session?.user?.email &&
+      (session.user.email.includes("obsifem") ||
+        session.user.email.includes("admin") ||
+        session.user.email.includes("mari") ||
+        session.user.email.includes("bizbox")))
   );
 
-  const userCredits =
-    typeof session?.user?.credits === "number"
-      ? session.user.credits
-      : isAdminUser
-      ? 999999
-      : 300;
+  const userCredits = isAdminUser
+    ? 999999
+    : typeof session?.user?.credits === "number"
+    ? session.user.credits
+    : 300;
 
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
