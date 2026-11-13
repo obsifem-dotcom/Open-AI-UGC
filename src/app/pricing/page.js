@@ -111,6 +111,24 @@ export default function Pricing() {
     buyerEmailInput !== "" ? buyerEmailInput : session?.user?.email || "";
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "true") {
+      const planParam = params.get("plan");
+      const pkg = planParam ? getPackageById(planParam) : null;
+      toast.success(
+        `¡Pago completado con éxito! Créditos acreditados a tu cuenta${pkg ? ` (${pkg.name})` : ""}.`
+      );
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    } else if (params.get("canceled") === "true") {
+      toast.error("El proceso de pago fue cancelado.");
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, []);
+
+  useEffect(() => {
     if (isAdmin) {
       fetch("/api/admin/users")
         .then((r) => r.json())
@@ -166,12 +184,12 @@ export default function Pricing() {
           planName: `${plan.name} (${plan.priceLabel})`,
           planId: data.user.planId,
         });
-      } else if (status !== "authenticated" && data.demo) {
+      } else if (status !== "authenticated" && (data.user || data.demo)) {
         await signIn("credentials", {
           loginType: "email",
           email: emailToUse,
           name: buyerNameInput.trim() || emailToUse.split("@")[0],
-          planId: "demo",
+          planId: plan.id || "demo",
           redirect: false,
         });
       }

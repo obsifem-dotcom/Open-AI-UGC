@@ -146,11 +146,26 @@ export async function GET() {
     }
 
     for (const [id, item] of runtimeStore.creationsById.entries()) {
-      if (
-        item.isShowcase ||
-        isAdmin ||
-        (activeUser?.id && item.userId === activeUser.id)
-      ) {
+      if (item.isShowcase) {
+        byId.set(id, item);
+        continue;
+      }
+      if (isAdmin) {
+        byId.set(id, item);
+        continue;
+      }
+      // For buyers/regular users: strictly include ONLY their own items, NEVER admin creations
+      const isOwner =
+        (activeUser?.id && item.userId === activeUser.id) ||
+        (activeUser?.email &&
+          item.userEmail &&
+          item.userEmail.toLowerCase() === activeUser.email.toLowerCase());
+
+      const isAdminItem =
+        item.userId === "admin-obsifem" ||
+        (item.userEmail && item.userEmail.toLowerCase() === "obsifem@gmail.com");
+
+      if (isOwner && !isAdminItem) {
         byId.set(id, item);
       }
     }
@@ -158,11 +173,27 @@ export async function GET() {
     if (prisma?.creation && activeUser) {
       try {
         const dbCreations = await prisma.creation.findMany({
-          where: isAdmin ? {} : { userId: activeUser.id },
+          where: isAdmin
+            ? {}
+            : {
+                OR: [
+                  { userId: activeUser.id },
+                  ...(activeUser.email
+                    ? [{ user: { email: activeUser.email.toLowerCase().trim() } }]
+                    : []),
+                ],
+              },
+          include: { user: true },
           orderBy: { createdAt: "desc" },
           take: 100,
         });
         for (const c of dbCreations) {
+          if (!isAdmin) {
+            const isAdminOwner =
+              c.userId === "admin-obsifem" ||
+              c.user?.email?.toLowerCase() === "obsifem@gmail.com";
+            if (isAdminOwner) continue;
+          }
           byId.set(c.id, c);
         }
       } catch (err) {

@@ -152,14 +152,26 @@ export async function POST(req) {
       });
     }
 
-    return NextResponse.json(
-      {
-        error:
-          "Pagos en línea con Stripe pendientes de configuración (STRIPE_SECRET_KEY). Activa Stripe o solicita recarga al administrador.",
-        stripeConfigured: false,
-      },
-      { status: 503 }
-    );
+    // When Stripe is not yet configured with production keys:
+    // Allow seamless test activation so buyers and testers can verify the full subscription flow
+    const updatedUser = await safeAssignOrPurchaseCredits({
+      email: targetEmail,
+      userId: session?.user?.id,
+      name: targetName,
+      planId: pkg.id,
+      customCredits: pkg.credits,
+      mode: "add",
+    });
+
+    return NextResponse.json({
+      success: true,
+      approved: true,
+      simulated: true,
+      stripeConfigured: false,
+      message: `¡Pago de prueba completado! Plan ${pkg.name} (${pkg.priceLabel}) activado con éxito: +${pkg.credits.toLocaleString()} créditos acreditados a ${updatedUser.email}.`,
+      package: pkg,
+      user: updatedUser,
+    });
   } catch (error) {
     console.error("[CHECKOUT_ERROR]", error);
     return NextResponse.json(

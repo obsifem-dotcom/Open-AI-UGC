@@ -89,7 +89,7 @@ export const authOptions = {
           const displayName =
             credentials?.name?.trim() || rawEmail.split("@")[0];
 
-          // Public users start strictly on the free demo tier (150 CR) unless they already have a balance/plan
+          // Public users start strictly on the free demo tier (300 CR) unless they already have a balance/plan
           const userRecord = await safeGetOrCreateUser({
             email: rawEmail,
             name: displayName,
@@ -184,7 +184,7 @@ export const authOptions = {
             : "Usuario BYOK (API Key Propia)",
           isAdmin: isServerAdminKey,
           planId: isServerAdminKey ? "admin" : "demo",
-          initialCredits: isServerAdminKey ? ADMIN_INITIAL_CREDITS : 150,
+          initialCredits: isServerAdminKey ? ADMIN_INITIAL_CREDITS : 300,
           customApiKey: isServerAdminKey ? null : apiKey,
         });
 
@@ -276,7 +276,7 @@ export const authOptions = {
         session.user.role = adminFlag ? "admin" : token.role || "buyer";
         session.user.credits = adminFlag
           ? ADMIN_INITIAL_CREDITS
-          : token.credits ?? 150;
+          : token.credits ?? 300;
         session.user.assignedCredits = adminFlag
           ? ADMIN_INITIAL_CREDITS
           : token.assignedCredits ?? session.user.credits;

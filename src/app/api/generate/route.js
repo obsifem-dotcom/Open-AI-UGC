@@ -209,7 +209,7 @@ export async function POST(req) {
       return NextResponse.json(
         {
           error:
-            "Inicia sesión o activa tu Demo Gratis (+150 CR) para generar videos.",
+            "Inicia sesión o activa tu Demo Gratis (+300 CR) para generar videos.",
         },
         { status: 401 }
       );

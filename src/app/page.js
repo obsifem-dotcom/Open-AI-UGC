@@ -457,25 +457,33 @@ export default function Home() {
   const syncCreationToLocalArchive = (creationObj) => {
     if (!creationObj || !creationObj.id || typeof window === "undefined") return;
     try {
-      const raw = window.localStorage.getItem("ugcore_creations_archive_v1");
+      const userEmail = session?.user?.email || null;
+      const cleanEmail = userEmail
+        ? userEmail.toLowerCase().trim().replace(/[^a-z0-9]/g, "_")
+        : "guest";
+      const key = `ugcore_creations_${cleanEmail}_v1`;
+      const enrichedObj = {
+        userId: session?.user?.id || null,
+        userEmail: session?.user?.email || null,
+        ...creationObj,
+      };
+
+      const raw = window.localStorage.getItem(key);
       const list = raw ? JSON.parse(raw) : [];
       const arr = Array.isArray(list) ? list : [];
       const existingIdx = arr.findIndex((c) => c.id === creationObj.id);
       const mergedItem =
         existingIdx >= 0
-          ? { ...arr[existingIdx], ...creationObj }
+          ? { ...arr[existingIdx], ...enrichedObj }
           : {
               createdAt: new Date().toISOString(),
-              ...creationObj,
+              ...enrichedObj,
             };
       const nextList =
         existingIdx >= 0
           ? arr.map((c, idx) => (idx === existingIdx ? mergedItem : c))
           : [mergedItem, ...arr].slice(0, 60);
-      window.localStorage.setItem(
-        "ugcore_creations_archive_v1",
-        JSON.stringify(nextList)
-      );
+      window.localStorage.setItem(key, JSON.stringify(nextList));
     } catch {
       // ignore storage errors
     }
@@ -1148,7 +1156,7 @@ export default function Home() {
 
   const handleImageUpload = async (e) => {
     if (status !== "authenticated") {
-      alert("Inicia sesión o activa tu Demo Gratis (+150 CR) para subir imágenes de producto.");
+      alert("Inicia sesión o activa tu Demo Gratis (+300 CR) para subir imágenes de producto.");
       return;
     }
 
@@ -1254,7 +1262,7 @@ export default function Home() {
 
   const handleGenerate = async () => {
     if (status !== "authenticated") {
-      alert("Inicia sesión o activa tu Demo Gratis (+150 CR) en /login para generar videos.");
+      alert("Inicia sesión o activa tu Demo Gratis (+300 CR) en /login para generar videos.");
       router.push("/login");
       return;
     }

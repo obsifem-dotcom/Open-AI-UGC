@@ -164,8 +164,8 @@ if (!globalStore.__ugcoreRuntimeStore) {
           isAdmin: false,
           planId: "demo",
           planName: "Demo Gratuito",
-          assignedCredits: 150,
-          credits: 150,
+          assignedCredits: 300,
+          credits: 300,
           demoClaimed: true,
           approved: true,
           updatedAt: new Date().toISOString(),
@@ -447,14 +447,14 @@ export async function safeGetUserBalance({ userId, email, isAdmin = false }) {
       credits: 0,
       assignedCredits: 0,
       planId: "none",
-      planName: "Inicia sesión (+150 CR)",
+      planName: "Inicia sesión (+300 CR)",
       approved: false,
     };
   }
 
   return {
-    credits: 150,
-    assignedCredits: 150,
+    credits: 300,
+    assignedCredits: 300,
     planId: "demo",
     planName: "Demo Gratuito",
     approved: true,
@@ -645,6 +645,7 @@ export async function safeCreateCreation({
   const fallbackCreation = {
     id: statelessId,
     userId: userId || "anon",
+    userEmail: userEmail ? userEmail.toLowerCase().trim() : null,
     type: "video",
     title: (prompt || "UGCore Video").substring(0, 50) + "...",
     prompt: prompt || "",
@@ -681,7 +682,7 @@ export async function safeCreateCreation({
                 : cleanEmail.split("@")[0],
             email: cleanEmail,
             credits:
-              cleanEmail === "obsifem@gmail.com" ? ADMIN_INITIAL_CREDITS : 150,
+              cleanEmail === "obsifem@gmail.com" ? ADMIN_INITIAL_CREDITS : 300,
           },
         });
         validDbUserId = dbUser.id;

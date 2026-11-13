@@ -173,7 +173,7 @@ function LoginContent() {
             UGCore Studio
           </h2>
           <p className="text-xs font-semibold text-secondary-text leading-relaxed px-2">
-            Ingresa con tu correo electrónico (+150 CR Demo Gratis para cuentas nuevas), usa tu MuAPI Key (BYOK) o accede como Administrador.
+            Ingresa con tu correo electrónico (+300 CR Demo Gratis para cuentas nuevas), usa tu MuAPI Key (BYOK) o accede como Administrador.
           </p>
         </div>
 
@@ -286,7 +286,7 @@ function LoginContent() {
                 <span>Acceso con Correo Electrónico:</span>
               </div>
               <p className="text-[11px] text-secondary-text leading-relaxed">
-                Si eres usuario nuevo recibirás <strong>150 Créditos Demo Gratis</strong> automáticamente para probar el estudio. Si ya compraste un paquete, conservarás tu saldo acumulado.
+                Si eres usuario nuevo recibirás <strong>300 Créditos Demo Gratis</strong> automáticamente para probar el estudio (suficiente para probar cualquier avatar o modelo). Si ya compraste un paquete, conservarás tu saldo acumulado.
               </p>
             </div>
 
@@ -425,7 +425,7 @@ function LoginContent() {
         <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/10 p-3 rounded text-[11px] leading-relaxed text-secondary-text">
           <FaInfoCircle className="text-primary text-xs shrink-0 mt-0.5" />
           <span>
-            Inicia sesión con tu correo para activar tu Demo Gratuito de 150 créditos o recarga un paquete en la sección de Precios.
+            Inicia sesión con tu correo para activar tu Demo Gratuito de 300 créditos o recarga un paquete en la sección de Precios.
           </span>
         </div>
       </div>

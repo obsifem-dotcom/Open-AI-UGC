@@ -52,10 +52,17 @@ function addDismissedArchive(id, requestId = null) {
   }
 }
 
-function readLocalArchive() {
+function getUserArchiveKey(userEmail) {
+  if (!userEmail) return "ugcore_creations_guest_v1";
+  const clean = userEmail.toLowerCase().trim().replace(/[^a-z0-9]/g, "_");
+  return `ugcore_creations_${clean}_v1`;
+}
+
+function readLocalArchive(userEmail = null) {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(LOCAL_ARCHIVE_KEY);
+    const key = getUserArchiveKey(userEmail);
+    const raw = window.localStorage.getItem(key);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -63,25 +70,43 @@ function readLocalArchive() {
   }
 }
 
-function writeLocalArchive(items) {
+function writeLocalArchive(items, userEmail = null) {
   if (typeof window === "undefined") return;
   try {
+    const key = getUserArchiveKey(userEmail);
     const userItems = items.filter((item) => !item.isShowcase).slice(0, 60);
-    window.localStorage.setItem(LOCAL_ARCHIVE_KEY, JSON.stringify(userItems));
+    window.localStorage.setItem(key, JSON.stringify(userItems));
   } catch {
     // ignore storage errors
   }
 }
 
-function mergeCreationsList(localItems, serverItems) {
+function mergeCreationsList(localItems, serverItems, sessionUser = null) {
   const dismissed = readDismissedArchive();
   const byRequestId = new Map();
+  const isAdmin = Boolean(sessionUser?.isAdmin || sessionUser?.role === "admin");
+  const currentEmail = (sessionUser?.email || "").toLowerCase().trim();
+  const currentId = sessionUser?.id || "";
 
   const allItems = [...(localItems || []), ...(serverItems || [])];
   for (const item of allItems) {
     if (!item || !item.id || dismissed.has(item.id)) continue;
     const reqKey = item.requestId || item.id;
     if (dismissed.has(reqKey)) continue;
+
+    // Strict Buyer Privacy Check:
+    // If not admin and not a showcase demo, reject any admin-owned videos
+    if (!isAdmin && !item.isShowcase) {
+      const isItemAdmin =
+        item.userId === "admin-obsifem" ||
+        item.userEmail?.toLowerCase() === "obsifem@gmail.com";
+      if (isItemAdmin) continue;
+
+      const itemEmail = (item.userEmail || "").toLowerCase().trim();
+      const itemId = item.userId || "";
+      if (currentEmail && itemEmail && itemEmail !== currentEmail) continue;
+      if (currentId && itemId && !itemId.startsWith("mu_") && itemId !== currentId && !itemEmail) continue;
+    }
 
     if (!byRequestId.has(reqKey)) {
       byRequestId.set(reqKey, item);
@@ -121,22 +146,23 @@ export default function GalleryPage() {
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
-    const localItems = readLocalArchive();
+    const userEmail = session?.user?.email || null;
+    const localItems = readLocalArchive(userEmail);
     try {
       const response = await fetch("/api/creations", { cache: "no-store" });
       if (response.ok) {
         const serverData = await response.json();
         const serverItems = Array.isArray(serverData) ? serverData : [];
-        const merged = mergeCreationsList(localItems, serverItems);
+        const merged = mergeCreationsList(localItems, serverItems, session?.user);
         setCreations(merged);
-        writeLocalArchive(merged);
+        writeLocalArchive(merged, userEmail);
       } else if (localItems.length > 0) {
-        setCreations((prev) => mergeCreationsList(localItems, prev));
+        setCreations((prev) => mergeCreationsList(localItems, prev, session?.user));
       }
     } catch (error) {
       console.error("Failed to fetch creations:", error);
       if (localItems.length > 0) {
-        setCreations((prev) => mergeCreationsList(localItems, prev));
+        setCreations((prev) => mergeCreationsList(localItems, prev, session?.user));
       }
     } finally {
       setIsLoading(false);
@@ -147,23 +173,33 @@ export default function GalleryPage() {
   useEffect(() => {
     let isMounted = true;
     const fetchInitialGallery = async () => {
-      const localItems = readLocalArchive();
+      // Clean up legacy unpartitioned archive to prevent admin creations leaking to buyers
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem("ugcore_creations_archive_v1");
+        } catch {
+          // ignore
+        }
+      }
+
+      const userEmail = session?.user?.email || null;
+      const localItems = readLocalArchive(userEmail);
       try {
         const response = await fetch("/api/creations", { cache: "no-store" });
         if (!isMounted) return;
         if (response.ok) {
           const serverData = await response.json();
           const serverItems = Array.isArray(serverData) ? serverData : [];
-          const merged = mergeCreationsList(localItems, serverItems);
+          const merged = mergeCreationsList(localItems, serverItems, session?.user);
           setCreations(merged);
-          writeLocalArchive(merged);
+          writeLocalArchive(merged, userEmail);
         } else if (localItems.length > 0) {
-          setCreations((prev) => mergeCreationsList(localItems, prev));
+          setCreations((prev) => mergeCreationsList(localItems, prev, session?.user));
         }
       } catch (error) {
         console.error("Failed to fetch creations:", error);
         if (isMounted && localItems.length > 0) {
-          setCreations((prev) => mergeCreationsList(localItems, prev));
+          setCreations((prev) => mergeCreationsList(localItems, prev, session?.user));
         }
       } finally {
         if (isMounted) {
@@ -175,7 +211,7 @@ export default function GalleryPage() {
     return () => {
       isMounted = false;
     };
-  }, [session?.user?.email]);
+  }, [session?.user?.email, session?.user?.id]);
 
   // Poll any creation currently in processing state
   useEffect(() => {

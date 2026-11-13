@@ -55,7 +55,7 @@ export default function Navbar() {
       ? session.user.credits
       : isAdminUser
       ? 999999
-      : 150;
+      : 300;
 
   const assignedCredits =
     typeof session?.user?.assignedCredits === "number"
