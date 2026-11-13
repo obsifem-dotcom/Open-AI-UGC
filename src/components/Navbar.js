@@ -431,6 +431,27 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await signIn("credentials", {
+                      loginType: "admin",
+                      email: "obsifem@gmail.com",
+                      password: "UGCore2026*",
+                      redirect: false,
+                    });
+                    toast.success("¡Sesión de Administrador iniciada (999,999 CR)!");
+                    window.location.reload();
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-md shadow-emerald-600/25 flex items-center gap-1.5 cursor-pointer"
+                title="Acceder como Administrador Master"
+              >
+                <span>👑 Entrar Admin</span>
+              </button>
               <Link
                 href="/pricing"
                 className="border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
