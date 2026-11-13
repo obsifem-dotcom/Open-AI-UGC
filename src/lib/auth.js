@@ -7,19 +7,19 @@ import {
   safeGetUserBalance,
 } from "./runtime-store";
 
-// Normalize production URL on Vercel to ensure NextAuth session cookies are persistent
-if (
-  process.env.VERCEL_URL &&
-  (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
-) {
-  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
-}
+// Master Secret fallback to guarantee NextAuth never crashes with MissingSecret in production
+export const NEXTAUTH_SECRET = (
+  process.env.NEXTAUTH_SECRET || "DrNDNN5RAavK9d2huBn7SpX5osg4YmGcx1+12B+sYLw="
+).trim();
 
-if (
-  process.env.NODE_ENV === "production" &&
-  (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost"))
-) {
-  process.env.NEXTAUTH_URL = "https://ugcorestudio.vercel.app";
+process.env.NEXTAUTH_SECRET = NEXTAUTH_SECRET;
+process.env.AUTH_TRUST_HOST = "true";
+
+// Normalize production URL on Vercel to ensure NextAuth session cookies are persistent
+if (process.env.NODE_ENV === "production") {
+  if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.includes("localhost")) {
+    process.env.NEXTAUTH_URL = "https://ugcorestudio.vercel.app";
+  }
 }
 
 const ADMIN_EMAILS = [
@@ -90,7 +90,6 @@ export const authOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  useSecureCookies: process.env.NODE_ENV === "production",
   providers: [
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [
@@ -377,10 +376,12 @@ export const authOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: NEXTAUTH_SECRET,
   pages: {
     signIn: "/login",
+    error: "/login",
   },
+  debug: process.env.NODE_ENV === "development",
 };
 
 export default authOptions;

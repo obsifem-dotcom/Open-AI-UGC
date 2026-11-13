@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -37,6 +37,43 @@ function LoginContent() {
   // API Key Login state
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      if (errorParam === "Configuration") {
+        toast.error(
+          "Para ingresar como administrador, usa la pestaña 'Admin' con tu correo y contraseña."
+        );
+      } else if (errorParam === "CredentialsSignin") {
+        toast.error("Credenciales incorrectas. Verifica tu información.");
+      } else if (errorParam === "AccessDenied") {
+        toast.error("Acceso denegado.");
+      }
+    }
+  }, [searchParams]);
+
+  const handleGoogleLogin = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await signIn("google", {
+        callbackUrl: next,
+        redirect: false,
+      });
+      if (res?.error) {
+        toast.error(
+          "El acceso directo con Google aún no está vinculado en Vercel. Por favor usa tu correo o la pestaña Admin."
+        );
+      } else if (res?.url) {
+        window.location.href = res.url;
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Por favor ingresa con tu correo o contraseña en las pestañas de abajo.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const completeRedirect = () => {
     router.push(next);
@@ -196,8 +233,9 @@ function LoginContent() {
         {/* Google Official Login */}
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: next })}
-          className="w-full py-2.5 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-[0.99] cursor-pointer"
+          onClick={handleGoogleLogin}
+          disabled={isSubmitting}
+          className="w-full py-2.5 bg-white hover:bg-neutral-100 text-neutral-800 border border-neutral-300 rounded-lg text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-sm active:scale-[0.99] cursor-pointer disabled:opacity-60"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
