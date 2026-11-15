@@ -3766,6 +3766,16 @@ export default function Home() {
                   type="button"
                   onClick={() => {
                     if (isSandboxMode) {
+                      const isPaying =
+                        session?.user?.planId &&
+                        session.user.planId !== "demo" &&
+                        session.user.planId !== "free";
+                      if (!isAdminUser && !isPaying) {
+                        alert(
+                          "🔒 Modo Real Bloqueado para Cuentas Demo:\n\nTu cuenta actual está en Demo Gratuito. Puedes generar videos de prueba ilimitados en Modo Sandbox sin ningún costo.\n\nPara activar el renderizado real en la nube con MuAPI, adquiere uno de nuestros planes comerciales en /pricing o ingresa tu propia API Key en tu perfil."
+                        );
+                        return;
+                      }
                       const ok = window.confirm(
                         "⚠️ ATENCIÓN: ¿Deseas activar el Modo Real de MuAPI?\n\nAl desactivar el Modo Pruebas, cada video que generes consumirá créditos reales de tu cuenta de MuAPI.\n\nPara pruebas, guiones, vestuarios y ritmos de voz SIN COSTO, te recomendamos mantener activado el Modo Pruebas (Gratis).\n\n¿Deseas activar el Modo Real?"
                       );

@@ -267,7 +267,17 @@ export async function POST(req) {
       rawCustomKey.length > 0 && !isServerMasterKey(rawCustomKey)
     );
 
+    const isPayingCustomer = Boolean(
+      activeUser.planId &&
+        activeUser.planId !== "demo" &&
+        activeUser.planId !== "free"
+    );
+
+    // Protección estricta de saldo: Usuarios en Demo o visitantes NUNCA pueden gastar saldo MuAPI de la administradora.
+    const enforceSandbox = !isAdmin && !isUsingCustomKey && !isPayingCustomer;
+
     const isSandbox =
+      enforceSandbox ||
       body.sandbox === true ||
       body.isSandbox === true ||
       body.testMode === true ||
