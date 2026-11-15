@@ -267,8 +267,14 @@ export async function POST(req) {
       rawCustomKey.length > 0 && !isServerMasterKey(rawCustomKey)
     );
 
+    const isSandbox =
+      body.sandbox === true ||
+      body.isSandbox === true ||
+      body.testMode === true ||
+      req.headers.get("x-sandbox-mode") === "true";
+
     const apiKey = isUsingCustomKey ? rawCustomKey : DEFAULT_MUAPI_KEY;
-    if (!apiKey) {
+    if (!apiKey && !isSandbox) {
       return NextResponse.json(
         { error: "API Key del motor de video no configurada en el servidor." },
         { status: 500 }
@@ -325,6 +331,58 @@ export async function POST(req) {
       email: activeUser.email,
       isAdmin,
     });
+
+    // MODO PRUEBAS / SANDBOX: Genera videos de prueba inmediatamente con 0 consumo de MuAPI
+    if (isSandbox) {
+      const sampleLibrary = [
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoy.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+      ];
+
+      const isMulti = segments.length > 1;
+      const sampleUrls = segments.map(
+        (_, idx) => sampleLibrary[idx % sampleLibrary.length]
+      );
+      const chosenUrl = isMulti ? JSON.stringify(sampleUrls) : sampleUrls[0];
+      const sandboxReqIds = segments.map(
+        (_, idx) => `sandbox_req_${Date.now()}_${idx + 1}`
+      );
+
+      const combinedPrompt =
+        rawPrompt ||
+        segments.map((s, idx) => `[Escena ${idx + 1}] ${s.prompt}`).join("\n");
+
+      const creation = await safeCreateCreation({
+        userId: activeUser.id,
+        userEmail: activeUser.email,
+        prompt: combinedPrompt,
+        requestIds: sandboxReqIds,
+        modelId,
+        aspectRatio: settings.aspect_ratio || "9:16",
+        resolution: settings.resolution || "720p",
+        duration: totalDuration,
+        mode: settings.mode || "normal",
+        images,
+        status: "completed",
+        url: chosenUrl,
+      });
+
+      return NextResponse.json({
+        success: true,
+        creationId: creation.id,
+        status: "completed",
+        url: chosenUrl,
+        sandbox: true,
+        segmentsTotal: segments.length,
+        totalDuration,
+        remainingCredits: userBalance?.credits || 999999,
+        message:
+          "Video generado exitosamente en Modo Pruebas sin consumir créditos de MuAPI.",
+      });
+    }
 
     if (!isAdmin && !isUsingCustomKey) {
       const availableCredits =

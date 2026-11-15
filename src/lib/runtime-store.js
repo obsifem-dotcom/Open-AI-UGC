@@ -696,14 +696,19 @@ export async function safeCreateCreation({
   duration,
   mode,
   images,
+  status = "processing",
+  url = null,
 }) {
   const isMultiSegment = requestIds.length > 1;
   const serializedRequestId = isMultiSegment
     ? JSON.stringify(requestIds)
     : requestIds[0];
-  const initialUrl = isMultiSegment
-    ? JSON.stringify(new Array(requestIds.length).fill(null))
-    : null;
+  const initialUrl =
+    url !== null
+      ? url
+      : isMultiSegment
+      ? JSON.stringify(new Array(requestIds.length).fill(null))
+      : null;
   const statelessId = encodeStatelessCreationId(requestIds, modelId);
 
   const fallbackCreation = {
@@ -715,7 +720,7 @@ export async function safeCreateCreation({
     prompt: prompt || "",
     requestId: serializedRequestId,
     url: initialUrl,
-    status: "processing",
+    status,
     error: null,
     modelId,
     aspectRatio: aspectRatio || "9:16",
@@ -761,7 +766,7 @@ export async function safeCreateCreation({
             prompt: fallbackCreation.prompt,
             requestId: serializedRequestId,
             url: initialUrl,
-            status: "processing",
+            status,
             modelId,
             aspectRatio: aspectRatio || null,
             resolution: resolution || null,

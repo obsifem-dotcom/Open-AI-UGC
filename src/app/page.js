@@ -433,6 +433,7 @@ export default function Home() {
   const [isUploadingCustomVoice, setIsUploadingCustomVoice] = useState(false);
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
   const [samplePhraseType, setSamplePhraseType] = useState("preview"); // "preview" | "commercial"
+  const [isSandboxMode, setIsSandboxMode] = useState(true); // Modo Pruebas sin costo de MuAPI por defecto
   const voiceAudioInputRef = useRef(null);
   const [microExpressionIds, setMicroExpressionIds] = useState([
     "eye-contact-lock",
@@ -1570,12 +1571,19 @@ export default function Home() {
           videoMode,
           consistencyDirective,
           images: combinedImageUrls,
+          sandbox: isSandboxMode,
         }),
       });
 
       const data = await response.json();
       if (!response.ok || data.error) {
         throw new Error(data.error || "Error al iniciar la generación");
+      }
+
+      if (data.sandbox) {
+        toast.success(
+          "🎬 Video de prueba generado con éxito (0 Créditos MuAPI gastados)"
+        );
       }
 
       if (
@@ -1587,14 +1595,16 @@ export default function Home() {
 
       const initialGenRecord = {
         id: data.creationId,
-        status: "processing",
+        status: data.status || "processing",
+        url: data.url || null,
         title: (finalPrompt || "Video UGCore Studio").slice(0, 60),
         prompt: finalPrompt,
         modelId: selectedModel.id,
         aspectRatio: requestSettings.aspect_ratio || "9:16",
         resolution: requestSettings.resolution || "720p",
         segmentsTotal: data.segmentsTotal || 1,
-        segmentsCompleted: 0,
+        segmentsCompleted:
+          data.status === "completed" ? data.segmentsTotal || 1 : 0,
         duration: data.totalDuration || effectiveDuration,
         inputImages: combinedImageUrls,
         environmentName: isInfluencerMode ? selectedEnvObj?.shortLabel : null,
@@ -3750,12 +3760,48 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Selector Modo Pruebas (0 Costo MuAPI) vs Modo Real */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSandboxMode) {
+                      const ok = window.confirm(
+                        "⚠️ ATENCIÓN: ¿Deseas activar el Modo Real de MuAPI?\n\nAl desactivar el Modo Pruebas, cada video que generes consumirá créditos reales de tu cuenta de MuAPI.\n\nPara pruebas, guiones, vestuarios y ritmos de voz SIN COSTO, te recomendamos mantener activado el Modo Pruebas (Gratis).\n\n¿Deseas activar el Modo Real?"
+                      );
+                      if (ok) setIsSandboxMode(false);
+                    } else {
+                      setIsSandboxMode(true);
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border shadow-sm ${
+                    isSandboxMode
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-400 hover:bg-emerald-500/30"
+                      : "bg-amber-500/20 text-amber-300 border-amber-400 hover:bg-amber-500/30"
+                  }`}
+                  title={
+                    isSandboxMode
+                      ? "Modo Pruebas ACTIVO: Generación 100% gratuita sin costo ni consumo de MuAPI"
+                      : "Modo Real ACTIVO: Esta generación consumirá saldo real de tu cuenta MuAPI"
+                  }
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isSandboxMode ? "bg-emerald-400 animate-ping" : "bg-amber-400"
+                    }`}
+                  />
+                  <span>
+                    {isSandboxMode
+                      ? "🛡️ Modo Pruebas (GRATIS • 0 MuAPI)"
+                      : "⚡ Modo Real (Consume MuAPI)"}
+                  </span>
+                </button>
+
                 {/* Show credit balance & cost for both Admin and Buyers */}
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-glass-bg border border-glass-border rounded-full">
                   <FaCoins className="text-yellow-500 text-xs" />
                   <span className="text-[10px] font-bold text-secondary-text">
-                    Costo: {getRequiredCredits()} CR
+                    {isSandboxMode ? "Costo: 0 CR (Prueba Gratis)" : `Costo: ${getRequiredCredits()} CR`}
                   </span>
                   <span className="text-muted">•</span>
                   <span className="text-[10px] font-black text-emerald-500">
@@ -3774,24 +3820,35 @@ export default function Home() {
                     (!hasEffectiveReferenceImage() &&
                       !selectedModel.supportsTextToVideo)
                   }
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-hover hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-primary/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className={`px-4 py-2 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                    isSandboxMode
+                      ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 shadow-emerald-500/25 ring-1 ring-emerald-400/40"
+                      : "bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-hover hover:to-indigo-500 shadow-primary/25"
+                  }`}
                   title={
                     !hasEffectiveInput()
                       ? "Escribe un guion o selecciona un avatar / hook para generar"
-                      : !hasEffectiveReferenceImage() && !selectedModel.supportsTextToVideo
-                        ? "Seedance 2 requiere una imagen de referencia o avatar"
-                        : "Generar Video con IA"
+                      : !hasEffectiveReferenceImage() &&
+                        !selectedModel.supportsTextToVideo
+                      ? "Seedance 2 requiere una imagen de referencia o avatar"
+                      : isSandboxMode
+                      ? "Generar Video de Prueba (100% Gratis sin gastar MuAPI)"
+                      : "Generar Video Real con MuAPI (Consume saldo)"
                   }
                 >
                   {isGenerating ? (
                     <>
                       <FiLoader className="text-sm animate-spin" />
-                      <span>Generando...</span>
+                      <span>{isSandboxMode ? "Simulando video gratis..." : "Generando..."}</span>
                     </>
                   ) : (
                     <>
                       <FiZap className="text-sm" />
-                      <span>🎬 Generar Video IA</span>
+                      <span>
+                        {isSandboxMode
+                          ? "🎬 Generar Video de Prueba (0 Costo • Gratis)"
+                          : "🎬 Generar Video Real (Consume MuAPI)"}
+                      </span>
                     </>
                   )}
                 </button>

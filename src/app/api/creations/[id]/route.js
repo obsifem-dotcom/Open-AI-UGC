@@ -95,7 +95,17 @@ export async function GET(req, { params }) {
     }
 
     const activeStatuses = ["processing", "pending", "starting", "queued"];
-    if (activeStatuses.includes(creation.status) && creation.requestId) {
+    const isSandboxRequest =
+      typeof creation.requestId === "string" &&
+      (creation.requestId.includes("sandbox_") ||
+        creation.requestId.includes("showcase_") ||
+        creation.requestId.includes("test_"));
+
+    if (
+      activeStatuses.includes(creation.status) &&
+      creation.requestId &&
+      !isSandboxRequest
+    ) {
       const storedCustomKey = session?.user
         ? await safeGetUserCustomApiKey({
             userId: session.user.id,
