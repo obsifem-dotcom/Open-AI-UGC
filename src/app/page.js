@@ -26,6 +26,9 @@ import {
   FiLayers,
   FiCpu,
   FiMic,
+  FiVolume2,
+  FiSquare,
+  FiPlay,
 } from "react-icons/fi";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -338,7 +341,7 @@ export default function Home() {
   ]);
 
   // AI Influencer & Promotion Studio state (15 Influencers with Minimal Config presets)
-  const [isInfluencerMode, setIsInfluencerMode] = useState(false);
+  const [isInfluencerMode, setIsInfluencerMode] = useState(true);
   const [isMinimalInfluencerConfig, setIsMinimalInfluencerConfig] =
     useState(true);
   const [selectedInfluencer, setSelectedInfluencer] = useState(
@@ -428,6 +431,8 @@ export default function Home() {
   const [customVoiceAudioUrl, setCustomVoiceAudioUrl] = useState("");
   const [customVoiceFileName, setCustomVoiceFileName] = useState("");
   const [isUploadingCustomVoice, setIsUploadingCustomVoice] = useState(false);
+  const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
+  const [samplePhraseType, setSamplePhraseType] = useState("preview"); // "preview" | "commercial"
   const voiceAudioInputRef = useRef(null);
   const [microExpressionIds, setMicroExpressionIds] = useState([
     "eye-contact-lock",
@@ -856,6 +861,123 @@ export default function Home() {
       setIsUploadingCustomVoice(false);
       if (voiceAudioInputRef.current) voiceAudioInputRef.current.value = "";
     }
+  };
+
+  const handlePlayVoicePreview = (customPhraseType = samplePhraseType) => {
+    if (typeof window === "undefined") return;
+
+    if (isPlayingVoiceSample) {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlayingVoiceSample(false);
+      return;
+    }
+
+    // Si el usuario subió audio propio, reproducir su archivo directamente
+    if (voiceProfileId === "custom-voice" && customVoiceAudioUrl) {
+      try {
+        const audio = new Audio(customVoiceAudioUrl);
+        setIsPlayingVoiceSample(true);
+        audio.onended = () => setIsPlayingVoiceSample(false);
+        audio.onerror = () => {
+          setIsPlayingVoiceSample(false);
+          toast.error("No se pudo reproducir el archivo de audio subido.");
+        };
+        audio.play().catch(() => setIsPlayingVoiceSample(false));
+        return;
+      } catch (err) {
+        console.error("Audio playback error:", err);
+      }
+    }
+
+    if (!("speechSynthesis" in window)) {
+      toast.error("Tu navegador no soporta vista previa de voz por síntesis Web Speech.");
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const selectedProfile =
+      COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
+      COMMERCIAL_VOICE_PROFILES[0];
+
+    let rate = 0.82; // 0.8x relaxed default
+    if (voiceSpeedId === "calm") rate = 0.92;
+    else if (voiceSpeedId === "natural") rate = 1.0;
+
+    let textToSpeak = "";
+    if (customPhraseType === "commercial") {
+      textToSpeak =
+        "¡Hola! Te presento nuestro producto estrella. Brinda resultados visibles desde el primer día. Toca el enlace para ordenar el tuyo hoy con envío prioritario.";
+    } else {
+      textToSpeak =
+        voiceSpeedId === "relaxed"
+          ? "Hola. Este es tu ritmo pausado y sereno a cero coma ocho. Cada frase cuenta con pausas deliberadas y dicción lenta para generar confianza."
+          : voiceSpeedId === "calm"
+          ? "Hola. Este es el ritmo moderado y tranquilo a cero coma nueve. Fluido, equilibrado y profesional para promociones y servicios."
+          : "Hola. Este es el ritmo conversacional equilibrado a uno punto cero, dinámico y natural para redes sociales.";
+    }
+
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.rate = rate;
+
+    if (selectedProfile.gender === "female") {
+      utterance.pitch = 1.08;
+    } else if (selectedProfile.gender === "male") {
+      utterance.pitch = 0.88;
+    } else {
+      utterance.pitch = 1.0;
+    }
+
+    const isEnglish = voiceProfileId.startsWith("en-us");
+    const isCastilian = voiceProfileId.startsWith("es-es");
+
+    const voices = window.speechSynthesis.getVoices();
+    let preferredVoice = null;
+
+    if (isEnglish) {
+      preferredVoice =
+        voices.find(
+          (v) =>
+            v.lang.startsWith("en") &&
+            (selectedProfile.gender === "female"
+              ? /female|samantha|zira|karen|victoria/i.test(v.name)
+              : /male|david|alex|daniel|george/i.test(v.name))
+        ) || voices.find((v) => v.lang.startsWith("en"));
+      utterance.lang = "en-US";
+    } else if (isCastilian) {
+      preferredVoice =
+        voices.find(
+          (v) =>
+            v.lang.toLowerCase() === "es-es" ||
+            (v.lang.startsWith("es") && /spain|castilian|monica|jorge/i.test(v.name))
+        ) || voices.find((v) => v.lang.startsWith("es"));
+      utterance.lang = "es-ES";
+    } else {
+      preferredVoice =
+        voices.find(
+          (v) =>
+            (v.lang.toLowerCase() === "es-mx" ||
+              v.lang.toLowerCase() === "es-us" ||
+              v.lang.toLowerCase() === "es-419" ||
+              /paulina|sabina|diego|miguel|carlos/i.test(v.name)) &&
+            (selectedProfile.gender === "female"
+              ? !/male|diego|miguel|carlos|jorge/i.test(v.name)
+              : true)
+        ) || voices.find((v) => v.lang.startsWith("es"));
+      utterance.lang = "es-MX";
+    }
+
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+
+    utterance.onend = () => setIsPlayingVoiceSample(false);
+    utterance.onerror = () => setIsPlayingVoiceSample(false);
+
+    setIsPlayingVoiceSample(true);
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleGenerateYouTubeChapter = (chapterNumber = selectedYtChapter) => {
@@ -1768,17 +1890,21 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setIsInfluencerMode(!isInfluencerMode)}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer shadow-sm ${
                     isInfluencerMode
-                      ? "bg-emerald-500 text-white border-emerald-500 shadow-sm"
-                      : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20"
+                      ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-[#8B5CF6] text-white border-emerald-400 ring-2 ring-emerald-400/20"
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/20"
                   }`}
+                  title="Abrir o cerrar estudio de Avatares, Gemelo Digital y Vestuario"
                 >
                   <FiUserCheck className="text-xs" />
                   <span>
                     {isInfluencerMode
-                      ? `Influencer #${selectedInfluencer?.number || 1}: ${selectedInfluencer?.name || "Activo"}`
-                      : `🧑‍🎤 ${AI_INFLUENCERS.length} Influencers IA (Config. Mínima 1-Click)`}
+                      ? `🧑‍🎤 Estudio HeyGen: ${avatarSourceType === "digital-twin" ? "🧬 Gemelo Digital" : selectedInfluencer?.name || "Avatar Activo"} (Vestuario & Sets 3D)`
+                      : `🧑‍🎤 Avatares IA, Gemelo Digital & Vestuario (HeyGen Studio)`}
+                  </span>
+                  <span className="text-[10px] ml-1 bg-black/30 px-1.5 py-0.2 rounded font-mono">
+                    {isInfluencerMode ? "▲ Ocultar" : "▼ Abrir"}
                   </span>
                 </button>
               </div>
@@ -2459,24 +2585,24 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setAvatarSourceType("stock")}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                           avatarSourceType === "stock"
-                            ? "bg-emerald-500 text-white shadow-sm"
+                            ? "bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-400/40"
                             : "bg-glass-bg text-secondary-text hover:text-foreground border border-glass-border"
                         }`}
                       >
-                        <span>🎭 1. Avatares de Stock / Estudio ({AI_INFLUENCERS.length} Modelos)</span>
+                        <span>🎭 1. Avatares de Stock & Vestuario ({AI_INFLUENCERS.length} Modelos)</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setAvatarSourceType("digital-twin")}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                           avatarSourceType === "digital-twin"
-                            ? "bg-[#8B5CF6] text-white shadow-sm ring-1 ring-white/30"
-                            : "bg-[#8B5CF6]/10 text-[#8B5CF6] border border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/20"
+                            ? "bg-[#8B5CF6] text-white shadow-sm ring-2 ring-white/40 shadow-[#8B5CF6]/30"
+                            : "bg-[#8B5CF6]/15 text-[#8B5CF6] border border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/25"
                         }`}
                       >
-                        <span>🧬 2. Subir Gemelo Digital / Custom Avatar (#8B5CF6)</span>
+                        <span>🧬 2. Subir Gemelo Digital / Custom Avatar (Clonación 2-5m • #8B5CF6)</span>
                       </button>
                     </div>
 
@@ -2752,110 +2878,135 @@ export default function Home() {
                   <div className="space-y-2 pt-2 border-t border-glass-border/60">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                       {/* 1. Elegir Rostro */}
-                      <div className="flex items-center gap-1.5">
-                        {getEffectiveInfluencerAvatar() && (
-                          <img
-                            src={getEffectiveInfluencerAvatar()}
-                            alt="Rostro activo"
-                            className="w-7 h-7 rounded-full object-cover border border-emerald-500 flex-shrink-0"
-                          />
-                        )}
-                        <select
-                          value={influencerFacePresetId}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setInfluencerFacePresetId(val);
-                            if (val === "custom-upload" && !customFaceUrl) {
-                              faceInputRef.current?.click();
-                            }
-                          }}
-                          title="Elegir el rostro del Influencer o subir uno propio"
-                          className="flex-1 min-w-0 px-2 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
-                        >
-                          {INFLUENCER_FACE_PRESETS.map((fp) => (
-                            <option key={fp.id} value={fp.id}>
-                              {fp.label}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="file"
-                          ref={faceInputRef}
-                          onChange={handleCustomFaceUpload}
-                          accept="image/*"
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => faceInputRef.current?.click()}
-                          disabled={isUploadingCustomFace}
-                          title="Subir tu propia foto de rostro para el Influencer (@image1)"
-                          className="px-2 py-1.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-500 text-[10px] font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
-                        >
-                          {isUploadingCustomFace ? (
-                            <FiLoader className="animate-spin" size={11} />
-                          ) : (
-                            <FiImage size={11} />
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-muted block mb-1">
+                          1. Rostro / Actor
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          {getEffectiveInfluencerAvatar() && (
+                            <img
+                              src={getEffectiveInfluencerAvatar()}
+                              alt="Rostro activo"
+                              className="w-7 h-7 rounded-full object-cover border border-emerald-500 flex-shrink-0"
+                            />
                           )}
-                          <span>Subir Rostro</span>
-                        </button>
+                          <select
+                            value={influencerFacePresetId}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setInfluencerFacePresetId(val);
+                              if (val === "custom-upload" && !customFaceUrl) {
+                                faceInputRef.current?.click();
+                              }
+                            }}
+                            title="Elegir el rostro del Influencer o subir uno propio"
+                            className="flex-1 min-w-0 px-2 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                          >
+                            {INFLUENCER_FACE_PRESETS.map((fp) => (
+                              <option key={fp.id} value={fp.id}>
+                                {fp.label}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="file"
+                            ref={faceInputRef}
+                            onChange={handleCustomFaceUpload}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => faceInputRef.current?.click()}
+                            disabled={isUploadingCustomFace}
+                            title="Subir tu propia foto de rostro para el Influencer (@image1)"
+                            className="px-2 py-1.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-500 text-[10px] font-bold whitespace-nowrap cursor-pointer flex items-center gap-1"
+                          >
+                            {isUploadingCustomFace ? (
+                              <FiLoader className="animate-spin" size={11} />
+                            ) : (
+                              <FiImage size={11} />
+                            )}
+                            <span>Subir</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* 2. Elegir Estilo del Influencer */}
-                      <select
-                        value={influencerPersonaStyleId}
-                        onChange={(e) =>
-                          setInfluencerPersonaStyleId(e.target.value)
-                        }
-                        title="Elegir el estilo visual y escenario del Influencer"
-                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
-                      >
-                        {INFLUENCER_PERSONA_STYLES.map((ps) => (
-                          <option key={ps.id} value={ps.id}>
-                            Estilo: {ps.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-muted block mb-1">
+                          2. Estilo Escenario
+                        </label>
+                        <select
+                          value={influencerPersonaStyleId}
+                          onChange={(e) =>
+                            setInfluencerPersonaStyleId(e.target.value)
+                          }
+                          title="Elegir el estilo visual y escenario del Influencer"
+                          className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                        >
+                          {INFLUENCER_PERSONA_STYLES.map((ps) => (
+                            <option key={ps.id} value={ps.id}>
+                              {ps.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
                       {/* 3. Elegir Ropa / Vestimenta */}
-                      <select
-                        value={influencerWardrobeId}
-                        onChange={(e) =>
-                          setInfluencerWardrobeId(e.target.value)
-                        }
-                        title="Elegir la ropa o vestimenta del Influencer"
-                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
-                      >
-                        {INFLUENCER_WARDROBE_OPTIONS.map((w) => (
-                          <option key={w.id} value={w.id}>
-                            Ropa: {w.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-emerald-400 block mb-1">
+                          3. 👗 Vestuario / Ropa
+                        </label>
+                        <select
+                          value={influencerWardrobeId}
+                          onChange={(e) =>
+                            setInfluencerWardrobeId(e.target.value)
+                          }
+                          title="Elegir la ropa o vestimenta del Avatar"
+                          className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-emerald-500/40 text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                        >
+                          {INFLUENCER_WARDROBE_OPTIONS.map((w) => (
+                            <option key={w.id} value={w.id}>
+                              {w.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
                       {/* 4. Elegir Voz Comercial */}
-                      <select
-                        value={voiceProfileId}
-                        onChange={(e) => setVoiceProfileId(e.target.value)}
-                        title="Elegir el timbre y estilo de voz del Influencer"
-                        className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
-                      >
-                        {COMMERCIAL_VOICE_PROFILES.map((vp) => (
-                          <option key={vp.id} value={vp.id}>
-                            Voz: {vp.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-muted block mb-1">
+                          4. Voz Comercial
+                        </label>
+                        <select
+                          value={voiceProfileId}
+                          onChange={(e) => setVoiceProfileId(e.target.value)}
+                          title="Elegir el timbre y estilo de voz del Influencer"
+                          className="w-full px-2.5 py-1.5 rounded bg-bg-card border border-glass-border text-[10px] font-bold text-foreground outline-none cursor-pointer focus:border-emerald-500"
+                        >
+                          {COMMERCIAL_VOICE_PROFILES.map((vp) => (
+                            <option key={vp.id} value={vp.id}>
+                              {vp.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     {influencerWardrobeId === "custom" && (
-                      <input
-                        type="text"
-                        value={customWardrobeText}
-                        onChange={(e) => setCustomWardrobeText(e.target.value)}
-                        placeholder="Describe la ropa exacta (ej: chaqueta de cuero negra con camiseta blanca minimalista)"
-                        className="w-full px-3 py-1.5 rounded bg-bg-card border border-emerald-500/40 text-xs text-foreground placeholder-muted outline-none focus:border-emerald-500"
-                      />
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-1">
+                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                          👗 Personalizar Vestuario del Avatar:
+                        </span>
+                        <input
+                          type="text"
+                          value={customWardrobeText}
+                          onChange={(e) => setCustomWardrobeText(e.target.value)}
+                          placeholder="Describe la ropa exacta (ej: blazer formal azul marino con blusa de seda blanca y reloj elegante)"
+                          className="w-full px-3 py-1.5 rounded bg-bg-card border border-emerald-500/40 text-xs text-foreground placeholder-muted outline-none focus:border-emerald-500"
+                        />
+                      </div>
                     )}
 
                     {/* Row 2.5: HeyGen-Style Virtual Environments & Chroma / Realistic Compositing */}
@@ -3229,6 +3380,42 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
+
+                {/* Reproductor de Audio de Prueba en Vivo */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePlayVoicePreview()}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      isPlayingVoiceSample
+                        ? "bg-amber-500 text-black border-amber-400 animate-pulse shadow-md"
+                        : "bg-indigo-600/20 hover:bg-indigo-600/35 text-indigo-300 border-indigo-500/40"
+                    }`}
+                    title="Escuchar muestra de audio con la velocidad y timbre seleccionados"
+                  >
+                    {isPlayingVoiceSample ? (
+                      <>
+                        <FiSquare className="text-xs" />
+                        <span>⏹️ Detener Audio</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiVolume2 className="text-xs" />
+                        <span>🎧 Probar Audio ({VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId)?.shortLabel || "0.8x"})</span>
+                      </>
+                    )}
+                  </button>
+
+                  <select
+                    value={samplePhraseType}
+                    onChange={(e) => setSamplePhraseType(e.target.value)}
+                    className="px-2 py-1 rounded bg-bg-card border border-glass-border text-[10px] font-semibold text-muted hover:text-foreground outline-none cursor-pointer"
+                    title="Tipo de texto para la prueba de voz"
+                  >
+                    <option value="preview">Frase de Ritmo ({voiceSpeedId === "relaxed" ? "0.8x" : voiceSpeedId === "calm" ? "0.9x" : "1.0x"})</option>
+                    <option value="commercial">Guion Comercial UGC</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -3276,6 +3463,27 @@ export default function Home() {
                 )}
               </div>
             </div>
+
+            {isPlayingVoiceSample && (
+              <div className="px-4 py-2 bg-indigo-950/40 border-b border-indigo-500/30 flex items-center justify-between text-xs text-indigo-200">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping inline-block" />
+                  <span className="font-bold text-foreground">
+                    🔊 Reproduciendo locución de prueba:
+                  </span>
+                  <span className="text-muted">
+                    {VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId)?.label} • {COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId)?.label}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handlePlayVoicePreview()}
+                  className="px-2 py-0.5 rounded bg-amber-500 text-black font-bold text-[10px] hover:bg-amber-400 cursor-pointer"
+                >
+                  Detener
+                </button>
+              </div>
+            )}
 
             {/* Prompt Input OR Hybrid Text-Timeline Scene Builder */}
             {videoMode === "long" && longSubMode === "scenes" ? (
