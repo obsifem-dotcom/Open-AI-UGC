@@ -902,21 +902,24 @@ export default function Home() {
       COMMERCIAL_VOICE_PROFILES.find((v) => v.id === voiceProfileId) ||
       COMMERCIAL_VOICE_PROFILES[0];
 
-    let rate = 0.82; // 0.8x relaxed default
-    if (voiceSpeedId === "calm") rate = 0.92;
-    else if (voiceSpeedId === "natural") rate = 1.0;
+    let rate = 0.74; // 0.8x relaxed default
+    if (voiceSpeedId === "ultra-slow") rate = 0.65;
+    else if (voiceSpeedId === "calm") rate = 0.80;
+    else if (voiceSpeedId === "natural") rate = 0.88;
 
     let textToSpeak = "";
     if (customPhraseType === "commercial") {
       textToSpeak =
-        "¡Hola! Te presento nuestro producto estrella. Brinda resultados visibles desde el primer día. Toca el enlace para ordenar el tuyo hoy con envío prioritario.";
+        "¡Hola! Te presento nuestro producto estrella... Brinda resultados visibles desde el primer día... Toca el enlace para ordenar el tuyo hoy.";
     } else {
       textToSpeak =
-        voiceSpeedId === "relaxed"
-          ? "Hola. Este es tu ritmo pausado y sereno a cero coma ocho. Cada frase cuenta con pausas deliberadas y dicción lenta para generar confianza."
+        voiceSpeedId === "ultra-slow"
+          ? "Hola... Este es el ritmo extra pausado a cero coma siete... Con pausas amplias entre oraciones y dicción muy reposada para máxima claridad."
+          : voiceSpeedId === "relaxed"
+          ? "Hola... Este es tu ritmo pausado y sereno a cero coma ocho... Cada frase cuenta con pausas deliberadas y dicción lenta para generar confianza."
           : voiceSpeedId === "calm"
-          ? "Hola. Este es el ritmo moderado y tranquilo a cero coma nueve. Fluido, equilibrado y profesional para promociones y servicios."
-          : "Hola. Este es el ritmo conversacional equilibrado a uno punto cero, dinámico y natural para redes sociales.";
+          ? "Hola... Este es el ritmo moderado a cero coma ochenta y cinco... Suave, sin prisas y con cadencia controlada."
+          : "Hola... Este es el ritmo conversacional equilibrado, natural y fluido sin aceleraciones.";
     }
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
@@ -3412,7 +3415,9 @@ export default function Home() {
                     className="px-2 py-1 rounded bg-bg-card border border-glass-border text-[10px] font-semibold text-muted hover:text-foreground outline-none cursor-pointer"
                     title="Tipo de texto para la prueba de voz"
                   >
-                    <option value="preview">Frase de Ritmo ({voiceSpeedId === "relaxed" ? "0.8x" : voiceSpeedId === "calm" ? "0.9x" : "1.0x"})</option>
+                    <option value="preview">
+                      Frase de Ritmo ({VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId)?.shortLabel || "0.8x"})
+                    </option>
                     <option value="commercial">Guion Comercial UGC</option>
                   </select>
                 </div>

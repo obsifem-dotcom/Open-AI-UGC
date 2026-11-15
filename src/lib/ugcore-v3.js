@@ -291,25 +291,32 @@ export const COMMERCIAL_COMPLIANCE_FRAMEWORK = {
 
 export const VOICE_SPEED_OPTIONS = [
   {
+    id: "ultra-slow",
+    label: "🐢 Extra Pausada & Serena (0.7x - Muy Lenta)",
+    shortLabel: "0.7x (Muy Lenta)",
+    directive:
+      "speaking very slowly and deliberately at a deep calm relaxed pace, wide unhurried pauses between sentences, slow articulate diction, calm breathing rhythm, never rushing or fast, giving every word full presence",
+  },
+  {
     id: "relaxed",
-    label: "🐢 Pausada y Serena (0.8x - Menor velocidad)",
+    label: "🍃 Pausada y Serena (0.8x - Recomendada)",
     shortLabel: "0.8x (Pausada)",
     directive:
       "speaking slowly at a calm, unhurried, relaxed pace with clear deliberate pauses between sentences, articulate slow diction, perfectly steady and calm rhythm, never rushed or fast",
   },
   {
     id: "calm",
-    label: "🍃 Moderada y Tranquila (0.9x)",
-    shortLabel: "0.9x (Moderada)",
+    label: "☕ Moderada y Serena (0.85x - Ritmo Suave)",
+    shortLabel: "0.85x (Moderada)",
     directive:
-      "speaking at a gentle, smooth, relaxed pace with natural breathing pauses between thoughts, steady clear cadence, and articulate diction",
+      "speaking at a slow, gentle, smooth, relaxed pace with clear natural pauses between thoughts, steady unhurried cadence, and clear articulate diction, never fast",
   },
   {
     id: "natural",
-    label: "🗣️ Conversacional Equilibrada (1.0x)",
-    shortLabel: "1.0x (Conversacional)",
+    label: "🗣️ Conversacional Equilibrada (0.95x)",
+    shortLabel: "0.95x (Conversacional)",
     directive:
-      "speaking at a steady, natural human conversational pace with clear articulation and natural pauses",
+      "speaking at a steady, natural human conversational pace with clear articulation and natural pauses, without rushing",
   },
 ];
 
