@@ -1051,6 +1051,10 @@ export function buildInfluencerScript({
 
   if (voiceSpeedDirective.trim()) {
     customTraitFragments.push(`Voice pacing: ${voiceSpeedDirective.trim()}`);
+  } else {
+    customTraitFragments.push(
+      "Voice pacing: speaking slowly at a calm, unhurried, relaxed pace with clear deliberate pauses between sentences, articulate slow diction, perfectly steady and calm rhythm, never rushed or fast"
+    );
   }
 
   const baseActorPrompt = influencer
@@ -1115,20 +1119,20 @@ export function buildInfluencerScript({
 
   const extra = extraNotes.trim() ? ` ${extraNotes.trim()}.` : "";
 
-  const singleScript = `${refPrefix}${actorDescription} ${actionDirection}${extra} Speaking in ${langObj.speechLanguage} with natural lip-sync: "${spokenLines.join(" ")}"`;
+  const singleScript = `${refPrefix}${actorDescription} ${actionDirection}${extra} Speaking in ${langObj.speechLanguage} with natural lip-sync at a calm, unhurried, relaxed pace with clear deliberate pauses: "${spokenLines.join(" ")}"`;
 
   const multiScenes = [
     {
       label: `Escena 1 (Hook • ${langObj.label})`,
-      prompt: `${refPrefix}${actorDescription} Opening hook, looking directly into the lens with expressive energy. ${actionDirection} Speaking in ${langObj.speechLanguage}: "${spokenLines[0]}"`,
+      prompt: `${refPrefix}${actorDescription} Opening hook, looking directly into the lens with expressive energy. ${actionDirection} Speaking in ${langObj.speechLanguage} at a calm unhurried pace: "${spokenLines[0]}"`,
     },
     {
       label: `Escena 2 (Demostración • ${langObj.label})`,
-      prompt: `${refPrefix}${actorDescription} Close-up and medium shot showcasing "${cleanName}" and highlighting its value.${extra} Speaking in ${langObj.speechLanguage}: "${spokenLines[1]}"`,
+      prompt: `${refPrefix}${actorDescription} Close-up and medium shot showcasing "${cleanName}" and highlighting its value.${extra} Speaking in ${langObj.speechLanguage} at a calm unhurried pace: "${spokenLines[1]}"`,
     },
     {
       label: `Escena 3 (CTA • ${langObj.label})`,
-      prompt: `${refPrefix}${actorDescription} Smiling confidently at the camera, pointing down to the link with a clear call to action. Speaking in ${langObj.speechLanguage}: "${spokenLines[2]}"`,
+      prompt: `${refPrefix}${actorDescription} Smiling confidently at the camera, pointing down to the link with a clear call to action. Speaking in ${langObj.speechLanguage} at a calm unhurried pace: "${spokenLines[2]}"`,
     },
   ];
 

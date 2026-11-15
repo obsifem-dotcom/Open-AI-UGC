@@ -214,7 +214,7 @@ export function buildCharacterConsistencyLock({
   lightingLock = true,
   emotionId = "euphoric-viral",
   microExpressionIds = ["eye-contact-lock", "natural-breathing", "hand-gestures"],
-  voiceSpeedId = "natural",
+  voiceSpeedId = "relaxed",
   customVoiceAudioUrl = null,
 }) {
   const emotion =
@@ -227,7 +227,7 @@ export function buildCharacterConsistencyLock({
 
   const speedObj =
     VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId) ||
-    VOICE_SPEED_OPTIONS[1];
+    VOICE_SPEED_OPTIONS[0];
 
   const baseIdentity = influencer
     ? `[Character Lock ${ucid}: ${influencer.name} — ${influencer.visualPrompt}]`
@@ -291,84 +291,84 @@ export const COMMERCIAL_COMPLIANCE_FRAMEWORK = {
 
 export const VOICE_SPEED_OPTIONS = [
   {
-    id: "calm",
-    label: "🐢 Pausada y Serena (0.85x)",
-    shortLabel: "0.85x (Pausada)",
+    id: "relaxed",
+    label: "🐢 Pausada y Serena (0.8x - Menor velocidad)",
+    shortLabel: "0.8x (Pausada)",
     directive:
-      "speaking at a relaxed, calm, articulate pace with clear natural pauses between ideas, perfectly legible diction, never rushed",
+      "speaking slowly at a calm, unhurried, relaxed pace with clear deliberate pauses between sentences, articulate slow diction, perfectly steady and calm rhythm, never rushed or fast",
+  },
+  {
+    id: "calm",
+    label: "🍃 Moderada y Tranquila (0.9x)",
+    shortLabel: "0.9x (Moderada)",
+    directive:
+      "speaking at a gentle, smooth, relaxed pace with natural breathing pauses between thoughts, steady clear cadence, and articulate diction",
   },
   {
     id: "natural",
-    label: "🗣️ Natural y Conversacional (1.0x)",
-    shortLabel: "1.0x (Natural)",
+    label: "🗣️ Conversacional Equilibrada (1.0x)",
+    shortLabel: "1.0x (Conversacional)",
     directive:
-      "speaking at a balanced, natural human conversational pace, friendly and warm with organic breathing and steady rhythm",
-  },
-  {
-    id: "dynamic",
-    label: "⚡ Dinámica y Comercial (1.1x)",
-    shortLabel: "1.1x (Dinámica)",
-    directive:
-      "speaking with energetic commercial cadence, upbeat and engaging yet clearly articulated without racing",
+      "speaking at a steady, natural human conversational pace with clear articulation and natural pauses",
   },
 ];
 
 export const COMMERCIAL_VOICE_PROFILES = [
   {
     id: "es-latam-commercial",
-    label: "🎙️ Voz Femenina Cálida & Natural (LATAM)",
+    label: "🎙️ Voz Femenina Cálida & Pausada (LATAM)",
     gender: "female",
     directive:
-      "Warm charismatic female Latin American Spanish UGC creator voiceover with natural conversational cadence, clear diction, and accurate lip-sync",
+      "Warm charismatic female Latin American Spanish UGC creator voiceover with relaxed unhurried cadence, slow clear diction, natural pauses between sentences, and accurate lip-sync",
   },
   {
     id: "es-latam-female-viral",
-    label: "✨ Voz Femenina Amigable & Emprendedora (LATAM)",
+    label: "✨ Voz Femenina Amigable & Serena (LATAM)",
     gender: "female",
     directive:
-      "Friendly enthusiastic female Latin American Spanish creator voiceover with engaging upbeat tone, balanced speaking pace, and lip-sync",
+      "Friendly enthusiastic female Latin American Spanish creator voiceover with engaging warm tone, relaxed unhurried speaking pace, deliberate pauses, and lip-sync",
   },
   {
     id: "es-latam-female-young",
-    label: "🌸 Voz Femenina Joven & Fresca (LATAM)",
+    label: "🌸 Voz Femenina Joven & Relajada (LATAM)",
     gender: "female",
     directive:
-      "Fresh authentic young female Latin American Spanish UGC creator voiceover with relatable friendly tone, relaxed pacing, and lip-sync",
+      "Fresh authentic young female Latin American Spanish UGC creator voiceover with relatable friendly tone, calm relaxed pacing, and lip-sync",
   },
   {
     id: "es-latam-male-dynamic",
-    label: "🎙️ Voz Masculina Dinámica & Persuasiva (LATAM)",
+    label: "🎙️ Voz Masculina Cálida & Persuasiva (LATAM)",
     gender: "male",
     directive:
-      "Confident dynamic male Latin American Spanish creator voiceover with persuasive commercial inflection, natural pauses, and lip-sync",
+      "Confident male Latin American Spanish creator voiceover with warm commercial tone, unhurried cadence, clear natural pauses between ideas, and lip-sync",
   },
   {
     id: "es-latam-male-deep",
-    label: "🎬 Voz Masculina Profunda & Ejecutiva (LATAM)",
+    label: "🎬 Voz Masculina Profunda & Serena (LATAM)",
     gender: "male",
     directive:
-      "Deep authoritative male Latin American Spanish executive voiceover with trustworthy studio tone, calm measured pace, and lip-sync",
+      "Deep authoritative male Latin American Spanish executive voiceover with trustworthy studio tone, slow measured pace, calm breathing pauses, and lip-sync",
   },
   {
     id: "es-latam-male-young",
-    label: "🧢 Voz Masculina Joven & Relatable (LATAM)",
+    label: "🧢 Voz Masculina Joven & Relajada (LATAM)",
     gender: "male",
     directive:
-      "Young approachable male Latin American Spanish creator voiceover with casual conversational style, clear speech, and lip-sync",
+      "Young approachable male Latin American Spanish creator voiceover with casual conversational style, relaxed pacing, clear speech, and lip-sync",
   },
   {
     id: "es-es-commercial",
-    label: "🇪🇸 Voz Femenina Editorial (España)",
+    label: "🇪🇸 Voz Femenina Editorial Pausada (España)",
     gender: "female",
     directive:
-      "Crisp Castilian Spanish female commercial voiceover with modern brand presenter intonation, steady cadence, and lip-sync",
+      "Crisp Castilian Spanish female commercial voiceover with modern brand presenter intonation, slow steady cadence, and lip-sync",
   },
   {
     id: "es-es-male-pro",
-    label: "🇪🇸 Voz Masculina Presentador (España)",
+    label: "🇪🇸 Voz Masculina Presentador Sereno (España)",
     gender: "male",
     directive:
-      "Articulate Castilian Spanish male presenter voiceover with professional broadcast energy, clear pacing, and lip-sync",
+      "Articulate Castilian Spanish male presenter voiceover with professional broadcast delivery, calm measured pacing, and lip-sync",
   },
   {
     id: "en-us-commercial",

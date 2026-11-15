@@ -160,8 +160,15 @@ function buildSegments({
       const durations = splitDurationIntoChunks(scene.duration, model);
       const prompts = splitPromptAcrossSegments(scene.prompt, durations.length);
       durations.forEach((dur, idx) => {
+        let p = `${prefix}${prompts[idx] || scene.prompt}${transDirective}`.trim();
+        if (
+          (p.includes('"') || /speaking/i.test(p) || /voz/i.test(p)) &&
+          !/pace|unhurried|pausad|calm|slowly/i.test(p)
+        ) {
+          p = `${p} [Lip-sync & Voice: speaking slowly at a calm, unhurried, relaxed pace with clear deliberate pauses between sentences]`;
+        }
         expanded.push({
-          prompt: `${prefix}${prompts[idx] || scene.prompt}${transDirective}`.trim(),
+          prompt: p,
           duration: dur,
         });
       });
@@ -176,10 +183,19 @@ function buildSegments({
   const durations = splitDurationIntoChunks(requestedDuration, model);
   const prompts = splitPromptAcrossSegments(prompt, durations.length);
 
-  return durations.map((dur, idx) => ({
-    prompt: `${prefix}${prompts[idx] || prompt}`.trim(),
-    duration: dur,
-  }));
+  return durations.map((dur, idx) => {
+    let p = `${prefix}${prompts[idx] || prompt}`.trim();
+    if (
+      (p.includes('"') || /speaking/i.test(p) || /voz/i.test(p)) &&
+      !/pace|unhurried|pausad|calm|slowly/i.test(p)
+    ) {
+      p = `${p} [Lip-sync & Voice: speaking slowly at a calm, unhurried, relaxed pace with clear deliberate pauses between sentences]`;
+    }
+    return {
+      prompt: p,
+      duration: dur,
+    };
+  });
 }
 
 function calculateCreditsForDuration(modelId, duration, resolution) {

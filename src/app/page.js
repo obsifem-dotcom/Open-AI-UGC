@@ -424,7 +424,7 @@ export default function Home() {
   const [lightingLock, setLightingLock] = useState(true);
   const [emotionId, setEmotionId] = useState("euphoric-viral");
   const [voiceProfileId, setVoiceProfileId] = useState("es-latam-commercial");
-  const [voiceSpeedId, setVoiceSpeedId] = useState("natural");
+  const [voiceSpeedId, setVoiceSpeedId] = useState("relaxed");
   const [customVoiceAudioUrl, setCustomVoiceAudioUrl] = useState("");
   const [customVoiceFileName, setCustomVoiceFileName] = useState("");
   const [isUploadingCustomVoice, setIsUploadingCustomVoice] = useState(false);
@@ -1045,7 +1045,7 @@ export default function Home() {
       COMMERCIAL_VOICE_PROFILES[0];
     const speedObj =
       VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId) ||
-      VOICE_SPEED_OPTIONS[1];
+      VOICE_SPEED_OPTIONS[0];
     const voiceDirectiveText =
       voiceProfileId === "custom-voice" && customVoiceAudioUrl
         ? `Voice Cloning: custom speaker voice reference from ${customVoiceAudioUrl}, speaking in natural lip-sync with ${speedObj.directive}`
@@ -1336,7 +1336,7 @@ export default function Home() {
         COMMERCIAL_VOICE_PROFILES[0];
       const speedObj =
         VOICE_SPEED_OPTIONS.find((s) => s.id === voiceSpeedId) ||
-        VOICE_SPEED_OPTIONS[1];
+        VOICE_SPEED_OPTIONS[0];
       const voiceDirectiveText =
         voiceProfileId === "custom-voice" && customVoiceAudioUrl
           ? `Voice Cloning: custom speaker voice reference from ${customVoiceAudioUrl}, speaking in natural lip-sync with ${speedObj.directive}`
