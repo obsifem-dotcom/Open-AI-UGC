@@ -210,7 +210,7 @@ function LoginContent() {
             UGCore Studio
           </h2>
           <p className="text-xs font-semibold text-secondary-text leading-relaxed px-2">
-            Ingresa con tu correo electrónico (+300 CR Demo Gratis para cuentas nuevas), usa tu MuAPI Key (BYOK) o accede como Administrador.
+            Ingresa con tu correo electrónico (+300 CR Demo Gratis para cuentas nuevas) o accede como Administrador.
           </p>
         </div>
 
@@ -265,7 +265,7 @@ function LoginContent() {
         </div>
 
         {/* Auth Method Selector Tabs */}
-        <div className="grid grid-cols-3 bg-bg-page p-1 rounded-lg border border-divider/60 gap-1">
+        <div className="grid grid-cols-2 bg-bg-page p-1 rounded-lg border border-divider/60 gap-1">
           <button
             type="button"
             onClick={() => setActiveTab("email")}
@@ -277,19 +277,6 @@ function LoginContent() {
           >
             <FaEnvelope className="text-[10px]" />
             <span>Con Email</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("apikey")}
-            className={`py-2 px-1.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === "apikey"
-                ? "bg-amber-500 text-black shadow-sm"
-                : "text-secondary-text hover:text-primary-text"
-            }`}
-          >
-            <FaKey className="text-[10px]" />
-            <span>API Key</span>
           </button>
 
           <button
@@ -420,37 +407,6 @@ function LoginContent() {
                 {isSubmitting
                   ? "Ingresando..."
                   : "Ingresar como Administrador"}
-              </span>
-              <FaArrowRight className="text-xs" />
-            </button>
-          </form>
-        )}
-
-        {/* Tab 4: API Key Login */}
-        {activeTab === "apikey" && (
-          <form onSubmit={handleApiKeyLogin} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
-                MuAPI Key
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="Ingresa tu clave mu_..."
-                  className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting || !apiKeyInput.trim()}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <span>
-                {isSubmitting ? "Autenticando..." : "Entrar con API Key"}
               </span>
               <FaArrowRight className="text-xs" />
             </button>

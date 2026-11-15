@@ -276,22 +276,24 @@ export default function Navbar() {
             </button>
           )}
 
-          {/* Add/Manage API Key */}
-          <button
-            onClick={openApiKeyModal}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-              isApiKeyActive
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
-                : "bg-bg-page/50 border-divider text-secondary-text hover:text-white hover:border-primary/40"
-            }`}
-          >
-            <FiKey
-              className={
-                isApiKeyActive ? "text-amber-400" : "text-secondary-text"
-              }
-            />
-            <span>{isApiKeyActive ? "API Key Activa" : "API Key"}</span>
-          </button>
+          {/* Add/Manage API Key - Strictly for Admin */}
+          {isAdminUser && (
+            <button
+              onClick={openApiKeyModal}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                isApiKeyActive
+                  ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20"
+                  : "bg-bg-page/50 border-divider text-secondary-text hover:text-white hover:border-primary/40"
+              }`}
+            >
+              <FiKey
+                className={
+                  isApiKeyActive ? "text-amber-400" : "text-secondary-text"
+                }
+              />
+              <span>{isApiKeyActive ? "API Key Activa" : "API Key"}</span>
+            </button>
+          )}
 
           {status === "authenticated" ? (
             <div className="flex items-center">
@@ -410,15 +412,17 @@ export default function Navbar() {
                       <span>✉️ Ingresar con otro Email / Cuenta</span>
                     </Link>
 
-                    <button
-                      onClick={openApiKeyModal}
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-primary-text hover:bg-primary/10 transition-colors cursor-pointer"
-                    >
-                      <FiKey size={14} className="text-amber-400" />
-                      <span>
-                        {isApiKeyActive ? "Configurar API Key" : "Añadir API Key"}
-                      </span>
-                    </button>
+                    {isAdminUser && (
+                      <button
+                        onClick={openApiKeyModal}
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-primary-text hover:bg-primary/10 transition-colors cursor-pointer"
+                      >
+                        <FiKey size={14} className="text-amber-400" />
+                        <span>
+                          {isApiKeyActive ? "Configurar API Key" : "Añadir API Key"}
+                        </span>
+                      </button>
+                    )}
                     <button
                       onClick={() => signOut({ callbackUrl: "/login" })}
                       className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
@@ -531,18 +535,20 @@ export default function Navbar() {
               </button>
             )}
 
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                openApiKeyModal();
-              }}
-              className="flex w-full items-center justify-between rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-bold text-amber-400"
-            >
-              <div className="flex items-center gap-2">
-                <FiKey />
-                <span>{isApiKeyActive ? "Gestionar API Key" : "Añadir API Key"}</span>
-              </div>
-            </button>
+            {isAdminUser && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  openApiKeyModal();
+                }}
+                className="flex w-full items-center justify-between rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs font-bold text-amber-400"
+              >
+                <div className="flex items-center gap-2">
+                  <FiKey />
+                  <span>{isApiKeyActive ? "Gestionar API Key" : "Añadir API Key"}</span>
+                </div>
+              </button>
+            )}
 
             {status === "authenticated" ? (
               <button
@@ -618,12 +624,26 @@ export default function Navbar() {
                   • Aprueba compras o asigna créditos a cualquier usuario comprador.
                 </p>
               </div>
-              <button
-                onClick={() => setIsAdminCreditsModalOpen(false)}
-                className="text-secondary-text hover:text-white transition-colors cursor-pointer"
-              >
-                <FiX size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAdminCreditsModalOpen(false);
+                    openApiKeyModal();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-bold transition-all cursor-pointer"
+                  title="Configurar tu MuAPI Key del motor de video"
+                >
+                  <FiKey className="text-amber-400 text-xs" />
+                  <span>{isApiKeyActive ? "API Key Activa" : "Configurar API Key"}</span>
+                </button>
+                <button
+                  onClick={() => setIsAdminCreditsModalOpen(false)}
+                  className="text-secondary-text hover:text-white transition-colors cursor-pointer p-1"
+                >
+                  <FiX size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Form to Assign / Approve Buyer Credits */}
