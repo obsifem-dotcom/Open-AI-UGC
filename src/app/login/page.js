@@ -27,7 +27,9 @@ function LoginContent() {
 
   // Email / Demo Login state
   const [userEmail, setUserEmail] = useState("");
+  const [userConfirmEmail, setUserConfirmEmail] = useState("");
   const [userName, setUserName] = useState("");
+  const [userPhone, setUserPhone] = useState("");
   const [userPassword, setUserPassword] = useState("");
 
   // Admin Login state
@@ -85,11 +87,27 @@ function LoginContent() {
     }
   };
 
-  const handleEmailLogin = async (e, overrideEmail = null) => {
+  const handleEmailLogin = async (e) => {
     if (e) e.preventDefault();
-    const cleanEmail = (overrideEmail || userEmail).trim().toLowerCase();
+    const cleanName = userName.trim();
+    const cleanPhone = userPhone.trim();
+    const cleanEmail = userEmail.trim().toLowerCase();
+    const cleanConfirmEmail = userConfirmEmail.trim().toLowerCase();
+
+    if (cleanName.length < 3) {
+      toast.error("Por favor ingresa tu nombre completo");
+      return;
+    }
+    if (cleanPhone.length < 7) {
+      toast.error("Por favor ingresa tu número de teléfono o WhatsApp");
+      return;
+    }
     if (!cleanEmail || !cleanEmail.includes("@")) {
       toast.error("Por favor ingresa un correo electrónico válido");
+      return;
+    }
+    if (cleanEmail !== cleanConfirmEmail) {
+      toast.error("Los correos electrónicos no coinciden. Verifica tu correo.");
       return;
     }
 
@@ -98,7 +116,8 @@ function LoginContent() {
       const res = await signIn("credentials", {
         loginType: "email",
         email: cleanEmail,
-        name: userName.trim() || cleanEmail.split("@")[0],
+        name: cleanName,
+        phone: cleanPhone,
         password: userPassword.trim(),
         planId: "demo",
         redirect: false,
@@ -112,7 +131,9 @@ function LoginContent() {
             : res.error || "No se pudo ingresar con este correo"
         );
       } else {
-        toast.success("¡Bienvenido! Sesión iniciada correctamente.");
+        toast.success(
+          `¡Email confirmado! Bienvenido(a) ${cleanName}, acceso activado.`
+        );
         completeRedirect();
       }
     } catch (err) {
@@ -293,12 +314,40 @@ function LoginContent() {
           </button>
         </div>
 
-        {/* Tab 1: Direct Email Login */}
+        {/* Tab 1: Direct Email & Demo Registration */}
         {activeTab === "email" && (
-          <form onSubmit={handleEmailLogin} className="space-y-3.5 pt-1">
-            <div className="space-y-1.5">
-              <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
-                Correo Electrónico
+          <form onSubmit={handleEmailLogin} className="space-y-3 pt-1">
+            <div className="space-y-1">
+              <label className="block text-[10px] uppercase font-bold text-secondary-text tracking-wider">
+                Nombre Completo *
+              </label>
+              <input
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Ej: María Fernanda Gómez"
+                required
+                className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[10px] uppercase font-bold text-secondary-text tracking-wider">
+                Teléfono / WhatsApp *
+              </label>
+              <input
+                type="tel"
+                value={userPhone}
+                onChange={(e) => setUserPhone(e.target.value)}
+                placeholder="Ej: +57 300 123 4567"
+                required
+                className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[10px] uppercase font-bold text-secondary-text tracking-wider">
+                Correo Electrónico *
               </label>
               <input
                 type="email"
@@ -312,24 +361,43 @@ function LoginContent() {
 
             <div className="space-y-1">
               <label className="block text-[10px] uppercase font-bold text-secondary-text tracking-wider">
-                Tu Nombre (Opcional)
+                Confirmar Correo Electrónico *
               </label>
               <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="Ej: María / Creador"
-                className="w-full bg-bg-page border border-divider rounded-lg px-3 py-2 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
+                type="email"
+                value={userConfirmEmail}
+                onChange={(e) => setUserConfirmEmail(e.target.value)}
+                placeholder="Repite tu correo electrónico"
+                className={`w-full bg-bg-page border rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none transition-colors ${
+                  userConfirmEmail &&
+                  userEmail.trim().toLowerCase() !==
+                    userConfirmEmail.trim().toLowerCase()
+                    ? "border-red-500"
+                    : userConfirmEmail &&
+                      userEmail.trim().toLowerCase() ===
+                        userConfirmEmail.trim().toLowerCase()
+                    ? "border-emerald-500"
+                    : "border-divider focus:border-[#8B5CF6]"
+                }`}
+                required
               />
+              {userConfirmEmail &&
+                userEmail.trim().toLowerCase() ===
+                  userConfirmEmail.trim().toLowerCase() && (
+                  <div className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pt-0.5">
+                    <FaCheckCircle className="text-[10px]" />
+                    <span>Email confirmado correctamente</span>
+                  </div>
+                )}
             </div>
 
             <div className="rounded-lg bg-[#8B5CF6]/10 border border-[#8B5CF6]/30 p-3 space-y-1">
               <div className="text-[11px] font-bold text-[#8B5CF6] flex items-center gap-1.5">
                 <FaEnvelope />
-                <span>Acceso con Correo Electrónico:</span>
+                <span>Activación de Demo Gratis (300 CR):</span>
               </div>
               <p className="text-[11px] text-secondary-text leading-relaxed">
-                Si eres usuario nuevo recibirás <strong>300 Créditos Demo Gratis</strong> automáticamente para probar el estudio (suficiente para probar cualquier avatar o modelo). Si ya compraste un paquete, conservarás tu saldo acumulado.
+                Al confirmar tus datos recibirás <strong>300 Créditos Demo Gratis</strong> automáticamente para probar el estudio. Si ya compraste un paquete, conservarás tu saldo acumulado.
               </p>
             </div>
 
@@ -341,25 +409,10 @@ function LoginContent() {
               <FaEnvelope className="text-xs" />
               <span>
                 {isSubmitting
-                  ? "Activando tu acceso..."
-                  : "Ingresar / Activar Demo con mi Email"}
+                  ? "Confirmando y activando acceso..."
+                  : "✓ Confirmar Email y Activar Demo (300 CR)"}
               </span>
               <FaArrowRight className="text-xs" />
-            </button>
-
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-divider/60"></div>
-              <span className="flex-shrink mx-3 text-[10px] uppercase font-bold text-secondary-text">o prueba en 1 clic</span>
-              <div className="flex-grow border-t border-divider/60"></div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleEmailLogin(null, "comprador@ugcorestudio.com")}
-              disabled={isSubmitting}
-              className="w-full py-2.5 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/40 text-emerald-400 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <span>🎁 Entrar con Demo Gratuito Comprador (1 Clic • 300 CR)</span>
             </button>
           </form>
         )}

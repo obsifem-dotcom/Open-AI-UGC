@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSession, signOut, signIn } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { IoClose, IoMenu } from "react-icons/io5";
 import {
@@ -16,6 +16,9 @@ import {
   FiTrash2,
   FiShield,
   FiCreditCard,
+  FiPhone,
+  FiMail,
+  FiDownload,
 } from "react-icons/fi";
 import config from "@/lib/config";
 import { CREDIT_PACKAGES, getPackageById } from "@/lib/plans";
@@ -29,18 +32,36 @@ export default function Navbar() {
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isAdminCreditsModalOpen, setIsAdminCreditsModalOpen] = useState(false);
   const [isBuyerPlanModalOpen, setIsBuyerPlanModalOpen] = useState(false);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [savingKey, setSavingKey] = useState(false);
 
-  // Admin Credits & Buyer Approvals Modal State
+  // Demo Lead Registration Form State
+  const [demoFullName, setDemoFullName] = useState("");
+  const [demoPhone, setDemoPhone] = useState("");
+  const [demoEmail, setDemoEmail] = useState("");
+  const [demoConfirmEmail, setDemoConfirmEmail] = useState("");
+  const [demoAcceptedPrivacy, setDemoAcceptedPrivacy] = useState(true);
+  const [submittingDemo, setSubmittingDemo] = useState(false);
+
+  // Admin Credits & CRM Buyer Approvals Modal State
   const [buyerList, setBuyerList] = useState([]);
   const [loadingBuyers, setLoadingBuyers] = useState(false);
+  const [crmSearch, setCrmSearch] = useState("");
   const [targetBuyerEmail, setTargetBuyerEmail] = useState("");
   const [targetBuyerName, setTargetBuyerName] = useState("");
   const [targetPlanId, setTargetPlanId] = useState("pro");
   const [targetCustomCredits, setTargetCustomCredits] = useState("");
   const [targetMode, setTargetMode] = useState("add");
   const [assigningCredits, setAssigningCredits] = useState(false);
+
+  useEffect(() => {
+    const handleOpenDemoModal = () => setIsDemoModalOpen(true);
+    window.addEventListener("ugcore:open-demo-modal", handleOpenDemoModal);
+    return () => {
+      window.removeEventListener("ugcore:open-demo-modal", handleOpenDemoModal);
+    };
+  }, []);
 
   const appName = config?.appName || "UGCore Studio";
   const logoLetter = appName.trim().charAt(0).toUpperCase();
@@ -145,6 +166,115 @@ export default function Navbar() {
   const openApiKeyModal = () => {
     setApiKeyInput("");
     setIsApiKeyModalOpen(true);
+  };
+
+  const handleDemoRegistration = async (e) => {
+    e.preventDefault();
+    const cleanName = demoFullName.trim();
+    const cleanPhone = demoPhone.trim();
+    const cleanEmail = demoEmail.trim().toLowerCase();
+    const cleanConfirmEmail = demoConfirmEmail.trim().toLowerCase();
+
+    if (cleanName.length < 3) {
+      toast.error("Por favor ingresa tu nombre completo");
+      return;
+    }
+    if (cleanPhone.length < 7) {
+      toast.error("Por favor ingresa un número de teléfono o WhatsApp válido");
+      return;
+    }
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      toast.error("Por favor ingresa un correo electrónico válido");
+      return;
+    }
+    if (cleanEmail !== cleanConfirmEmail) {
+      toast.error("Los correos electrónicos no coinciden. Verifica tu correo.");
+      return;
+    }
+    if (!demoAcceptedPrivacy) {
+      toast.error("Debes aceptar la política de tratamiento de datos para continuar");
+      return;
+    }
+
+    setSubmittingDemo(true);
+    try {
+      const res = await signIn("credentials", {
+        loginType: "email",
+        email: cleanEmail,
+        name: cleanName,
+        phone: cleanPhone,
+        planId: "demo",
+        redirect: false,
+      });
+
+      if (res?.error) {
+        toast.error(res.error || "No se pudo activar el Demo Gratis");
+      } else {
+        toast.success(
+          `¡Email confirmado! Bienvenido(a) ${cleanName}, tienes 300 Créditos de Demo Gratis activos.`
+        );
+        setIsDemoModalOpen(false);
+        await updateSession();
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al registrar tu acceso Demo");
+    } finally {
+      setSubmittingDemo(false);
+    }
+  };
+
+  const exportCrmToCsv = () => {
+    const leads = buyerList.filter((u) => !u.isAdmin);
+    if (leads.length === 0) {
+      toast.error("Aún no hay usuarios registrados para exportar");
+      return;
+    }
+    const headers = [
+      "Nombre Completo",
+      "Telefono / WhatsApp",
+      "Correo Electronico",
+      "Email Confirmado",
+      "Plan / Segmento",
+      "Creditos Disponibles",
+      "Creditos Asignados",
+      "Fecha Registro",
+    ];
+    const rows = leads.map((u) => [
+      `"${(u.name || "").replace(/"/g, '""')}"`,
+      `"${(u.phone || "Sin registrar").replace(/"/g, '""')}"`,
+      `"${(u.email || "").replace(/"/g, '""')}"`,
+      '"Si (Confirmado)"',
+      `"${(u.planName || "Demo Gratuito").replace(/"/g, '""')}"`,
+      u.credits ?? 0,
+      u.assignedCredits ?? 300,
+      `"${u.updatedAt ? new Date(u.updatedAt).toLocaleDateString("es-CO") : ""}"`,
+    ]);
+    const csvContent =
+      "\uFEFF" +
+      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `crm_usuarios_ugcore_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Base de datos CRM descargada en formato Excel (CSV)");
+  };
+
+  const copyAllCrmEmails = () => {
+    const emails = buyerList
+      .filter((u) => !u.isAdmin && u.email)
+      .map((u) => u.email)
+      .join(", ");
+    if (!emails) {
+      toast.error("No hay correos para copiar");
+      return;
+    }
+    navigator.clipboard.writeText(emails);
+    toast.success("¡Lista de correos copiada al portapapeles!");
   };
 
   const appMatch = pathname ? pathname.match(/^\/app\/([^\/]+)/) : null;
@@ -436,25 +566,12 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              {/* Botón Exclusivo Demo Gratis con activación directa */}
+              {/* Botón Exclusivo Demo Gratis con registro de datos */}
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    await signIn("credentials", {
-                      loginType: "buyer",
-                      email: "comprador@ugcorestudio.com",
-                      planId: "demo",
-                      redirect: false,
-                    });
-                    toast.success("¡Demo Gratuito Activo (+300 CR)!");
-                    window.location.reload();
-                  } catch (err) {
-                    console.error(err);
-                  }
-                }}
+                onClick={() => setIsDemoModalOpen(true)}
                 className="bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                title="Probar estudio con 300 créditos gratis en 1 clic"
+                title="Regístrate con tus datos básicos para recibir 300 créditos gratis"
               >
                 <span>🎁 Demo Gratis</span>
               </button>
@@ -565,22 +682,11 @@ export default function Navbar() {
               <div className="flex flex-col gap-2 mt-2">
                 <button
                   type="button"
-                  onClick={async () => {
+                  onClick={() => {
                     setIsOpen(false);
-                    try {
-                      await signIn("credentials", {
-                        loginType: "buyer",
-                        email: "comprador@ugcorestudio.com",
-                        planId: "demo",
-                        redirect: false,
-                      });
-                      toast.success("¡Demo Gratuito Activo (+300 CR)!");
-                      window.location.reload();
-                    } catch (err) {
-                      console.error(err);
-                    }
+                    setIsDemoModalOpen(true);
                   }}
-                  className="w-full py-2.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center text-xs font-bold"
+                  className="w-full py-2.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center text-xs font-bold cursor-pointer"
                 >
                   🎁 Probar Demo Gratis (300 CR)
                 </button>
@@ -716,69 +822,153 @@ export default function Navbar() {
               </div>
             </form>
 
-            {/* Buyer List Table */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-secondary-text">
-                  Usuarios y Compradores Registrados ({buyerList.length})
-                </span>
-                <button
-                  type="button"
-                  onClick={fetchAdminUsers}
-                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
-                >
-                  Actualizar lista
-                </button>
+            {/* CRM Leads & Buyers Table */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-black uppercase text-emerald-400">
+                    📊 CRM Base de Datos: Leads Demo y Compradores ({buyerList.filter((u) => !u.isAdmin).length})
+                  </span>
+                  <p className="text-[10px] text-secondary-text">
+                    Alojado permanentemente en tu base de datos Supabase PostgreSQL • Listo para campañas de recompra y WhatsApp.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={copyAllCrmEmails}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-bg-page border border-divider text-[11px] font-bold text-primary-text hover:border-primary cursor-pointer"
+                  >
+                    <FiMail size={12} />
+                    <span>Copiar Correos</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={exportCrmToCsv}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/25 cursor-pointer"
+                  >
+                    <FiDownload size={12} />
+                    <span>Exportar Excel (CSV)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fetchAdminUsers}
+                    className="text-[11px] font-bold text-primary hover:underline cursor-pointer px-1"
+                  >
+                    Actualizar
+                  </button>
+                </div>
               </div>
+
+              <input
+                type="text"
+                value={crmSearch}
+                onChange={(e) => setCrmSearch(e.target.value)}
+                placeholder="🔍 Buscar por nombre, correo o teléfono..."
+                className="w-full px-3 py-2 rounded-lg bg-bg-page border border-divider text-xs text-primary-text outline-none focus:border-emerald-500"
+              />
 
               {loadingBuyers ? (
                 <div className="py-6 text-center text-xs text-secondary-text">
-                  Cargando créditos de usuarios...
+                  Cargando base de datos CRM...
                 </div>
               ) : (
-                <div className="border border-divider rounded-lg overflow-hidden">
+                <div className="border border-divider rounded-lg overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-bg-page border-b border-divider text-[10px] font-black uppercase text-secondary-text">
-                        <th className="py-2 px-3">Usuario / Correo</th>
-                        <th className="py-2 px-3">Plan / Paquete</th>
-                        <th className="py-2 px-3">Créditos Disponibles</th>
-                        <th className="py-2 px-3">Estado</th>
+                        <th className="py-2 px-3">Nombre / Correo</th>
+                        <th className="py-2 px-3">Teléfono / WhatsApp</th>
+                        <th className="py-2 px-3">Plan / Créditos</th>
+                        <th className="py-2 px-3">Acción CRM</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-divider/50">
-                      {buyerList.map((u) => (
-                        <tr key={u.email} className="hover:bg-bg-page/40">
-                          <td className="py-2.5 px-3">
-                            <div className="font-bold text-primary-text">
-                              {u.name}
-                            </div>
-                            <div className="text-[10px] text-secondary-text">
-                              {u.email}
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 font-semibold text-primary">
-                            {u.planName || "Paquete Activo"}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className="font-black text-emerald-400">
-                              {Number(u.credits || 0).toLocaleString()} CR
-                            </span>
-                            <span className="text-[10px] text-secondary-text ml-1">
-                              (Asignados:{" "}
-                              {Number(
-                                u.assignedCredits || u.credits || 0
-                              ).toLocaleString()}
-                              )
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">
-                              ✓ Aprobado
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {buyerList
+                        .filter((u) => {
+                          if (!crmSearch.trim()) return true;
+                          const q = crmSearch.toLowerCase();
+                          return (
+                            (u.name || "").toLowerCase().includes(q) ||
+                            (u.email || "").toLowerCase().includes(q) ||
+                            (u.phone || "").toLowerCase().includes(q)
+                          );
+                        })
+                        .map((u) => {
+                          const cleanWa = (u.phone || "").replace(/[^\d]/g, "");
+                          const waUrl = cleanWa
+                            ? `https://wa.me/${cleanWa}?text=${encodeURIComponent(
+                                `¡Hola ${u.name || ""}! Vimos que probaste UGCore Studio. Te escribimos para ofrecerte un bono especial en tu paquete de créditos para crear anuncios UGC con IA.`
+                              )}`
+                            : null;
+                          return (
+                            <tr key={u.email} className="hover:bg-bg-page/40">
+                              <td className="py-2.5 px-3">
+                                <div className="font-bold text-primary-text flex items-center gap-1.5">
+                                  <span>{u.name}</span>
+                                  {u.isAdmin && (
+                                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-black">
+                                      ADMIN
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-secondary-text">
+                                  {u.email}
+                                </div>
+                                <div className="text-[9px] text-emerald-400 font-semibold mt-0.5">
+                                  ✓ Email Confirmado
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {u.phone ? (
+                                  <div className="font-semibold text-primary-text text-[11px]">
+                                    📞 {u.phone}
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-secondary-text italic">
+                                    Sin teléfono
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="font-semibold text-[#8B5CF6] text-[11px]">
+                                  {u.planName || "Demo Gratuito"}
+                                </div>
+                                <div>
+                                  <span className="font-black text-emerald-400">
+                                    {Number(u.credits || 0).toLocaleString()} CR
+                                  </span>
+                                  <span className="text-[10px] text-secondary-text ml-1">
+                                    / {Number(u.assignedCredits || u.credits || 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-1.5">
+                                  {waUrl ? (
+                                    <a
+                                      href={waUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold border border-emerald-500/30"
+                                    >
+                                      💬 WhatsApp
+                                    </a>
+                                  ) : (
+                                    <a
+                                      href={`mailto:${u.email}?subject=${encodeURIComponent(
+                                        "Oferta Especial en UGCore Studio"
+                                      )}`}
+                                      className="px-2 py-1 rounded bg-[#8B5CF6]/20 hover:bg-[#8B5CF6]/30 text-[#8B5CF6] text-[10px] font-bold border border-[#8B5CF6]/30"
+                                    >
+                                      ✉️ Correo
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
@@ -964,6 +1154,138 @@ export default function Navbar() {
                 Ver Todos los Paquetes Comerciales ($29 - $499 USD) →
               </Link>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Demo Gratis Lead Registration Modal */}
+      {isDemoModalOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="bg-bg-card border border-divider w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-divider/60 pb-3">
+              <div>
+                <div className="flex items-center gap-2 text-amber-400 font-black text-sm uppercase">
+                  <span>🎁 Activar Demo Gratis (300 Créditos)</span>
+                </div>
+                <p className="text-[11px] text-secondary-text mt-0.5">
+                  Completa tus datos básicos y confirma tu email para recibir acceso inmediato.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDemoModalOpen(false)}
+                className="text-secondary-text hover:text-white transition-colors cursor-pointer p-1"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleDemoRegistration} className="space-y-3.5">
+              <div className="space-y-1">
+                <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
+                  Nombre Completo *
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={demoFullName}
+                    onChange={(e) => setDemoFullName(e.target.value)}
+                    placeholder="Ej: María Fernanda Gómez"
+                    required
+                    className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
+                  Teléfono / WhatsApp *
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={demoPhone}
+                    onChange={(e) => setDemoPhone(e.target.value)}
+                    placeholder="Ej: +57 300 123 4567"
+                    required
+                    className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
+                  Correo Electrónico *
+                </label>
+                <input
+                  type="email"
+                  value={demoEmail}
+                  onChange={(e) => setDemoEmail(e.target.value)}
+                  placeholder="tucorreo@ejemplo.com"
+                  required
+                  className="w-full bg-bg-page border border-divider rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none focus:border-[#8B5CF6]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] uppercase font-bold text-secondary-text tracking-wider">
+                  Confirmar Correo Electrónico *
+                </label>
+                <input
+                  type="email"
+                  value={demoConfirmEmail}
+                  onChange={(e) => setDemoConfirmEmail(e.target.value)}
+                  placeholder="Repite tu correo para confirmarlo"
+                  required
+                  className={`w-full bg-bg-page border rounded-lg px-3.5 py-2.5 text-xs text-primary-text placeholder-secondary-text/50 focus:outline-none transition-colors ${
+                    demoConfirmEmail &&
+                    demoEmail.trim().toLowerCase() !==
+                      demoConfirmEmail.trim().toLowerCase()
+                      ? "border-red-500"
+                      : demoConfirmEmail &&
+                        demoEmail.trim().toLowerCase() ===
+                          demoConfirmEmail.trim().toLowerCase()
+                      ? "border-emerald-500"
+                      : "border-divider focus:border-[#8B5CF6]"
+                  }`}
+                />
+                {demoConfirmEmail &&
+                  demoEmail.trim().toLowerCase() ===
+                    demoConfirmEmail.trim().toLowerCase() && (
+                    <div className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 pt-0.5">
+                      <FiCheck size={11} />
+                      <span>Email confirmado correctamente</span>
+                    </div>
+                  )}
+              </div>
+
+              <label className="flex items-start gap-2 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={demoAcceptedPrivacy}
+                  onChange={(e) => setDemoAcceptedPrivacy(e.target.checked)}
+                  required
+                  className="mt-0.5 accent-[#8B5CF6]"
+                />
+                <span className="text-[10px] text-secondary-text leading-snug">
+                  Acepto el registro de mis datos y la{" "}
+                  <Link href="/privacy" className="text-[#8B5CF6] underline">
+                    Política de Privacidad
+                  </Link>{" "}
+                  para recibir mi acceso Demo y novedades de UGCore Studio.
+                </span>
+              </label>
+
+              <button
+                type="submit"
+                disabled={submittingDemo}
+                className="w-full py-3 rounded-full bg-gradient-to-r from-[#8B5CF6] to-indigo-600 hover:from-[#7C3AED] hover:to-indigo-500 text-white text-xs font-black shadow-lg shadow-[#8B5CF6]/25 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {submittingDemo
+                  ? "Confirmando Email y Activando Demo..."
+                  : "✓ Confirmar Email y Entrar al Demo (300 CR)"}
+              </button>
+            </form>
           </div>
         </div>
       )}

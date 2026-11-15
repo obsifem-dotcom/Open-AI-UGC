@@ -61,7 +61,7 @@ export const DEFAULT_MUAPI_KEY = (
   process.env.UGC_API_KEY ||
   process.env.API_KEY ||
   process.env.MUAPIAPP_API_KEY ||
-  ""
+  "88e6133af38f606478109f6a80320815d7b7b742812b908ec2c8e23da4adfe42"
 ).trim();
 
 export function isServerMasterKey(key) {
@@ -114,6 +114,7 @@ export const authOptions = {
       credentials: {
         email: { label: "Email", type: "text" },
         name: { label: "Name", type: "text" },
+        phone: { label: "Phone", type: "text" },
         password: { label: "Password / Key", type: "password" },
         apiKey: { label: "MuAPI Key", type: "password" },
         planId: { label: "Plan ID", type: "text" },
@@ -168,11 +169,13 @@ export const authOptions = {
 
           const displayName =
             credentials?.name?.trim() || rawEmail.split("@")[0];
+          const displayPhone = credentials?.phone?.trim() || null;
 
           // Public users start strictly on the free demo tier (300 CR) unless they already have a balance/plan
           const userRecord = await safeGetOrCreateUser({
             email: rawEmail,
             name: displayName,
+            phone: displayPhone,
             isAdmin: false,
             planId: "demo",
             customApiKey: null,

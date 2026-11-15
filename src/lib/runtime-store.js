@@ -154,23 +154,6 @@ if (!globalStore.__ugcoreRuntimeStore) {
           updatedAt: new Date().toISOString(),
         },
       ],
-      [
-        "comprador@ugcorestudio.com",
-        {
-          id: "buyer-demo-01",
-          name: "Usuario Demo",
-          email: "comprador@ugcorestudio.com",
-          role: "buyer",
-          isAdmin: false,
-          planId: "demo",
-          planName: "Demo Gratuito",
-          assignedCredits: 300,
-          credits: 300,
-          demoClaimed: true,
-          approved: true,
-          updatedAt: new Date().toISOString(),
-        },
-      ],
     ]),
     creationsById: new Map(
       STUDIO_SHOWCASE_CREATIONS.map((item) => [item.id, item])
@@ -194,13 +177,13 @@ async function tryDbQuery(fn) {
     const result = await Promise.race([
       fn(),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("DB_FAST_TIMEOUT")), 750)
+        setTimeout(() => reject(new Error("DB_FAST_TIMEOUT")), 6000)
       ),
     ]);
     runtimeStore.dbCooldownUntil = 0;
     return result;
   } catch (err) {
-    runtimeStore.dbCooldownUntil = Date.now() + 90000;
+    runtimeStore.dbCooldownUntil = Date.now() + 5000;
     console.warn("[FAST_DB_FALLBACK]", err?.message || err);
     return null;
   }
@@ -238,6 +221,7 @@ export function decodeStatelessCreationId(id) {
 export async function safeGetOrCreateUser({
   email,
   name,
+  phone = null,
   isAdmin = false,
   planId = "demo",
   initialCredits = null,
@@ -247,6 +231,8 @@ export async function safeGetOrCreateUser({
   if (!cleanEmail) {
     return null;
   }
+  const cleanPhone =
+    typeof phone === "string" && phone.trim().length > 0 ? phone.trim() : null;
   const pkg = getPackageById(planId);
   const existingMem = runtimeStore.usersByEmail.get(cleanEmail);
   const cleanCustomKey =
@@ -282,6 +268,8 @@ export async function safeGetOrCreateUser({
             name ||
             (isAdmin ? "Administrador (UGCore Studio)" : "Usuario UGCore"),
           email: cleanEmail,
+          emailVerified: new Date(),
+          image: cleanPhone ? `phone:${cleanPhone}` : null,
           credits: defaultCredits,
           customApiKey: cleanCustomKey,
         },
@@ -289,6 +277,15 @@ export async function safeGetOrCreateUser({
     } else {
       existedInDb = true;
       const updateData = {};
+      if (name && name.trim() && (!found.name || found.name === found.email?.split("@")[0])) {
+        updateData.name = name.trim();
+      }
+      if (cleanPhone && (!found.image || found.image.startsWith("phone:"))) {
+        updateData.image = `phone:${cleanPhone}`;
+      }
+      if (!found.emailVerified) {
+        updateData.emailVerified = new Date();
+      }
       if (isAdmin && found.credits < ADMIN_INITIAL_CREDITS) {
         updateData.credits = ADMIN_INITIAL_CREDITS;
       } else if (!isAdmin && (found.credits === 0 || found.credits < (pkg.credits || 300))) {
@@ -317,6 +314,12 @@ export async function safeGetOrCreateUser({
         Number(pkg.credits) || 300
       );
 
+  const storedPhone =
+    cleanPhone ||
+    (dbUser?.image?.startsWith("phone:") ? dbUser.image.slice(6) : null) ||
+    existingMem?.phone ||
+    null;
+
   const userRecord = {
     id:
       dbUser?.id ||
@@ -325,11 +328,15 @@ export async function safeGetOrCreateUser({
         ? "admin-obsifem"
         : `buyer-${Buffer.from(cleanEmail).toString("base64url").slice(0, 10)}`),
     name:
+      name ||
       dbUser?.name ||
       existingMem?.name ||
-      name ||
       (isAdmin ? "Administrador (UGCore Studio)" : cleanEmail.split("@")[0]),
     email: cleanEmail,
+    phone: storedPhone,
+    emailVerified: dbUser?.emailVerified
+      ? new Date(dbUser.emailVerified).toISOString()
+      : existingMem?.emailVerified || new Date().toISOString(),
     role: isAdmin ? "admin" : "buyer",
     isAdmin: Boolean(isAdmin),
     planId: isAdmin ? "admin" : existingMem?.planId || planId,
@@ -551,6 +558,11 @@ export async function safeAssignOrPurchaseCredits({
       ? creditDelta
       : Math.max(baseCredits, (existingMem?.assignedCredits || 0) + creditDelta);
 
+  const storedPhone =
+    (dbUser?.image?.startsWith("phone:") ? dbUser.image.slice(6) : null) ||
+    existingMem?.phone ||
+    null;
+
   const updatedRecord = {
     id:
       dbUser?.id ||
@@ -559,6 +571,10 @@ export async function safeAssignOrPurchaseCredits({
       `buyer-${Buffer.from(cleanEmail).toString("base64url").slice(0, 10)}`,
     name: dbUser?.name || name || existingMem?.name || cleanEmail.split("@")[0],
     email: cleanEmail,
+    phone: storedPhone,
+    emailVerified: dbUser?.emailVerified
+      ? new Date(dbUser.emailVerified).toISOString()
+      : existingMem?.emailVerified || new Date().toISOString(),
     role: cleanEmail === "obsifem@gmail.com" ? "admin" : "buyer",
     isAdmin: cleanEmail === "obsifem@gmail.com",
     planId: pkg.id,
@@ -621,29 +637,44 @@ export async function safeListUsers() {
     if (prisma?.user) {
       const dbUsers = await prisma.user.findMany({
         orderBy: { email: "asc" },
-        take: 100,
+        take: 250,
       });
       for (const dbu of dbUsers) {
         if (!dbu.email) continue;
         const key = dbu.email.toLowerCase().trim();
         const mem = merged.get(key);
         const isAdm = key === "obsifem@gmail.com";
+        const dbPhone = dbu.image?.startsWith("phone:")
+          ? dbu.image.slice(6)
+          : null;
         merged.set(key, {
           id: dbu.id,
           name: dbu.name || mem?.name || key.split("@")[0],
           email: key,
+          phone: dbPhone || mem?.phone || null,
+          emailVerified: dbu.emailVerified
+            ? new Date(dbu.emailVerified).toISOString()
+            : mem?.emailVerified || null,
           role: isAdm ? "admin" : "buyer",
           isAdmin: isAdm,
-          planId: mem?.planId || (isAdm ? "admin" : "demo"),
+          planId: mem?.planId || (isAdm ? "admin" : dbu.credits > 300 ? "pro" : "demo"),
           planName:
             mem?.planName ||
-            (isAdm ? "Administrador Master" : "Demo Gratuito"),
+            (isAdm
+              ? "Administrador Master"
+              : dbu.credits > 300
+              ? "Paquete Comprador"
+              : "Demo Gratuito"),
           assignedCredits: isAdm
             ? ADMIN_INITIAL_CREDITS
             : Math.max(mem?.assignedCredits || 0, dbu.credits || 0),
           credits: isAdm ? ADMIN_INITIAL_CREDITS : dbu.credits ?? 0,
           approved: true,
-          updatedAt: mem?.updatedAt || new Date().toISOString(),
+          updatedAt:
+            mem?.updatedAt ||
+            (dbu.emailVerified
+              ? new Date(dbu.emailVerified).toISOString()
+              : new Date().toISOString()),
         });
       }
     }

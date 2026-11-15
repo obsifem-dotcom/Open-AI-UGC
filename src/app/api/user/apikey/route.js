@@ -13,8 +13,9 @@ export async function POST(req) {
 
     const body = await req.json();
     const apiKey = body.apiKey ? String(body.apiKey).trim() : null;
+    const isAdmin = Boolean(session.user.isAdmin || session.user.role === "admin");
 
-    if (apiKey && isServerMasterKey(apiKey)) {
+    if (!isAdmin && apiKey && isServerMasterKey(apiKey)) {
       return NextResponse.json(
         { error: "Ingresa tu propia API Key personal (no la llave del servidor)." },
         { status: 400 }

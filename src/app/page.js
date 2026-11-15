@@ -1162,20 +1162,6 @@ export default function Home() {
   };
 
   const handleImageUpload = async (e) => {
-    if (status !== "authenticated") {
-      try {
-        await signIn("credentials", {
-          loginType: "buyer",
-          email: "comprador@ugcorestudio.com",
-          planId: "demo",
-          redirect: false,
-        });
-        toast.success("¡Demo Gratuito Activo (+300 CR)!");
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
     const files = Array.from(e.target.files);
     if (uploadedImages.length + files.length > 7) {
       alert("Máximo 7 imágenes de referencia permitidas.");
@@ -1207,13 +1193,23 @@ export default function Home() {
 
         setUploadedImages((prev) =>
           prev.map((p) =>
-            p.id === img.id ? { ...p, status: "ready", url: data.url } : p
+            p.id === img.id
+              ? { ...p, status: "ready", url: data.url || img.preview }
+              : p
           )
         );
       } catch (error) {
-        console.error("Upload error:", error);
+        console.warn("Upload fallback activated:", error);
+        const fallbackUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result || img.preview);
+          reader.onerror = () => resolve(img.preview);
+          reader.readAsDataURL(img.file);
+        });
         setUploadedImages((prev) =>
-          prev.map((p) => (p.id === img.id ? { ...p, status: "error" } : p))
+          prev.map((p) =>
+            p.id === img.id ? { ...p, status: "ready", url: fallbackUrl } : p
+          )
         );
       }
     }
@@ -1264,7 +1260,9 @@ export default function Home() {
   };
 
   const hasEffectiveReferenceImage = () => {
-    const readyUploads = uploadedImages.filter((img) => img.status === "ready");
+    const readyUploads = uploadedImages.filter(
+      (img) => img.status === "ready" || Boolean(img.url || img.preview)
+    );
     if (readyUploads.length > 0) return true;
     if (
       isInfluencerMode &&
@@ -1277,22 +1275,15 @@ export default function Home() {
   };
 
   const handleGenerate = async () => {
-    if (status !== "authenticated") {
-      try {
-        await signIn("credentials", {
-          loginType: "buyer",
-          email: "comprador@ugcorestudio.com",
-          planId: "demo",
-          redirect: false,
-        });
-        toast.success("¡Demo Gratuito Activo (+300 CR)!");
-      } catch (err) {
-        console.error(err);
+    if (status !== "authenticated" && !isAdminUser) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("ugcore:open-demo-modal"));
       }
+      return;
     }
     if (!hasEffectiveInput()) return;
-    if (uploadedImages.some((img) => img.status !== "ready")) {
-      alert("Espera a que terminen de subirse las imágenes o elimina las que fallaron.");
+    if (uploadedImages.some((img) => img.status === "uploading")) {
+      alert("Espera un segundo a que terminen de cargarse las imágenes.");
       return;
     }
     if (!hasEffectiveReferenceImage() && !selectedModel.supportsTextToVideo) {
@@ -1312,8 +1303,9 @@ export default function Home() {
       };
 
       const readyUserUrls = uploadedImages
-        .filter((img) => img.status === "ready")
-        .map((img) => img.url);
+        .filter((img) => img.status === "ready" || Boolean(img.url || img.preview))
+        .map((img) => img.url || img.preview)
+        .filter(Boolean);
 
       const effectiveAvatar = getEffectiveInfluencerAvatar();
       const effectiveEnvUrl = getEffectiveVirtualEnvUrl();
@@ -1616,7 +1608,7 @@ export default function Home() {
               disabled={
                 isGenerating ||
                 !hasEffectiveInput() ||
-                uploadedImages.some((img) => img.status !== "ready") ||
+                uploadedImages.some((img) => img.status === "uploading") ||
                 (!hasEffectiveReferenceImage() &&
                   !selectedModel.supportsTextToVideo)
               }
@@ -3565,7 +3557,7 @@ export default function Home() {
                   disabled={
                     isGenerating ||
                     !hasEffectiveInput() ||
-                    uploadedImages.some((img) => img.status !== "ready") ||
+                    uploadedImages.some((img) => img.status === "uploading") ||
                     (!hasEffectiveReferenceImage() &&
                       !selectedModel.supportsTextToVideo)
                   }
