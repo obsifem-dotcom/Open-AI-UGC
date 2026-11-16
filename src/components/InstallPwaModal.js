@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiX, FiShare, FiPlusSquare, FiSmartphone, FiCopy, FiCheck } from "react-icons/fi";
-import { FaWhatsapp } from "react-icons/fa";
+import { FiX, FiShare, FiPlusSquare, FiSmartphone, FiCopy, FiCheck, FiExternalLink } from "react-icons/fi";
+import { FaWhatsapp, FaApple } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -10,9 +10,12 @@ export default function InstallPwaModal() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [canShare, setCanShare] = useState(false);
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [showFloatingBanner, setShowFloatingBanner] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -24,9 +27,14 @@ export default function InstallPwaModal() {
       setIsStandalone(Boolean(standaloneMode));
 
       const userAgent = window.navigator.userAgent.toLowerCase();
-      const isIosDevice =
-        /iphone|ipad|ipod/.test(userAgent) && !window.MSStream;
+      const isIosDevice = /iphone|ipad|ipod/.test(userAgent) && !window.MSStream;
+      const isMobileDevice =
+        /iphone|ipad|ipod|android|mobile/i.test(userAgent) ||
+        (typeof window !== "undefined" && window.innerWidth < 768);
+
       setIsIos(Boolean(isIosDevice));
+      setIsMobile(Boolean(isMobileDevice));
+      setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
 
       if (isIosDevice && !standaloneMode) {
         const dismissed = localStorage.getItem("ugcore_pwa_dismissed");
@@ -77,6 +85,40 @@ export default function InstallPwaModal() {
     }
   };
 
+  const handleTriggerIosShare = async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: "UGCore Studio",
+          text: "UGCore Studio - Generador de Videos UGC con Inteligencia Artificial",
+          url: window.location.href,
+        });
+        toast.success("¡Ahora selecciona 'Agregar a pantalla de inicio'!", {
+          icon: "📱",
+          duration: 5000,
+        });
+      } catch (err) {
+        if (err?.name !== "AbortError") {
+          console.log("Share dismissed or error:", err);
+        }
+      }
+    } else {
+      toast("Usa el botón Compartir de Safari en la barra inferior", {
+        icon: "ℹ️",
+        duration: 4000,
+      });
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText("https://ugcorestudio.vercel.app");
+      setCopied(true);
+      toast.success("Enlace copiado al portapapeles");
+      setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
   const dismissBanner = () => {
     setShowFloatingBanner(false);
     if (typeof window !== "undefined") {
@@ -88,12 +130,12 @@ export default function InstallPwaModal() {
 
   return (
     <>
-      {/* Botón en barra para abrir el instalador */}
+      {/* Botón en barra superior */}
       <button
         type="button"
         onClick={handleInstallClick}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-[#8B5CF6] to-indigo-600 hover:from-[#7C3AED] hover:to-indigo-500 text-white shadow-sm ring-1 ring-white/20 transition-all cursor-pointer active:scale-95"
-        title="Instalar UGCore Studio como aplicación en tu celular o computador"
+        title="Instalar UGCore Studio como aplicación en tu celular"
       >
         <FiSmartphone className="text-xs" />
         <span>Instalar App</span>
@@ -117,7 +159,7 @@ export default function InstallPwaModal() {
                   Instala UGCore en tu celular
                 </p>
                 <p className="text-[10px] text-muted truncate">
-                  Acceso directo, pantalla completa y sin barras de navegador.
+                  Pantalla completa, acceso directo y mayor rapidez.
                 </p>
               </div>
             </div>
@@ -126,7 +168,7 @@ export default function InstallPwaModal() {
               <button
                 type="button"
                 onClick={handleInstallClick}
-                className="px-3 py-1.5 rounded-xl bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-[11px] font-black shadow-md cursor-pointer transition-all"
+                className="px-3 py-1.5 rounded-xl bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-[11px] font-black shadow-md cursor-pointer transition-all active:scale-95"
               >
                 Instalar
               </button>
@@ -143,15 +185,15 @@ export default function InstallPwaModal() {
         )}
       </AnimatePresence>
 
-      {/* Modal Instructivo para iPhone / iPad y Navegadores */}
+      {/* Modal Instructivo para iPhone / iPad / Android / Desktop */}
       <AnimatePresence>
         {isOpenModal && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md p-6 rounded-3xl bg-bg-card border border-[#8B5CF6]/40 shadow-2xl shadow-[#8B5CF6]/30 text-foreground space-y-4"
+              className="relative w-full max-w-md p-6 rounded-3xl bg-bg-card border border-[#8B5CF6]/40 shadow-2xl shadow-[#8B5CF6]/30 text-foreground space-y-4 max-h-[92vh] overflow-y-auto"
             >
               <button
                 type="button"
@@ -162,109 +204,152 @@ export default function InstallPwaModal() {
               </button>
 
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#8B5CF6] to-[#4C1D95] flex items-center justify-center text-white shadow-lg">
-                  <FiSmartphone size={24} />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#8B5CF6] to-[#4C1D95] flex items-center justify-center text-white shadow-lg flex-shrink-0">
+                  {isIos ? <FaApple size={24} /> : <FiSmartphone size={24} />}
                 </div>
                 <div>
                   <h3 className="text-sm font-black uppercase text-foreground">
-                    Instalar UGCore Studio App
+                    {isIos ? "Instalar en tu iPhone" : "Instalar UGCore Studio"}
                   </h3>
                   <p className="text-xs text-muted">
                     {isIos
-                      ? "Guía rápida para iPhone y iPad (Safari)"
-                      : "Guía de instalación en tu dispositivo"}
+                      ? "Guía oficial para agregar la App a tu pantalla de inicio"
+                      : "Acceso directo en tu dispositivo"}
                   </p>
                 </div>
               </div>
 
+              {/* SECCIÓN IPHONE / IPAD */}
               {isIos ? (
-                <div className="p-4 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/25 space-y-3">
-                  <p className="text-xs font-bold text-foreground">
-                    Sigue estos 3 pasos rápidos en Safari:
+                <div className="space-y-3.5">
+                  {/* Botón directo de compartir nativo si está disponible en iOS */}
+                  {canShare && (
+                    <button
+                      type="button"
+                      onClick={handleTriggerIosShare}
+                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#8B5CF6] via-indigo-600 to-[#7C3AED] hover:from-[#7C3AED] hover:to-indigo-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#8B5CF6]/30 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <FiShare size={16} />
+                      <span>1. Toca aquí para abrir Compartir en iPhone</span>
+                    </button>
+                  )}
+
+                  <div className="p-4 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/25 space-y-3">
+                    <p className="text-xs font-black text-foreground flex items-center gap-1.5">
+                      <span>Pasos en Safari (en menos de 10 segundos):</span>
+                    </p>
+
+                    <div className="space-y-3 text-xs text-secondary-text">
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-6 h-6 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[11px] font-black flex-shrink-0 mt-0.5">
+                          1
+                        </span>
+                        <div>
+                          <p>
+                            En la barra inferior de tu iPhone, toca el botón{" "}
+                            <strong className="text-foreground">Compartir</strong>:
+                          </p>
+                          <div className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-page border border-glass-border text-[11px] font-bold text-[#8B5CF6]">
+                            <FiShare size={13} />
+                            <span>Ícono de cuadrado con flecha hacia arriba (⎋)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-6 h-6 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[11px] font-black flex-shrink-0 mt-0.5">
+                          2
+                        </span>
+                        <div>
+                          <p>
+                            En el menú que se despliega, desliza hacia abajo y selecciona:
+                          </p>
+                          <div className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-page border border-glass-border text-[11px] font-bold text-foreground">
+                            <FiPlusSquare size={13} className="text-[#8B5CF6]" />
+                            <span>&quot;Agregar a pantalla de inicio&quot;</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[11px] font-black flex-shrink-0 mt-0.5">
+                          3
+                        </span>
+                        <div>
+                          <p>
+                            Toca <strong className="text-emerald-400">&quot;Agregar&quot;</strong> en la esquina superior derecha.
+                          </p>
+                          <p className="text-[11px] text-muted mt-0.5">
+                            ¡Listo! Se creará el ícono de UGCore Studio en la pantalla de tu iPhone como cualquier otra app.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Advertencia útil para navegadores internos */}
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
+                    💡 <strong>¿Estás dentro de WhatsApp, Instagram o Facebook?</strong> Pulsa los tres puntos (•••) y selecciona <strong className="text-white">&quot;Abrir en Safari&quot;</strong> para poder instalar la App en tu pantalla de inicio.
+                  </div>
+                </div>
+              ) : isMobile ? (
+                /* SECCIÓN ANDROID / CHROME MOBILE */
+                <div className="p-4 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/25 space-y-3 text-xs">
+                  <p className="font-bold text-foreground">
+                    Para instalar en Android / Google Chrome:
                   </p>
-                  <div className="space-y-2.5 text-xs text-secondary-text">
-                    <div className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5">
-                        1
-                      </span>
-                      <p>
-                        Toca el botón <strong className="text-foreground">Compartir</strong> (<FiShare className="inline text-[#8B5CF6]" /> icono de la cajita con la flecha) en la barra inferior de Safari.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5">
-                        2
-                      </span>
-                      <p>
-                        Desliza hacia abajo en el menú y selecciona <strong className="text-foreground">&quot;Agregar a pantalla de inicio&quot;</strong> (<FiPlusSquare className="inline text-[#8B5CF6]" />).
-                      </p>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5">
-                        3
-                      </span>
-                      <p>
-                        Toca <strong className="text-emerald-400">&quot;Agregar&quot;</strong> en la esquina superior derecha. ¡Y listo!
-                      </p>
-                    </div>
+                  <div className="space-y-2 text-secondary-text">
+                    <p>
+                      1. Toca los tres puntos (⋮) en la esquina superior derecha de tu navegador.
+                    </p>
+                    <p>
+                      2. Elige <strong className="text-foreground">&quot;Instalar aplicación&quot;</strong> o <strong className="text-foreground">&quot;Agregar a pantalla principal&quot;</strong>.
+                    </p>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/25 space-y-3 text-xs">
-                  <p className="font-bold text-foreground">
-                    Para instalar en Android o Chrome:
+                /* SECCIÓN COMPUTADOR / DESKTOP (SOLO AQUÍ SE MUESTRA EL QR CODE) */
+                <div className="p-4 rounded-2xl bg-bg-page/70 border border-glass-border/60 text-center space-y-3">
+                  <p className="text-xs font-bold text-foreground">
+                    ¿Estás en tu computador?
                   </p>
-                  <p className="text-secondary-text">
-                    Toca el menú de tres puntos (⋮) en la esquina superior derecha de tu navegador y elige <strong className="text-foreground">&quot;Instalar aplicación&quot;</strong> o <strong className="text-foreground">&quot;Agregar a pantalla principal&quot;</strong>.
+                  <p className="text-[11px] text-muted">
+                    Escanea este código con la cámara de tu celular para abrirlo e instalarlo directamente en tu teléfono:
                   </p>
+                  <div className="flex justify-center py-1">
+                    <img
+                      src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://ugcorestudio.vercel.app"
+                      alt="Código QR UGCore Studio"
+                      className="w-36 h-36 rounded-2xl p-2 bg-white shadow-md border border-[#8B5CF6]/40"
+                    />
+                  </div>
+                  <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+                    <a
+                      href="https://api.whatsapp.com/send?text=Abre%20UGCore%20Studio%20en%20tu%20celular:%20https://ugcorestudio.vercel.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-sm cursor-pointer transition-all"
+                    >
+                      <FaWhatsapp size={14} />
+                      <span>Enviar a mi WhatsApp</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-glass-bg border border-glass-border hover:bg-glass-hover text-[11px] font-bold text-foreground cursor-pointer transition-all"
+                    >
+                      {copied ? <FiCheck size={13} className="text-emerald-400" /> : <FiCopy size={13} />}
+                      <span>{copied ? "¡Copiado!" : "Copiar Enlace"}</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* QR Code & Direct Link */}
-              <div className="p-3.5 rounded-2xl bg-bg-page/70 border border-glass-border/60 text-center space-y-2">
-                <p className="text-[11px] font-bold text-muted">
-                  Escanea con la cámara de tu celular para abrir directo:
-                </p>
-                <div className="flex justify-center py-1">
-                  <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://ugcorestudio.vercel.app"
-                    alt="QR Code ugcorestudio.vercel.app"
-                    className="w-32 h-32 rounded-xl p-1.5 bg-white shadow-md border border-[#8B5CF6]/40"
-                  />
-                </div>
-                <div className="flex items-center justify-center gap-2 pt-1">
-                  <a
-                    href="https://api.whatsapp.com/send?text=Abre%20UGCore%20Studio%20en%20tu%20celular:%20https://ugcorestudio.vercel.app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-sm cursor-pointer transition-all"
-                  >
-                    <FaWhatsapp size={13} />
-                    <span>Enviar a mi WhatsApp</span>
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof navigator !== "undefined" && navigator.clipboard) {
-                        navigator.clipboard.writeText("https://ugcorestudio.vercel.app");
-                        toast.success("Enlace copiado al portapapeles");
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-glass-bg border border-glass-border hover:bg-glass-hover text-[11px] font-bold text-foreground cursor-pointer transition-all"
-                  >
-                    <FiCopy size={12} />
-                    <span>Copiar Enlace</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-1 flex justify-end">
+              <div className="pt-2 flex justify-end">
                 <button
                   type="button"
                   onClick={() => setIsOpenModal(false)}
-                  className="px-4 py-2 rounded-xl bg-glass-bg border border-glass-border hover:bg-glass-hover text-xs font-bold text-foreground cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-glass-bg border border-glass-border hover:bg-glass-hover text-xs font-bold text-foreground cursor-pointer transition-all"
                 >
                   Entendido
                 </button>
