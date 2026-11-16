@@ -23,6 +23,7 @@ import {
 import config from "@/lib/config";
 import { CREDIT_PACKAGES, getPackageById } from "@/lib/plans";
 import toast from "react-hot-toast";
+import InstallPwaModal from "./InstallPwaModal";
 
 export default function Navbar() {
   const { data: session, status, update: updateSession } = useSession();
@@ -394,6 +395,8 @@ export default function Navbar() {
 
         {/* Desktop Actions Section */}
         <div className="hidden md:flex items-center gap-2.5">
+          <InstallPwaModal />
+
           {isAdminUser && (
             <button
               type="button"
@@ -597,6 +600,8 @@ export default function Navbar() {
 
         {/* Mobile Navbar Controls */}
         <div className="flex md:hidden items-center gap-2">
+          <InstallPwaModal />
+
           {status === "authenticated" && (
             <div className="flex items-center h-8 border border-divider rounded bg-bg-page/30 px-2.5 text-xs font-bold text-primary-text gap-1">
               <FiDollarSign className="text-emerald-500 text-[10px]" />

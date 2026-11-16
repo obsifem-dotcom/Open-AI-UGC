@@ -1,0 +1,43 @@
+export default function manifest() {
+  return {
+    name: "UGCore Studio — Videos UGC con IA",
+    short_name: "UGCore",
+    description:
+      "Estudio de creación de videos UGC con actores IA, avatares, gemelos digitales y HeyGen studio en tu celular.",
+    start_url: "/?pwa=true",
+    id: "/",
+    display: "standalone",
+    background_color: "#0A0B10",
+    theme_color: "#8B5CF6",
+    orientation: "portrait",
+    scope: "/",
+    lang: "es",
+    icons: [
+      {
+        src: "/icons/icon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/icons/icon-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    categories: ["productivity", "video", "business"],
+  };
+}

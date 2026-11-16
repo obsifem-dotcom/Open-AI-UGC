@@ -6,10 +6,30 @@ import config from "@/lib/config";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
+export const viewport = {
+  themeColor: "#8B5CF6",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
+
 export const metadata = {
   title: "UGCore Studio — Estudio AI UGC & Actores Virtuales",
   description:
     "Crea anuncios UGC, reels con actores IA y contenido de alto impacto para redes sociales y e-commerce en UGCore Studio.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "UGCore Studio",
+  },
+  icons: {
+    icon: "/icons/icon-192x192.png",
+    shortcut: "/icons/icon-192x192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
   keywords: [
     "AI UGC",
     "UGC ads",
