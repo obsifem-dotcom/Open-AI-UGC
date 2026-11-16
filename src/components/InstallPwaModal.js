@@ -164,12 +164,12 @@ export default function InstallPwaModal() {
           >
             <div className="flex items-center gap-3 min-w-0">
               <UgcSymbol className="w-10 h-10 shadow-md" />
-              <div className="min-w-0">
-                <p className="text-xs font-black text-foreground truncate">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black text-foreground leading-snug">
                   Instala UGCore en tu celular
                 </p>
-                <p className="text-[10px] text-muted truncate">
-                  Pantalla completa, acceso directo y mayor rapidez.
+                <p className="text-[10px] text-muted leading-tight mt-0.5">
+                  Acceso directo a pantalla completa sin barras de navegador.
                 </p>
               </div>
             </div>

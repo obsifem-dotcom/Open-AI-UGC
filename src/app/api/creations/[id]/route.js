@@ -10,6 +10,31 @@ import {
   safeGetUserCustomApiKey,
 } from "@/lib/runtime-store";
 
+function extractVideoUrl(checkData) {
+  if (!checkData) return null;
+  if (Array.isArray(checkData.outputs) && checkData.outputs.length > 0 && typeof checkData.outputs[0] === "string") {
+    return checkData.outputs[0];
+  }
+  if (Array.isArray(checkData.output) && checkData.output.length > 0 && typeof checkData.output[0] === "string") {
+    return checkData.output[0];
+  }
+  if (typeof checkData.output === "string" && checkData.output.startsWith("http")) {
+    return checkData.output;
+  }
+  if (typeof checkData.url === "string" && checkData.url.startsWith("http")) {
+    return checkData.url;
+  }
+  if (typeof checkData.video_url === "string" && checkData.video_url.startsWith("http")) {
+    return checkData.video_url;
+  }
+  if (checkData.result) {
+    if (typeof checkData.result === "string" && checkData.result.startsWith("http")) return checkData.result;
+    if (typeof checkData.result.url === "string") return checkData.result.url;
+    if (Array.isArray(checkData.result.outputs) && checkData.result.outputs[0]) return checkData.result.outputs[0];
+  }
+  return null;
+}
+
 async function safeUpdateCreationRecord(id, isDbRecord, data) {
   const existingMem = runtimeStore.creationsById.get(id);
   const updatedMem = existingMem ? { ...existingMem, ...data } : { id, ...data };
@@ -106,6 +131,14 @@ export async function GET(req, { params }) {
       creation.requestId &&
       !isSandboxRequest
     ) {
+      const createdAtTime = new Date(creation.createdAt || Date.now()).getTime();
+      const elapsedMinutes = (Date.now() - createdAtTime) / (60 * 1000);
+      if (elapsedMinutes > 8) {
+        creation = await safeUpdateCreationRecord(id, isDbRecord, {
+          status: "failed",
+          error: "Tiempo de espera agotado en el motor de video. Por favor reintenta la generación.",
+        });
+      } else {
       const storedCustomKey = session?.user
         ? await safeGetUserCustomApiKey({
             userId: session.user.id,
@@ -144,16 +177,16 @@ export async function GET(req, { params }) {
                 const checkData = await checkRes.json();
                 const upstreamStatus = checkData.status || "processing";
 
+                const videoUrl = extractVideoUrl(checkData);
                 if (upstreamStatus === "failed") {
                   failedError =
                     checkData.error || `Scene ${idx + 1} generation failed`;
                 } else if (
                   upstreamStatus === "completed" ||
-                  (checkData.outputs && checkData.outputs.length > 0)
+                  Boolean(videoUrl)
                 ) {
-                  const outputs = checkData.outputs || [];
-                  if (outputs[0]) {
-                    updatedUrls[idx] = outputs[0];
+                  if (videoUrl) {
+                    updatedUrls[idx] = videoUrl;
                     hasChanges = true;
                   }
                 }
@@ -195,6 +228,7 @@ export async function GET(req, { params }) {
             if (checkRes.ok) {
               const checkData = await checkRes.json();
               const upstreamStatus = checkData.status || "processing";
+              const videoUrl = extractVideoUrl(checkData);
 
               if (upstreamStatus === "failed") {
                 creation = await safeUpdateCreationRecord(id, isDbRecord, {
@@ -203,11 +237,8 @@ export async function GET(req, { params }) {
                 });
               } else if (
                 upstreamStatus === "completed" ||
-                (checkData.outputs && checkData.outputs.length > 0)
+                Boolean(videoUrl)
               ) {
-                const outputs = checkData.outputs || [];
-                const videoUrl = outputs.length > 0 ? outputs[0] : null;
-
                 creation = await safeUpdateCreationRecord(id, isDbRecord, {
                   status: "completed",
                   url: videoUrl,
@@ -217,6 +248,11 @@ export async function GET(req, { params }) {
                   status: upstreamStatus,
                 });
               }
+            } else if (checkRes.status === 401 || checkRes.status === 403) {
+              creation = await safeUpdateCreationRecord(id, isDbRecord, {
+                status: "failed",
+                error: "API Key de MuAPI inválida o sin saldo en el motor de video.",
+              });
             }
           } catch (pollErr) {
             console.error(
@@ -226,6 +262,7 @@ export async function GET(req, { params }) {
           }
         }
       }
+    }
     }
 
     return NextResponse.json(formatCreationResponse(creation));

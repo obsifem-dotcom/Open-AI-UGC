@@ -15,12 +15,30 @@ export default function SeamlessVideoPlayer({
   overlays = null,
   title = "ugcore-video",
 }) {
-  const validUrls =
-    Array.isArray(urls) && urls.length > 0
-      ? urls.filter(Boolean)
-      : url
-        ? [url]
-        : [];
+  const parsePossibleJson = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+      return val.filter((u) => typeof u === "string" && u.trim().startsWith("http"));
+    }
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if (trimmed.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed.filter((u) => typeof u === "string" && u.trim().startsWith("http"));
+          }
+        } catch {}
+      }
+      if (trimmed.startsWith("http")) return [trimmed];
+    }
+    return [];
+  };
+
+  const validUrls = [
+    ...parsePossibleJson(urls),
+    ...parsePossibleJson(url),
+  ].filter((u, idx, arr) => u && arr.indexOf(u) === idx);
 
   const [rawIndex, setRawIndex] = useState(0);
   const [isMerging, setIsMerging] = useState(false);

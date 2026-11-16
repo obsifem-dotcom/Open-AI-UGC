@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
 import { TIMELINE_TRANSITIONS } from "@/lib/ugcore-v3";
+import { formatCreationResponse } from "@/lib/creations";
 import {
   safeGetUserBalance,
   safeGetUserCustomApiKey,
@@ -380,11 +381,13 @@ export async function POST(req) {
         url: chosenUrl,
       });
 
+      const formattedCreation = formatCreationResponse(creation);
+
       return NextResponse.json({
         success: true,
+        ...formattedCreation,
         creationId: creation.id,
         status: "completed",
-        url: chosenUrl,
         sandbox: true,
         segmentsTotal: segments.length,
         totalDuration,
@@ -492,8 +495,11 @@ export async function POST(req) {
       isAdmin,
     });
 
+    const formattedCreation = formatCreationResponse(creation);
+
     return NextResponse.json({
       success: true,
+      ...formattedCreation,
       creationId: creation.id,
       requestId: creation.requestId,
       segmentsTotal: requestIds.length,

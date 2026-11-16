@@ -37,6 +37,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaCoins } from "react-icons/fa";
 import SeamlessVideoPlayer from "@/components/SeamlessVideoPlayer";
 import { getPackageById } from "@/lib/plans";
+import { parseJsonArray, formatCreationResponse } from "@/lib/creations";
 import {
   AI_INFLUENCERS,
   INFLUENCER_LANGUAGES,
@@ -1593,18 +1594,21 @@ export default function Home() {
         updateSession({ credits: data.remainingCredits }).catch(() => {});
       }
 
-      const initialGenRecord = {
-        id: data.creationId,
+      const initialGenRecord = formatCreationResponse({
+        id: data.creationId || data.id,
         status: data.status || "processing",
         url: data.url || null,
+        urls: data.urls || null,
         title: (finalPrompt || "Video UGCore Studio").slice(0, 60),
         prompt: finalPrompt,
         modelId: selectedModel.id,
         aspectRatio: requestSettings.aspect_ratio || "9:16",
         resolution: requestSettings.resolution || "720p",
-        segmentsTotal: data.segmentsTotal || 1,
+        segmentsTotal: data.segmentsTotal || (activeScenes.length > 0 ? activeScenes.length : 1),
         segmentsCompleted:
-          data.status === "completed" ? data.segmentsTotal || 1 : 0,
+          data.status === "completed"
+            ? data.segmentsTotal || (activeScenes.length > 0 ? activeScenes.length : 1)
+            : 0,
         duration: data.totalDuration || effectiveDuration,
         inputImages: combinedImageUrls,
         environmentName: isInfluencerMode ? selectedEnvObj?.shortLabel : null,
@@ -1612,7 +1616,7 @@ export default function Home() {
           ? `${selectedInfluencer?.name} (${selectedInfluencer?.ucid})`
           : null,
         createdAt: new Date().toISOString(),
-      };
+      });
       setLastGeneration(initialGenRecord);
       syncCreationToLocalArchive(initialGenRecord);
 
@@ -1772,16 +1776,16 @@ export default function Home() {
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center justify-center text-center space-y-2.5 pointer-events-none"
               >
-                <div className="inline-flex flex-wrap items-center justify-center gap-2 px-3 py-1 rounded-full bg-glass-bg border border-glass-border text-[11px] font-bold text-foreground">
-                  <FiFilm className="text-primary" />
-                  <span>
+                <div className="inline-flex flex-wrap items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-glass-bg border border-glass-border text-[11px] font-bold text-foreground max-w-full">
+                  <FiFilm className="text-primary flex-shrink-0" />
+                  <span className="text-center">
                     {videoMode === "long"
                       ? `UGCore v3.0 • Video Largo (${getEffectiveTotalDuration()}s • ${getEstimatedSceneCount()} escenas)`
                       : "UGCore v3.0 • Video Corto"}
                   </span>
                   {isInfluencerMode && selectedInfluencer && (
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 text-[10px]">
-                      • Influencer IA: {selectedInfluencer.name}
+                      • Influencer: {selectedInfluencer.name}
                     </span>
                   )}
                   {ucidLockEnabled && (
@@ -1790,10 +1794,8 @@ export default function Home() {
                     </span>
                   )}
                 </div>
-                <p className="text-muted text-xs font-bold max-w-[380px] leading-relaxed">
-                  Usa los módulos v3.0 abajo: Inteligencias de Hooks Virales,
-                  URL E-Commerce a Video, Editor Híbrido de Línea de Tiempo y
-                  Consistencia UCID con Micro-Expresiones.
+                <p className="text-muted text-xs font-bold max-w-sm px-4 leading-relaxed text-center">
+                  Crea videos UGC y reels con actores IA, avatares, gemelos digitales y HeyGen studio en tu celular.
                 </p>
               </motion.div>
             ) : (
@@ -1895,7 +1897,8 @@ export default function Home() {
                   }`}
                 >
                   <FiFilm className="text-xs" />
-                  <span>Video Largo (Multi-Escena)</span>
+                  <span className="hidden sm:inline">Video Largo (Multi-Escena)</span>
+                  <span className="sm:hidden">Video Largo</span>
                 </button>
 
                 <div className="w-px h-4 bg-glass-border mx-1" />
@@ -1910,14 +1913,37 @@ export default function Home() {
                   }`}
                   title="Abrir o cerrar estudio de Avatares, Gemelo Digital y Vestuario"
                 >
-                  <FiUserCheck className="text-xs" />
+                  <FiUserCheck className="text-xs flex-shrink-0" />
                   <span>
-                    {isInfluencerMode
-                      ? `🧑‍🎤 Estudio HeyGen: ${avatarSourceType === "digital-twin" ? "🧬 Gemelo Digital" : selectedInfluencer?.name || "Avatar Activo"} (Vestuario & Sets 3D)`
-                      : `🧑‍🎤 Avatares IA, Gemelo Digital & Vestuario (HeyGen Studio)`}
+                    {isInfluencerMode ? (
+                      <>
+                        <span className="hidden sm:inline">
+                          🧑‍🎤 Estudio HeyGen:{" "}
+                          {avatarSourceType === "digital-twin"
+                            ? "🧬 Gemelo Digital"
+                            : selectedInfluencer?.name || "Avatar Activo"}{" "}
+                          (Vestuario & Sets 3D)
+                        </span>
+                        <span className="sm:hidden">
+                          🧑‍🎤{" "}
+                          {avatarSourceType === "digital-twin"
+                            ? "Gemelo"
+                            : selectedInfluencer?.name || "Avatar"}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">
+                          🧑‍🎤 Avatares IA, Gemelo Digital & Vestuario (HeyGen Studio)
+                        </span>
+                        <span className="sm:hidden">
+                          🧑‍🎤 Avatares & Gemelo
+                        </span>
+                      </>
+                    )}
                   </span>
-                  <span className="text-[10px] ml-1 bg-black/30 px-1.5 py-0.2 rounded font-mono">
-                    {isInfluencerMode ? "▲ Ocultar" : "▼ Abrir"}
+                  <span className="text-[10px] ml-1 bg-black/30 px-1.5 py-0.2 rounded font-mono flex-shrink-0">
+                    {isInfluencerMode ? "▲" : "▼"}
                   </span>
                 </button>
               </div>
@@ -1952,79 +1978,84 @@ export default function Home() {
             </div>
 
             {/* Row 2: UGCore v3.5 Commercial Pipeline & Architecture Modules Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-1.5 px-4 py-2 border-b border-glass-border bg-bg-card/30">
+            <div className="flex flex-wrap items-center justify-between gap-1.5 px-3 sm:px-4 py-2 border-b border-glass-border bg-bg-card/30">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-500 mr-1">
-                  v3.5 Commercial Pipeline:
+                <span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider text-emerald-500 mr-1">
+                  v3.5 Pipeline:
                 </span>
                 <button
                   type="button"
                   onClick={() => toggleV3Module("intelligence")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                     activeV3Module === "intelligence"
                       ? "bg-indigo-600 text-white border-indigo-600"
                       : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
                   }`}
                 >
-                  <FiTrendingUp size={12} />
-                  <span>1. Hooks & Tendencias</span>
+                  <FiTrendingUp size={12} className="text-[#8B5CF6]" />
+                  <span className="hidden sm:inline">1. Hooks Virales</span>
+                  <span className="sm:hidden">1. Hooks</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => toggleV3Module("ecommerce")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                     activeV3Module === "ecommerce"
                       ? "bg-indigo-600 text-white border-indigo-600"
                       : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
                   }`}
                 >
-                  <FiLink size={12} />
-                  <span>2. Ingesta URL Comercial</span>
+                  <FiLink size={12} className="text-[#8B5CF6]" />
+                  <span className="hidden sm:inline">2. URL E-Commerce</span>
+                  <span className="sm:hidden">2. URL E-com</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => toggleV3Module("timeline")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                     activeV3Module === "timeline"
                       ? "bg-indigo-600 text-white border-indigo-600"
                       : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
                   }`}
                 >
-                  <FiLayers size={12} />
-                  <span>3. Text-To-Timeline Core</span>
+                  <FiLayers size={12} className="text-[#8B5CF6]" />
+                  <span className="hidden sm:inline">3. Text-To-Timeline</span>
+                  <span className="sm:hidden">3. Timeline</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => toggleV3Module("consistency")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                     activeV3Module === "consistency"
                       ? "bg-indigo-600 text-white border-indigo-600"
                       : "bg-glass-bg text-secondary-text border-glass-border hover:text-foreground"
                   }`}
                 >
-                  <FiCpu size={12} />
-                  <span>4. Avatar & Audio Synthesizer</span>
+                  <FiCpu size={12} className="text-[#8B5CF6]" />
+                  <span className="hidden sm:inline">4. Avatar & Audio Synthesizer</span>
+                  <span className="sm:hidden">4. Avatar/Voz</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => toggleV3Module("youtube-longform")}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                     activeV3Module === "youtube-longform"
                       ? "bg-[#8B5CF6] text-white border-[#8B5CF6] shadow-sm"
                       : "bg-[#8B5CF6]/10 text-[#8B5CF6] border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/20"
                   }`}
                 >
-                  <FiFilm size={12} />
-                  <span>5. YouTube Largo (4×5m • B-Roll 25s • #8B5CF6)</span>
+                  <FiFilm size={12} className="text-[#8B5CF6]" />
+                  <span className="hidden sm:inline">5. YouTube Largo (4×5m)</span>
+                  <span className="sm:hidden">5. YouTube</span>
                 </button>
               </div>
 
-              <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-[9px] font-black text-emerald-500 uppercase tracking-wider">
-                ✓ MIT • Apache 2.0 • BSD-3 • Royalty-Free
+              <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/25 text-[9px] font-black text-emerald-500 uppercase tracking-wider">
+                ✓ Royalty-Free
               </span>
             </div>
 
@@ -2591,9 +2622,9 @@ export default function Home() {
                 >
                   {/* Selector Principal de Modo Avatar: (1) Stock/Estudio vs (2) Gemelo Digital */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-glass-border/60">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                       <span className="text-[10px] font-black uppercase tracking-wider text-muted mr-1">
-                        Modo de Avatar:
+                        Avatar:
                       </span>
                       <button
                         type="button"
@@ -2604,7 +2635,8 @@ export default function Home() {
                             : "bg-glass-bg text-secondary-text hover:text-foreground border border-glass-border"
                         }`}
                       >
-                        <span>🎭 1. Avatares de Stock & Vestuario ({AI_INFLUENCERS.length} Modelos)</span>
+                        <span className="hidden sm:inline">🎭 1. Avatares de Stock & Vestuario ({AI_INFLUENCERS.length} Modelos)</span>
+                        <span className="sm:hidden">🎭 1. Avatares Stock ({AI_INFLUENCERS.length})</span>
                       </button>
                       <button
                         type="button"
@@ -2615,11 +2647,12 @@ export default function Home() {
                             : "bg-[#8B5CF6]/15 text-[#8B5CF6] border border-[#8B5CF6]/40 hover:bg-[#8B5CF6]/25"
                         }`}
                       >
-                        <span>🧬 2. Subir Gemelo Digital / Custom Avatar (Clonación 2-5m • #8B5CF6)</span>
+                        <span className="hidden sm:inline">🧬 2. Subir Gemelo Digital / Custom Avatar (Clonación 2-5m)</span>
+                        <span className="sm:hidden">🧬 2. Gemelo Digital</span>
                       </button>
                     </div>
 
-                    <span className="text-[9px] font-bold text-muted">
+                    <span className="hidden sm:inline-block text-[9px] font-bold text-muted">
                       {avatarSourceType === "stock"
                         ? "15 modelos profesionales preconfigurados"
                         : "Video 2 a 5 min • Clonación rostro y voz"}

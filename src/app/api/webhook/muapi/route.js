@@ -3,6 +3,31 @@ import { prisma } from "@/lib/prisma";
 import { parseJsonArray } from "@/lib/creations";
 import { runtimeStore } from "@/lib/runtime-store";
 
+function extractVideoUrl(data) {
+  if (!data) return null;
+  if (Array.isArray(data.outputs) && data.outputs.length > 0 && typeof data.outputs[0] === "string") {
+    return data.outputs[0];
+  }
+  if (Array.isArray(data.output) && data.output.length > 0 && typeof data.output[0] === "string") {
+    return data.output[0];
+  }
+  if (typeof data.output === "string" && data.output.startsWith("http")) {
+    return data.output;
+  }
+  if (typeof data.url === "string" && data.url.startsWith("http")) {
+    return data.url;
+  }
+  if (typeof data.video_url === "string" && data.video_url.startsWith("http")) {
+    return data.video_url;
+  }
+  if (data.result) {
+    if (typeof data.result === "string" && data.result.startsWith("http")) return data.result;
+    if (typeof data.result.url === "string") return data.result.url;
+    if (Array.isArray(data.result.outputs) && data.result.outputs[0]) return data.result.outputs[0];
+  }
+  return null;
+}
+
 async function updateCreationEverywhere(creation, data) {
   const updated = { ...creation, ...data };
   runtimeStore.creationsById.set(creation.id, updated);
@@ -81,10 +106,10 @@ export async function POST(req) {
         parseJsonArray(creation.url) || new Array(multiRequestIds.length).fill(null);
       const updatedUrls = [...rawUrls];
 
-      if (data.status === "completed" || data.outputs) {
-        const outputs = data.outputs || [];
-        if (outputs[0]) {
-          updatedUrls[segIndex] = outputs[0];
+      if (data.status === "completed" || data.outputs || data.output || data.url) {
+        const segUrl = extractVideoUrl(data);
+        if (segUrl) {
+          updatedUrls[segIndex] = segUrl;
         }
       }
 
@@ -116,13 +141,12 @@ export async function POST(req) {
         status: "failed",
         error: data.error || "Generation failed",
       });
-    } else if (data.status === "completed" || data.outputs) {
-      const outputs = data.outputs || [];
-      const videoUrl = outputs.length > 0 ? outputs[0] : null;
+    } else if (data.status === "completed" || extractVideoUrl(data)) {
+      const videoUrl = extractVideoUrl(data);
 
       await updateCreationEverywhere(creation, {
-        status: "completed",
-        url: videoUrl,
+        status: videoUrl ? "completed" : (data.status || "completed"),
+        url: videoUrl || creation.url,
       });
     } else {
       await updateCreationEverywhere(creation, {
