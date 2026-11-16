@@ -23,7 +23,10 @@ function LoginContent() {
     searchParams.get("callbackUrl") || searchParams.get("next") || "/";
 
   // "email" | "admin" | "apikey"
-  const [activeTab, setActiveTab] = useState("email");
+  const tabFromQuery = searchParams.get("tab");
+  const [userSelectedTab, setUserSelectedTab] = useState(null);
+  const activeTab = userSelectedTab ?? (tabFromQuery === "admin" ? "admin" : "email");
+  const setActiveTab = setUserSelectedTab;
 
   // Email / Demo Login state
   const [userEmail, setUserEmail] = useState("");
@@ -286,32 +289,43 @@ function LoginContent() {
         </div>
 
         {/* Auth Method Selector Tabs */}
-        <div className="grid grid-cols-2 bg-bg-page p-1 rounded-lg border border-divider/60 gap-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab("email")}
-            className={`py-2 px-1.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === "email"
-                ? "bg-[#8B5CF6] text-white shadow-sm"
-                : "text-secondary-text hover:text-primary-text"
-            }`}
-          >
-            <FaEnvelope className="text-[10px]" />
-            <span>Con Email</span>
-          </button>
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-center text-foreground">
+            Elige tu tipo de acceso:
+          </p>
+          <div className="grid grid-cols-2 bg-bg-page p-1.5 rounded-2xl border border-divider/80 gap-2 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setActiveTab("email")}
+              className={`py-3 px-2 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+                activeTab === "email"
+                  ? "bg-gradient-to-r from-[#8B5CF6] to-indigo-600 text-white shadow-md shadow-[#8B5CF6]/30 ring-1 ring-white/20"
+                  : "text-secondary-text hover:text-primary-text hover:bg-glass-hover"
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <FaEnvelope className="text-xs" />
+                <span>👤 Usuario / Demo</span>
+              </div>
+              <span className="text-[10px] font-medium opacity-85">(Clientes y +300 CR)</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("admin")}
-            className={`py-2 px-1.5 rounded-md text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-              activeTab === "admin"
-                ? "bg-emerald-500 text-white shadow-sm"
-                : "text-secondary-text hover:text-primary-text"
-            }`}
-          >
-            <FaUserShield className="text-[10px]" />
-            <span>Admin</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("admin")}
+              className={`py-3 px-2 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+                activeTab === "admin"
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30 ring-1 ring-white/20"
+                  : "text-secondary-text hover:text-primary-text hover:bg-glass-hover"
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <FaUserShield className="text-xs" />
+                <span>👑 Administrador</span>
+              </div>
+              <span className="text-[10px] font-medium opacity-85">(Créditos Ilimitados ∞)</span>
+            </button>
+          </div>
         </div>
 
         {/* Tab 1: Direct Email & Demo Registration */}

@@ -602,7 +602,7 @@ export default function Navbar() {
         <div className="flex md:hidden items-center gap-2">
           <InstallPwaModal />
 
-          {status === "authenticated" && (
+          {status === "authenticated" ? (
             <div className="flex items-center h-8 border border-divider rounded bg-bg-page/30 px-2.5 text-xs font-bold text-primary-text gap-1">
               <FiDollarSign className="text-emerald-500 text-[10px]" />
               <span>
@@ -611,6 +611,14 @@ export default function Navbar() {
                   : `${Number(userCredits).toLocaleString()} CR`}
               </span>
             </div>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black bg-[#8B5CF6] hover:bg-[#7C3AED] text-white shadow-sm ring-1 ring-white/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <FiKey size={12} />
+              <span>Ingresar</span>
+            </Link>
           )}
 
           <button
@@ -684,30 +692,45 @@ export default function Navbar() {
                 <span>Cerrar Sesión</span>
               </button>
             ) : (
-              <div className="flex flex-col gap-2 mt-2">
+              <div className="flex flex-col gap-2.5 mt-2">
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-[#8B5CF6]/15 to-indigo-900/20 border border-[#8B5CF6]/30 space-y-2">
+                  <p className="text-[11px] font-black text-foreground uppercase tracking-wide">
+                    Iniciar Sesión en UGCore Studio:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href="/login?tab=email"
+                      onClick={() => setIsOpen(false)}
+                      className="py-2.5 px-2 rounded-xl bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-center text-xs font-black shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                    >
+                      <span>👤 Usuario</span>
+                    </Link>
+                    <Link
+                      href="/login?tab=admin"
+                      onClick={() => setIsOpen(false)}
+                      className="py-2.5 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-center text-xs font-black shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                    >
+                      <span>👑 Admin</span>
+                    </Link>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => {
                     setIsOpen(false);
                     setIsDemoModalOpen(true);
                   }}
-                  className="w-full py-2.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center text-xs font-bold cursor-pointer"
+                  className="w-full py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-center text-xs font-bold cursor-pointer"
                 >
                   🎁 Probar Demo Gratis (300 CR)
                 </button>
                 <Link
                   href="/pricing"
                   onClick={() => setIsOpen(false)}
-                  className="w-full py-2.5 rounded bg-primary/15 border border-primary/30 text-primary text-center text-xs font-bold"
+                  className="w-full py-2.5 rounded-xl bg-primary/15 border border-primary/30 text-primary text-center text-xs font-bold"
                 >
                   💎 Ver Planes y Créditos
-                </Link>
-                <Link
-                  href="/login"
-                  onClick={() => setIsOpen(false)}
-                  className="w-full py-2.5 rounded bg-[#8B5CF6] text-white text-center text-xs font-bold"
-                >
-                  🔑 Iniciar Sesión / Ingresar
                 </Link>
               </div>
             )}
