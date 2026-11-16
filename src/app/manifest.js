@@ -41,3 +41,4 @@ export default function manifest() {
     categories: ["productivity", "video", "business"],
   };
 }
+

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiX, FiShare, FiPlusSquare, FiSmartphone } from "react-icons/fi";
+import { FiX, FiShare, FiPlusSquare, FiSmartphone, FiCopy, FiCheck } from "react-icons/fi";
+import { FaWhatsapp } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 
 export default function InstallPwaModal() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -220,7 +222,45 @@ export default function InstallPwaModal() {
                 </div>
               )}
 
-              <div className="pt-2 flex justify-end">
+              {/* QR Code & Direct Link */}
+              <div className="p-3.5 rounded-2xl bg-bg-page/70 border border-glass-border/60 text-center space-y-2">
+                <p className="text-[11px] font-bold text-muted">
+                  Escanea con la cámara de tu celular para abrir directo:
+                </p>
+                <div className="flex justify-center py-1">
+                  <img
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://ugcorestudio.vercel.app"
+                    alt="QR Code ugcorestudio.vercel.app"
+                    className="w-32 h-32 rounded-xl p-1.5 bg-white shadow-md border border-[#8B5CF6]/40"
+                  />
+                </div>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <a
+                    href="https://api.whatsapp.com/send?text=Abre%20UGCore%20Studio%20en%20tu%20celular:%20https://ugcorestudio.vercel.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-sm cursor-pointer transition-all"
+                  >
+                    <FaWhatsapp size={13} />
+                    <span>Enviar a mi WhatsApp</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        navigator.clipboard.writeText("https://ugcorestudio.vercel.app");
+                        toast.success("Enlace copiado al portapapeles");
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-glass-bg border border-glass-border hover:bg-glass-hover text-[11px] font-bold text-foreground cursor-pointer transition-all"
+                  >
+                    <FiCopy size={12} />
+                    <span>Copiar Enlace</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-1 flex justify-end">
                 <button
                   type="button"
                   onClick={() => setIsOpenModal(false)}
