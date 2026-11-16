@@ -14,6 +14,7 @@ import {
   FaEnvelope,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
+import { UgcSymbol } from "@/components/UgcLogo";
 
 function LoginContent() {
   const { data: session, status } = useSession();
@@ -227,9 +228,7 @@ function LoginContent() {
     <div className="min-h-dvh flex items-center justify-center bg-bg-page px-4 py-8 text-primary-text select-none">
       <div className="relative bg-bg-card border border-divider w-full max-w-md rounded-xl p-7 space-y-5 shadow-2xl animate-scale-up">
         <div className="flex flex-col items-center text-center space-y-2">
-          <div className="w-13 h-13 rounded-full bg-[#8B5CF6]/15 border border-[#8B5CF6]/30 flex items-center justify-center text-2xl text-[#8B5CF6] font-black shadow-md">
-            📹
-          </div>
+          <UgcSymbol className="w-16 h-16 shadow-xl mb-1" />
           <h2 className="text-2xl font-black uppercase tracking-tight">
             UGCore Studio
           </h2>

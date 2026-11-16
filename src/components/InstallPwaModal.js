@@ -5,6 +5,7 @@ import { FiX, FiShare, FiPlusSquare, FiSmartphone, FiCopy, FiCheck, FiAlertTrian
 import { FaWhatsapp, FaApple, FaChrome } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { UgcSymbol } from "./UgcLogo";
 
 export default function InstallPwaModal() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -162,9 +163,7 @@ export default function InstallPwaModal() {
             className="fixed bottom-4 left-4 right-4 z-50 sm:left-auto sm:right-6 sm:w-96 p-3.5 rounded-2xl bg-bg-card/95 backdrop-blur-xl border border-[#8B5CF6]/40 shadow-2xl shadow-[#8B5CF6]/20 flex items-center justify-between gap-3"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8B5CF6] to-[#4C1D95] flex items-center justify-center text-white flex-shrink-0 shadow-md">
-                <FiSmartphone size={20} />
-              </div>
+              <UgcSymbol className="w-10 h-10 shadow-md" />
               <div className="min-w-0">
                 <p className="text-xs font-black text-foreground truncate">
                   Instala UGCore en tu celular
@@ -215,9 +214,7 @@ export default function InstallPwaModal() {
               </button>
 
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#8B5CF6] to-[#4C1D95] flex items-center justify-center text-white shadow-lg flex-shrink-0">
-                  {isIos ? <FaApple size={24} /> : <FiSmartphone size={24} />}
-                </div>
+                <UgcSymbol className="w-12 h-12 shadow-lg" />
                 <div>
                   <h3 className="text-sm font-black uppercase text-foreground">
                     {isIos ? "Instalar en tu iPhone" : "Instalar UGCore Studio"}

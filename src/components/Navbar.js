@@ -24,6 +24,7 @@ import config from "@/lib/config";
 import { CREDIT_PACKAGES, getPackageById } from "@/lib/plans";
 import toast from "react-hot-toast";
 import InstallPwaModal from "./InstallPwaModal";
+import UgcLogo from "./UgcLogo";
 
 export default function Navbar() {
   const { data: session, status, update: updateSession } = useSession();
@@ -358,16 +359,8 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full glass-panel border-b border-divider/50 shadow-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
         {/* Logo and Brand Title */}
-        <Link
-          href="/"
-          className="flex items-center gap-2 transition-transform hover:scale-[1.02] active:scale-95"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white font-extrabold text-lg shadow-md shadow-primary/30">
-            {logoLetter}
-          </div>
-          <span className="text-lg font-black tracking-tight text-primary-text text-nowrap">
-            {appName}
-          </span>
+        <Link href="/" className="flex items-center">
+          <UgcLogo className="w-8 h-8 sm:w-9 sm:h-9" showText={true} animated={true} />
         </Link>
 
         {/* Desktop Navigation Links */}
