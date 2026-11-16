@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiX, FiShare, FiPlusSquare, FiSmartphone, FiCopy, FiCheck, FiExternalLink } from "react-icons/fi";
-import { FaWhatsapp, FaApple } from "react-icons/fa";
+import { FiX, FiShare, FiPlusSquare, FiSmartphone, FiCopy, FiCheck, FiAlertTriangle, FiCompass } from "react-icons/fi";
+import { FaWhatsapp, FaApple, FaChrome } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
@@ -11,6 +11,8 @@ export default function InstallPwaModal() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isInAppBrowser, setIsInAppBrowser] = useState(false);
+  const [isChromeIos, setIsChromeIos] = useState(false);
   const [canShare, setCanShare] = useState(false);
   const [isOpenModal, setIsOpenModal] = useState(false);
   const [showFloatingBanner, setShowFloatingBanner] = useState(false);
@@ -32,8 +34,17 @@ export default function InstallPwaModal() {
         /iphone|ipad|ipod|android|mobile/i.test(userAgent) ||
         (typeof window !== "undefined" && window.innerWidth < 768);
 
+      const inApp =
+        isIosDevice &&
+        /instagram|fbav|fbios|fban|line|micromessenger|whatsapp|twitter|tiktok|threads|snapchat/.test(
+          userAgent
+        );
+      const chromeOnIos = isIosDevice && /crios/.test(userAgent);
+
       setIsIos(Boolean(isIosDevice));
       setIsMobile(Boolean(isMobileDevice));
+      setIsInAppBrowser(Boolean(inApp));
+      setIsChromeIos(Boolean(chromeOnIos));
       setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
 
       if (isIosDevice && !standaloneMode) {
@@ -93,9 +104,9 @@ export default function InstallPwaModal() {
           text: "UGCore Studio - Generador de Videos UGC con Inteligencia Artificial",
           url: window.location.href,
         });
-        toast.success("¡Ahora selecciona 'Agregar a pantalla de inicio'!", {
-          icon: "📱",
-          duration: 5000,
+        toast.success("¡Desliza hacia abajo en el menú y toca 'Agregar a pantalla de inicio'!", {
+          icon: "📲",
+          duration: 6000,
         });
       } catch (err) {
         if (err?.name !== "AbortError") {
@@ -114,7 +125,7 @@ export default function InstallPwaModal() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText("https://ugcorestudio.vercel.app");
       setCopied(true);
-      toast.success("Enlace copiado al portapapeles");
+      toast.success("Enlace copiado al portapapeles. ¡Pégalo en Safari!");
       setTimeout(() => setCopied(false), 2500);
     }
   };
@@ -188,7 +199,7 @@ export default function InstallPwaModal() {
       {/* Modal Instructivo para iPhone / iPad / Android / Desktop */}
       <AnimatePresence>
         {isOpenModal && (
-          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -213,7 +224,7 @@ export default function InstallPwaModal() {
                   </h3>
                   <p className="text-xs text-muted">
                     {isIos
-                      ? "Guía oficial para agregar la App a tu pantalla de inicio"
+                      ? "Cómo agregar la App a la pantalla de tu iPhone"
                       : "Acceso directo en tu dispositivo"}
                   </p>
                 </div>
@@ -222,7 +233,51 @@ export default function InstallPwaModal() {
               {/* SECCIÓN IPHONE / IPAD */}
               {isIos ? (
                 <div className="space-y-3.5">
-                  {/* Botón directo de compartir nativo si está disponible en iOS */}
+                  {/* ALERTA: Si está dentro de WhatsApp / Instagram */}
+                  {isInAppBrowser && (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-xs text-amber-200 space-y-2">
+                      <div className="flex items-center gap-2 font-black text-amber-400">
+                        <FiAlertTriangle size={16} />
+                        <span>Estás dentro de WhatsApp / Instagram</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed">
+                        Apple bloquea la opción de instalar apps desde navegadores internos de redes sociales.
+                      </p>
+                      <div className="pt-1 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCopyLink}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 text-black text-[11px] font-black cursor-pointer shadow-sm active:scale-95"
+                        >
+                          <FiCopy size={13} />
+                          <span>Copiar link y abrir en Safari</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ALERTA: Si está en Google Chrome en iOS */}
+                  {isChromeIos && (
+                    <div className="p-3.5 rounded-2xl bg-blue-500/15 border border-blue-500/40 text-xs text-blue-200 space-y-2">
+                      <div className="flex items-center gap-2 font-black text-blue-400">
+                        <FaChrome size={16} />
+                        <span>Estás en Google Chrome para iPhone</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed">
+                        En Chrome para iPhone: toca los tres puntos (•••) abajo a la derecha &gt; <strong>Compartir</strong> &gt; <strong>Añadir a la pantalla de inicio</strong>. O copia el enlace y ábrelo en <strong>Safari</strong>.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleCopyLink}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500 text-white text-[11px] font-black cursor-pointer shadow-sm active:scale-95"
+                      >
+                        <FiCopy size={13} />
+                        <span>Copiar link para Safari</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Botón directo de compartir nativo en iOS */}
                   {canShare && (
                     <button
                       type="button"
@@ -234,19 +289,20 @@ export default function InstallPwaModal() {
                     </button>
                   )}
 
+                  {/* Pasos en Safari */}
                   <div className="p-4 rounded-2xl bg-[#8B5CF6]/10 border border-[#8B5CF6]/25 space-y-3">
-                    <p className="text-xs font-black text-foreground flex items-center gap-1.5">
-                      <span>Pasos en Safari (en menos de 10 segundos):</span>
+                    <p className="text-xs font-black text-foreground">
+                      Sigue estos pasos en la app Safari:
                     </p>
 
-                    <div className="space-y-3 text-xs text-secondary-text">
+                    <div className="space-y-3.5 text-xs text-secondary-text">
                       <div className="flex items-start gap-2.5">
                         <span className="w-6 h-6 rounded-full bg-[#8B5CF6] text-white flex items-center justify-center text-[11px] font-black flex-shrink-0 mt-0.5">
                           1
                         </span>
                         <div>
                           <p>
-                            En la barra inferior de tu iPhone, toca el botón{" "}
+                            En la barra inferior de Safari, toca el botón{" "}
                             <strong className="text-foreground">Compartir</strong>:
                           </p>
                           <div className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-page border border-glass-border text-[11px] font-bold text-[#8B5CF6]">
@@ -261,12 +317,17 @@ export default function InstallPwaModal() {
                           2
                         </span>
                         <div>
-                          <p>
-                            En el menú que se despliega, desliza hacia abajo y selecciona:
+                          <p className="leading-relaxed">
+                            <strong className="text-amber-300">Desliza con tu dedo hacia abajo</strong> en la lista de opciones hasta encontrar:
                           </p>
-                          <div className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-page border border-glass-border text-[11px] font-bold text-foreground">
-                            <FiPlusSquare size={13} className="text-[#8B5CF6]" />
-                            <span>&quot;Agregar a pantalla de inicio&quot;</span>
+                          <div className="mt-1.5 space-y-1">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-bg-page border border-[#8B5CF6]/40 text-[11px] font-bold text-foreground">
+                              <FiPlusSquare size={14} className="text-[#8B5CF6] flex-shrink-0" />
+                              <span>&quot;Agregar a pantalla de inicio&quot;</span>
+                            </div>
+                            <p className="text-[10px] text-muted pl-1">
+                              (En España puede decir <em className="text-foreground">&quot;Añadir a pantalla de inicio&quot;</em>, o en inglés <em className="text-foreground">&quot;Add to Home Screen&quot;</em>).
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -277,19 +338,47 @@ export default function InstallPwaModal() {
                         </span>
                         <div>
                           <p>
-                            Toca <strong className="text-emerald-400">&quot;Agregar&quot;</strong> en la esquina superior derecha.
+                            Toca <strong className="text-emerald-400">&quot;Agregar&quot;</strong> (o &quot;Add&quot;) en la esquina superior derecha.
                           </p>
                           <p className="text-[11px] text-muted mt-0.5">
-                            ¡Listo! Se creará el ícono de UGCore Studio en la pantalla de tu iPhone como cualquier otra app.
+                            ¡Listo! Se creará el ícono en la pantalla principal de tu iPhone.
                           </p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Advertencia útil para navegadores internos */}
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
-                    💡 <strong>¿Estás dentro de WhatsApp, Instagram o Facebook?</strong> Pulsa los tres puntos (•••) y selecciona <strong className="text-white">&quot;Abrir en Safari&quot;</strong> para poder instalar la App en tu pantalla de inicio.
+                  {/* Notas de resolución si no aparece */}
+                  <div className="p-3.5 rounded-2xl bg-bg-page/80 border border-glass-border/60 text-[11px] space-y-2 text-muted leading-relaxed">
+                    <p className="font-bold text-foreground flex items-center gap-1">
+                      <FiCompass className="text-[#8B5CF6]" />
+                      <span>¿Por qué no te aparece el término?</span>
+                    </p>
+                    <ul className="list-disc pl-4 space-y-1.5">
+                      <li>
+                        <strong>Estás en WhatsApp o Instagram</strong>: Apple solo lo permite si abres la página en la app <strong>Safari</strong> (el navegador con icono de brújula azul).
+                      </li>
+                      <li>
+                        <strong>No deslizaste hacia abajo</strong>: En la ventana de compartir, baja con el dedo; la opción está debajo de &quot;Copiar&quot; y &quot;Favoritos&quot;.
+                      </li>
+                      <li>
+                        <strong>Pestaña Privada</strong>: Si Safari está en modo privado (fondo oscuro en la barra de búsqueda), Apple oculta esta opción. Abre una pestaña normal.
+                      </li>
+                      <li>
+                        <strong>Opción oculta</strong>: Desliza hasta el fondo del menú y toca <em>&quot;Editar acciones...&quot;</em> para activar <em>&quot;Agregar a pantalla de inicio&quot;</em>.
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-glass-bg border border-glass-border hover:bg-glass-hover text-[11px] font-bold text-foreground cursor-pointer transition-all"
+                    >
+                      {copied ? <FiCheck size={13} className="text-emerald-400" /> : <FiCopy size={13} />}
+                      <span>{copied ? "¡Enlace Copiado!" : "Copiar Enlace para Safari"}</span>
+                    </button>
                   </div>
                 </div>
               ) : isMobile ? (
