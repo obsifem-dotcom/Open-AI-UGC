@@ -999,11 +999,13 @@ export default function Home() {
     setOverlayLowerThird(ch.title.slice(0, 68));
     setOverlaySubtitle(`${ch.startTimestamp} - ${ch.endTimestamp}`);
     setActiveV3Module(null);
+    toast.success("📺 Capítulo de YouTube cargado. Presiona 'Generar Video' abajo.");
   };
 
   const handleApplyYouTubeFullAndClose = () => {
     handleApplyYouTubeToTimeline();
     setActiveV3Module(null);
+    toast.success("🎬 Estructura de YouTube cargada en Timeline. Presiona 'Generar Video' abajo.");
   };
 
   const handleGenerateTikTokHook = (hookItem) => {
@@ -1015,6 +1017,7 @@ export default function Home() {
     setOverlaySubtitle(hookItem.hookText.slice(0, 50));
     setOverlayCtaBadge("TIKTOK VIRAL • 9:16");
     setActiveV3Module(null);
+    toast.success("🎯 Hook viral cargado. Presiona 'Generar Video' abajo.");
   };
 
   // Digital Twin / Custom Avatar (2 to 5 min training video + Biometric Consent • #8B5CF6) handlers
@@ -1375,14 +1378,10 @@ export default function Home() {
   };
 
   const hasEffectiveInput = () => {
-    if (videoMode === "long" && longSubMode === "scenes") {
-      if (scenes.some((s) => s.prompt.trim().length > 0)) return true;
-    } else if (prompt.trim().length > 0) {
-      return true;
-    }
-    if (isInfluencerMode && selectedInfluencer) {
-      return true;
-    }
+    if (prompt && prompt.trim().length > 0) return true;
+    if (Array.isArray(scenes) && scenes.some((s) => s?.prompt?.trim().length > 0)) return true;
+    if (isInfluencerMode && selectedInfluencer) return true;
+    if (ecommerceUrl && ecommerceUrl.trim().length > 0) return true;
     return false;
   };
 
@@ -1402,20 +1401,29 @@ export default function Home() {
   };
 
   const handleGenerate = async () => {
-    if (status !== "authenticated" && !isAdminUser) {
+    if (isGenerating) return;
+
+    if (status !== "authenticated" && !isAdminUser && !isSandboxMode) {
+      toast.error("Para generar en Modo Real (MuAPI) inicia sesión como Administrador o activa tu Demo.");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("ugcore:open-demo-modal"));
       }
       return;
     }
-    if (!hasEffectiveInput()) return;
-    if (uploadedImages.some((img) => img.status === "uploading")) {
-      alert("Espera un segundo a que terminen de cargarse las imágenes.");
+
+    if (!hasEffectiveInput()) {
+      toast.error("✍️ Escribe tu guion, prompt o instrucciones antes de generar.");
       return;
     }
+
+    if (uploadedImages.some((img) => img.status === "uploading")) {
+      toast.error("Espera un segundo a que terminen de cargarse las imágenes.");
+      return;
+    }
+
     if (!hasEffectiveReferenceImage() && !selectedModel.supportsTextToVideo) {
-      alert(
-        "Seedance 2 requiere al menos una imagen de referencia (o activar el rostro del Influencer IA)."
+      toast.error(
+        `${selectedModel.name} requiere una imagen de referencia. Sube una foto o cambia a Grok Video o Veo 3.1.`
       );
       return;
     }
@@ -1551,14 +1559,36 @@ export default function Home() {
             duration: defaultDur,
             transition: idx === 0 ? "zoom-in" : "cut",
           }));
+        } else if (finalPrompt) {
+          activeScenes = [
+            {
+              prompt: finalPrompt,
+              duration: selectedModel.defaultDuration || 8,
+              transition: "zoom-in",
+            },
+          ];
         }
-        finalPrompt = activeScenes
-          .map((s, i) => `[Escena ${i + 1}] ${s.prompt}`)
-          .join("\n");
+        if (activeScenes.length > 0) {
+          finalPrompt = activeScenes
+            .map((s, i) => `[Escena ${i + 1}] ${s.prompt}`)
+            .join("\n");
+        }
       } else {
         if (!finalPrompt && autoBuilt) {
           finalPrompt = autoBuilt.singleScript;
         }
+        if (!finalPrompt && scenes.some((s) => s.prompt.trim())) {
+          finalPrompt = scenes
+            .filter((s) => s.prompt.trim())
+            .map((s, i) => `[Escena ${i + 1}] ${s.prompt.trim()}`)
+            .join("\n");
+        }
+      }
+
+      if (!finalPrompt) {
+        toast.error("Por favor escribe tu guion o instrucciones antes de generar.");
+        setIsGenerating(false);
+        return;
       }
 
       const response = await fetch("/api/generate", {
@@ -1744,14 +1774,8 @@ export default function Home() {
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={
-                isGenerating ||
-                !hasEffectiveInput() ||
-                uploadedImages.some((img) => img.status === "uploading") ||
-                (!hasEffectiveReferenceImage() &&
-                  !selectedModel.supportsTextToVideo)
-              }
-              className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              disabled={isGenerating}
+              className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-98 transition-all"
             >
               {isGenerating ? (
                 <FiLoader className="animate-spin" size={13} />
@@ -3856,14 +3880,8 @@ export default function Home() {
 
                 <button
                   onClick={handleGenerate}
-                  disabled={
-                    isGenerating ||
-                    !hasEffectiveInput() ||
-                    uploadedImages.some((img) => img.status === "uploading") ||
-                    (!hasEffectiveReferenceImage() &&
-                      !selectedModel.supportsTextToVideo)
-                  }
-                  className={`px-4 py-2 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                  disabled={isGenerating}
+                  className={`px-4 py-2.5 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
                     isSandboxMode
                       ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 shadow-emerald-500/25 ring-1 ring-emerald-400/40"
                       : "bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-hover hover:to-indigo-500 shadow-primary/25"
@@ -3887,10 +3905,15 @@ export default function Home() {
                   ) : (
                     <>
                       <FiZap className="text-sm" />
-                      <span>
+                      <span className="hidden sm:inline">
                         {isSandboxMode
                           ? "🎬 Generar Video de Prueba (0 Costo • Gratis)"
                           : "🎬 Generar Video Real (Consume MuAPI)"}
+                      </span>
+                      <span className="sm:hidden">
+                        {isSandboxMode
+                          ? "⚡ Generar Video (Gratis)"
+                          : "⚡ Generar Video Real"}
                       </span>
                     </>
                   )}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey, isAdminEmail } from "@/lib/auth";
 import { TIMELINE_TRANSITIONS } from "@/lib/ugcore-v3";
 import { formatCreationResponse } from "@/lib/creations";
 import {
@@ -222,7 +222,15 @@ function calculateCreditsForDuration(modelId, duration, resolution) {
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const body = await req.json();
+    const isSandboxRequested = Boolean(
+      body.sandbox === true ||
+      body.isSandbox === true ||
+      body.testMode === true ||
+      req.headers.get("x-sandbox-mode") === "true"
+    );
+
+    if (!session?.user && !isSandboxRequested) {
       return NextResponse.json(
         {
           error:
@@ -231,9 +239,19 @@ export async function POST(req) {
         { status: 401 }
       );
     }
-    const activeUser = session.user;
 
-    const body = await req.json();
+    const activeUser = session?.user || {
+      id: "guest_" + Math.random().toString(36).slice(2, 9),
+      name: "Invitado Demo",
+      email: "guest@ugcorestudio.vercel.app",
+      isAdmin: false,
+      role: "guest",
+      credits: 300,
+      assignedCredits: 300,
+      planId: "demo",
+      planName: "Demo Gratuito",
+    };
+
     const { modelId } = body;
     const rawPrompt =
       typeof body.prompt === "string" ? body.prompt.trim() : "";
@@ -247,7 +265,9 @@ export async function POST(req) {
       : [];
 
     const isAdmin = Boolean(
-      activeUser.isAdmin || activeUser.role === "admin"
+      activeUser.isAdmin ||
+      activeUser.role === "admin" ||
+      isAdminEmail(activeUser.email)
     );
 
     const headerApiKey = req.headers.get("x-custom-api-key");
