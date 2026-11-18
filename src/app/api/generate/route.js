@@ -312,16 +312,16 @@ export async function POST(req) {
     // Protección estricta de saldo: Usuarios en Demo o visitantes NUNCA pueden gastar saldo MuAPI de la administradora.
     const enforceSandbox = !isAdmin && !isUsingCustomKey && !isPayingCustomer;
 
-    // Administrador SIEMPRE genera videos reales con MuAPI (a menos que pida explícitamente mockTest)
-    const isSandbox = isAdmin
-      ? Boolean(body.mockTest === true)
-      : Boolean(
-          enforceSandbox ||
-          body.sandbox === true ||
-          body.isSandbox === true ||
-          body.testMode === true ||
-          req.headers.get("x-sandbox-mode") === "true"
-        );
+    // MODO PRUEBAS / SANDBOX:
+    // Si se envía sandbox (Modo Pruebas activado en la interfaz), se bloquea al 100% cualquier llamada a MuAPI.
+    // Cero consumo de créditos garantizado tanto para el administrador como para usuarios.
+    const isSandbox = Boolean(
+      body.sandbox === true ||
+      body.isSandbox === true ||
+      body.testMode === true ||
+      req.headers.get("x-sandbox-mode") === "true" ||
+      enforceSandbox
+    );
 
     const apiKey = isUsingCustomKey ? rawCustomKey : DEFAULT_MUAPI_KEY;
     if (!apiKey && !isSandbox) {
