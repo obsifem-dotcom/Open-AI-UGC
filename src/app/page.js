@@ -1615,6 +1615,8 @@ export default function Home() {
         toast.success(
           "🎬 Video de prueba generado con éxito (0 Créditos MuAPI gastados)"
         );
+      } else {
+        toast.success("🚀 Generando video... Míralo en tiempo real en el reproductor.");
       }
 
       if (
@@ -1650,6 +1652,18 @@ export default function Home() {
       setLastGeneration(initialGenRecord);
       syncCreationToLocalArchive(initialGenRecord);
 
+      // Auto-scroll directly to the player canvas so mobile & PC users see the result immediately
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          const canvasEl = document.getElementById("ugcore-canvas-area");
+          if (canvasEl) {
+            canvasEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          } else {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        }, 80);
+      }
+
       if (videoMode === "long" && longSubMode === "scenes") {
         setScenes((prev) => prev.map((s) => ({ ...s, prompt: "" })));
       } else {
@@ -1657,7 +1671,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Generation failed:", error);
-      alert(error.message);
+      toast.error(error.message || "Error al generar video.");
     } finally {
       setIsGenerating(false);
     }
@@ -1790,7 +1804,7 @@ export default function Home() {
 
       <main className="flex-1 min-w-0 flex flex-col relative min-h-0 overflow-y-auto custom-scrollbar">
         {/* Content Canvas */}
-        <div className="flex-1 flex-shrink-0 min-h-[260px] p-4 md:p-6 relative flex flex-col items-center justify-center overflow-hidden">
+        <div id="ugcore-canvas-area" className="flex-1 flex-shrink-0 min-h-[260px] p-4 md:p-6 relative flex flex-col items-center justify-center overflow-hidden">
           <AnimatePresence mode="wait">
             {!lastGeneration ? (
               <motion.div

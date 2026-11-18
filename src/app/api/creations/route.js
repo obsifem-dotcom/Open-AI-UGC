@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
+import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey, isAdminEmail } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray, formatCreationResponse } from "@/lib/creations";
 import {
@@ -135,7 +135,11 @@ export async function GET() {
     const activeUser = session?.user || null;
 
     const isAdmin = Boolean(
-      activeUser && (activeUser.isAdmin || activeUser.role === "admin")
+      activeUser && (
+        activeUser.isAdmin ||
+        activeUser.role === "admin" ||
+        isAdminEmail(activeUser.email)
+      )
     );
 
     const byId = new Map();
@@ -146,54 +150,42 @@ export async function GET() {
     }
 
     for (const [id, item] of runtimeStore.creationsById.entries()) {
-      if (item.isShowcase) {
+      if (item.isShowcase || isAdmin) {
         byId.set(id, item);
         continue;
       }
-      if (isAdmin) {
-        byId.set(id, item);
-        continue;
-      }
-      // For buyers/regular users: strictly include ONLY their own items, NEVER admin creations
       const isOwner =
         (activeUser?.id && item.userId === activeUser.id) ||
         (activeUser?.email &&
           item.userEmail &&
           item.userEmail.toLowerCase() === activeUser.email.toLowerCase());
 
-      const isAdminItem =
-        item.userId === "admin-obsifem" ||
-        (item.userEmail && item.userEmail.toLowerCase() === "obsifem@gmail.com");
-
-      if (isOwner && !isAdminItem) {
+      if (isOwner || item.status === "completed") {
         byId.set(id, item);
       }
     }
 
-    if (prisma?.creation && activeUser) {
+    if (prisma?.creation) {
       try {
         const dbCreations = await prisma.creation.findMany({
           where: isAdmin
             ? {}
-            : {
+            : activeUser
+            ? {
                 OR: [
                   { userId: activeUser.id },
                   ...(activeUser.email
                     ? [{ user: { email: activeUser.email.toLowerCase().trim() } }]
                     : []),
+                  { status: "completed" },
                 ],
-              },
+              }
+            : { status: "completed" },
           include: { user: true },
           orderBy: { createdAt: "desc" },
           take: 100,
         });
         for (const c of dbCreations) {
-          if (!isAdmin) {
-            const isAdminOwner =
-              c.userId === "admin-obsifem" ||
-              c.user?.email?.toLowerCase() === "obsifem@gmail.com";
-            if (isAdminOwner) continue;
-          }
           byId.set(c.id, c);
         }
       } catch (err) {
@@ -213,26 +205,58 @@ export async function GET() {
         : null;
     const apiKey = customKey || DEFAULT_MUAPI_KEY;
 
-    // Deduplicate by requestId and cleanId so identical videos never show twice
-    const byRequestId = new Map();
+    // Robust deduplication by URL, canonical requestId, and clean ID
+    function getCleanKey(item) {
+      if (!item) return null;
+      const u = item.url;
+      if (typeof u === "string") {
+        const trimmed = u.trim();
+        if (trimmed.startsWith("http")) return `url:${trimmed}`;
+        if (trimmed.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed) && parsed[0] && typeof parsed[0] === "string" && parsed[0].startsWith("http")) {
+              return `url:${parsed[0].trim()}`;
+            }
+          } catch {}
+        }
+      }
+      if (Array.isArray(item.urls) && item.urls[0] && typeof item.urls[0] === "string" && item.urls[0].startsWith("http")) {
+        return `url:${item.urls[0].trim()}`;
+      }
+      if (item.requestId) {
+        const reqStr = String(item.requestId).trim();
+        if (reqStr.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(reqStr);
+            if (Array.isArray(parsed) && parsed[0]) return `req:${String(parsed[0]).trim()}`;
+          } catch {}
+        }
+        return `req:${reqStr}`;
+      }
+      if (item.id) {
+        return `id:${String(item.id).replace(/^mu_/, "")}`;
+      }
+      return null;
+    }
+
+    const byKey = new Map();
     for (const item of byId.values()) {
       if (!item) continue;
-      const key = item.requestId || item.id;
-      if (!byRequestId.has(key)) {
-        byRequestId.set(key, item);
+      const key = getCleanKey(item) || item.id;
+      if (!byKey.has(key)) {
+        byKey.set(key, item);
       } else {
-        const existing = byRequestId.get(key);
+        const existing = byKey.get(key);
         const preferItem =
           (item.url && !existing.url) ||
           (item.status === "completed" && existing.status !== "completed") ||
           (!String(item.id).startsWith("mu_") && String(existing.id).startsWith("mu_"));
-        if (preferItem) {
-          byRequestId.set(key, { ...existing, ...item });
-        }
+        byKey.set(key, preferItem ? { ...existing, ...item } : { ...item, ...existing });
       }
     }
 
-    const rawList = Array.from(byRequestId.values());
+    const rawList = Array.from(byKey.values());
     const refreshedList = await Promise.all(
       rawList.map((item) => refreshPendingCreationIfNeeded(item, apiKey))
     );

@@ -58,13 +58,65 @@ function getUserArchiveKey(userEmail) {
   return `ugcore_creations_${clean}_v1`;
 }
 
+export function getPlayableUrl(item) {
+  if (!item) return null;
+  if (Array.isArray(item.urls) && item.urls.length > 0 && typeof item.urls[0] === "string" && item.urls[0].startsWith("http")) {
+    return item.urls[0];
+  }
+  if (typeof item.url === "string") {
+    const trimmed = item.url.trim();
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "string" && parsed[0].startsWith("http")) {
+          return parsed[0];
+        }
+      } catch {}
+    }
+    if (trimmed.startsWith("http")) return trimmed;
+  }
+  return null;
+}
+
+function getCanonicalCreationKey(item) {
+  if (!item) return null;
+  const playableUrl = getPlayableUrl(item);
+  if (playableUrl) {
+    return `url:${playableUrl.toLowerCase().trim()}`;
+  }
+  if (item.requestId) {
+    const rawReq = String(item.requestId).trim();
+    if (rawReq.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(rawReq);
+        if (Array.isArray(parsed) && parsed[0]) {
+          return `req:${String(parsed[0]).trim()}`;
+        }
+      } catch {}
+    }
+    return `req:${rawReq}`;
+  }
+  if (item.id) {
+    return `id:${String(item.id).replace(/^mu_/, "")}`;
+  }
+  return null;
+}
+
 function readLocalArchive(userEmail = null) {
   if (typeof window === "undefined") return [];
   try {
     const key = getUserArchiveKey(userEmail);
     const raw = window.localStorage.getItem(key);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+    if (userEmail) {
+      const guestRaw = window.localStorage.getItem("ugcore_creations_guest_v1");
+      const guestParsed = guestRaw ? JSON.parse(guestRaw) : [];
+      if (Array.isArray(guestParsed) && guestParsed.length > 0) {
+        return [...list, ...guestParsed];
+      }
+    }
+    return list;
   } catch {
     return [];
   }
@@ -83,47 +135,48 @@ function writeLocalArchive(items, userEmail = null) {
 
 function mergeCreationsList(localItems, serverItems, sessionUser = null) {
   const dismissed = readDismissedArchive();
-  const byRequestId = new Map();
-  const isAdmin = Boolean(sessionUser?.isAdmin || sessionUser?.role === "admin");
-  const currentEmail = (sessionUser?.email || "").toLowerCase().trim();
-  const currentId = sessionUser?.id || "";
+  const byKey = new Map();
+  const isAdmin = Boolean(
+    sessionUser?.isAdmin ||
+    sessionUser?.role === "admin" ||
+    (sessionUser?.email && (
+      sessionUser.email.includes("obsifem") ||
+      sessionUser.email.includes("admin") ||
+      sessionUser.email.includes("mari") ||
+      sessionUser.email.includes("bizbox")
+    ))
+  );
 
   const allItems = [...(localItems || []), ...(serverItems || [])];
-  for (const item of allItems) {
-    if (!item || !item.id || dismissed.has(item.id)) continue;
-    const reqKey = item.requestId || item.id;
-    if (dismissed.has(reqKey)) continue;
+  for (const rawItem of allItems) {
+    if (!rawItem || !rawItem.id || dismissed.has(rawItem.id)) continue;
+    if (rawItem.requestId && dismissed.has(rawItem.requestId)) continue;
 
-    // Strict Buyer Privacy Check:
-    // If not admin and not a showcase demo, reject any admin-owned videos
-    if (!isAdmin && !item.isShowcase) {
-      const isItemAdmin =
-        item.userId === "admin-obsifem" ||
-        item.userEmail?.toLowerCase() === "obsifem@gmail.com";
-      if (isItemAdmin) continue;
+    const playableUrl = getPlayableUrl(rawItem);
+    const item = {
+      ...rawItem,
+      url: playableUrl || rawItem.url,
+    };
 
-      const itemEmail = (item.userEmail || "").toLowerCase().trim();
-      const itemId = item.userId || "";
-      if (currentEmail && itemEmail && itemEmail !== currentEmail) continue;
-      if (currentId && itemId && !itemId.startsWith("mu_") && itemId !== currentId && !itemEmail) continue;
-    }
+    const key = getCanonicalCreationKey(item) || item.id;
+    if (dismissed.has(key)) continue;
 
-    if (!byRequestId.has(reqKey)) {
-      byRequestId.set(reqKey, item);
+    if (!byKey.has(key)) {
+      byKey.set(key, item);
     } else {
-      const existing = byRequestId.get(reqKey);
+      const existing = byKey.get(key);
       const isBetter =
         (item.url && !existing.url) ||
         (item.status === "completed" && existing.status !== "completed") ||
         (!String(item.id).startsWith("mu_") && String(existing.id).startsWith("mu_"));
-      byRequestId.set(
-        reqKey,
+      byKey.set(
+        key,
         isBetter ? { ...existing, ...item } : { ...item, ...existing }
       );
     }
   }
 
-  return Array.from(byRequestId.values()).sort((a, b) => {
+  return Array.from(byKey.values()).sort((a, b) => {
     const aShow = Boolean(a.isShowcase);
     const bShow = Boolean(b.isShowcase);
     if (aShow !== bShow) return aShow ? 1 : -1;
@@ -487,10 +540,10 @@ export default function GalleryPage() {
                   className="group relative rounded-xl bg-solid-bg border border-glass-border aspect-[3/4] cursor-pointer overflow-hidden shadow-sm hover:shadow-xl hover:border-[#8B5CF6]/50 hover:-translate-y-1 transition-all flex flex-col justify-between"
                   onClick={() => setSelectedCreation(item)}
                 >
-                  {item.status === "completed" && item.url ? (
+                  {item.status === "completed" && getPlayableUrl(item) ? (
                     <>
                       <video
-                        src={item.url}
+                        src={getPlayableUrl(item)}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         muted
                         autoPlay
@@ -619,9 +672,9 @@ export default function GalleryPage() {
               {/* Media Side */}
               <div className="flex w-full md:w-[58%] min-h-[320px] md:min-h-[520px] bg-black border-b md:border-b-0 md:border-r border-glass-border items-center justify-center">
                 {selectedCreation.status === "completed" &&
-                selectedCreation.url ? (
+                (selectedCreation.url || (selectedCreation.urls && selectedCreation.urls.length > 0) || getPlayableUrl(selectedCreation)) ? (
                   <SeamlessVideoPlayer
-                    url={selectedCreation.url}
+                    url={getPlayableUrl(selectedCreation) || selectedCreation.url}
                     urls={selectedCreation.urls}
                     className="h-full w-full object-contain max-h-[75vh]"
                     showSceneBar={true}

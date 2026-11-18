@@ -9,7 +9,7 @@ export default function SeamlessVideoPlayer({
   className = "w-full h-full object-cover",
   autoPlay = true,
   controls = true,
-  muted = false,
+  muted = true,
   showSceneBar = true,
   showDownloadButton = false,
   overlays = null,
@@ -42,6 +42,7 @@ export default function SeamlessVideoPlayer({
 
   const [rawIndex, setRawIndex] = useState(0);
   const [isMerging, setIsMerging] = useState(false);
+  const [isMuted, setIsMuted] = useState(muted);
   const videoRef = useRef(null);
 
   const currentIndex = validUrls.length > 0 ? rawIndex % validUrls.length : 0;
@@ -208,11 +209,27 @@ export default function SeamlessVideoPlayer({
         className={className}
         autoPlay={autoPlay}
         loop={!isMultiScene}
-        muted={muted}
+        muted={isMuted}
         playsInline
         controls={controls}
         onEnded={handleEnded}
       />
+
+      {/* Mute/Unmute audio button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsMuted((prev) => !prev);
+          if (videoRef.current) {
+            videoRef.current.muted = !videoRef.current.muted;
+          }
+        }}
+        className="absolute bottom-3 right-3 z-30 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow text-xs"
+        title={isMuted ? "Activar Sonido" : "Silenciar"}
+      >
+        {isMuted ? "🔇" : "🔊"}
+      </button>
 
       {/* Module 3: Multilayer Graphic Overlays */}
       {overlays?.ctaBadge && (
