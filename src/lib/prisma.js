@@ -16,9 +16,10 @@ if (!prismaInstance) {
     try {
       const pool = new Pool({
         connectionString: DATABASE_CONNECTION_URL,
-        connectionTimeoutMillis: 1500,
-        idleTimeoutMillis: 5000,
-        max: 3,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 10000,
+        max: 10,
+        ssl: { rejectUnauthorized: false },
       });
       pool.on("error", (err) => {
         console.warn("[PRISMA_POOL_WARN]", err?.message || err);

@@ -230,7 +230,28 @@ export async function POST(req) {
       req.headers.get("x-sandbox-mode") === "true"
     );
 
-    if (!session?.user && !isSandboxRequested) {
+    const providedEmail = (
+      body.email ||
+      body.userEmail ||
+      req.headers.get("x-user-email") ||
+      ""
+    ).toLowerCase().trim();
+    const providedAdminKey = (
+      body.adminKey ||
+      body.adminPassword ||
+      req.headers.get("x-admin-key") ||
+      ""
+    ).trim();
+
+    const candidateEmail = session?.user?.email || providedEmail;
+    const isAdmin = Boolean(
+      session?.user?.isAdmin ||
+      session?.user?.role === "admin" ||
+      isAdminEmail(candidateEmail) ||
+      (providedAdminKey && isServerMasterKey(providedAdminKey))
+    );
+
+    if (!session?.user && !isAdmin && !isSandboxRequested) {
       return NextResponse.json(
         {
           error:
@@ -241,15 +262,15 @@ export async function POST(req) {
     }
 
     const activeUser = session?.user || {
-      id: "guest_" + Math.random().toString(36).slice(2, 9),
-      name: "Invitado Demo",
-      email: "guest@ugcorestudio.vercel.app",
-      isAdmin: false,
-      role: "guest",
-      credits: 300,
-      assignedCredits: 300,
-      planId: "demo",
-      planName: "Demo Gratuito",
+      id: isAdmin ? "admin-obsifem" : "guest_" + Math.random().toString(36).slice(2, 9),
+      name: isAdmin ? "Administrador UGCore" : "Invitado Demo",
+      email: candidateEmail || (isAdmin ? "obsifem@gmail.com" : "guest@ugcorestudio.vercel.app"),
+      isAdmin,
+      role: isAdmin ? "admin" : "guest",
+      credits: isAdmin ? 999999 : 300,
+      assignedCredits: isAdmin ? 999999 : 300,
+      planId: isAdmin ? "business" : "demo",
+      planName: isAdmin ? "Plan Maestro Admin" : "Demo Gratuito",
     };
 
     const { modelId } = body;
@@ -263,12 +284,6 @@ export async function POST(req) {
           (image) => typeof image === "string" && image.trim()
         )
       : [];
-
-    const isAdmin = Boolean(
-      activeUser.isAdmin ||
-      activeUser.role === "admin" ||
-      isAdminEmail(activeUser.email)
-    );
 
     const headerApiKey = req.headers.get("x-custom-api-key");
     const bodyApiKey =
@@ -297,12 +312,16 @@ export async function POST(req) {
     // Protección estricta de saldo: Usuarios en Demo o visitantes NUNCA pueden gastar saldo MuAPI de la administradora.
     const enforceSandbox = !isAdmin && !isUsingCustomKey && !isPayingCustomer;
 
-    const isSandbox =
-      enforceSandbox ||
-      body.sandbox === true ||
-      body.isSandbox === true ||
-      body.testMode === true ||
-      req.headers.get("x-sandbox-mode") === "true";
+    // Administrador SIEMPRE genera videos reales con MuAPI (a menos que pida explícitamente mockTest)
+    const isSandbox = isAdmin
+      ? Boolean(body.mockTest === true)
+      : Boolean(
+          enforceSandbox ||
+          body.sandbox === true ||
+          body.isSandbox === true ||
+          body.testMode === true ||
+          req.headers.get("x-sandbox-mode") === "true"
+        );
 
     const apiKey = isUsingCustomKey ? rawCustomKey : DEFAULT_MUAPI_KEY;
     if (!apiKey && !isSandbox) {

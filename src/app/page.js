@@ -434,7 +434,8 @@ export default function Home() {
   const [isUploadingCustomVoice, setIsUploadingCustomVoice] = useState(false);
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
   const [samplePhraseType, setSamplePhraseType] = useState("preview"); // "preview" | "commercial"
-  const [isSandboxMode, setIsSandboxMode] = useState(true); // Modo Pruebas sin costo de MuAPI por defecto
+  const [isSandboxMode, setIsSandboxMode] = useState(false);
+  const effectiveIsSandboxMode = isSandboxMode && !isAdminUser;
   const voiceAudioInputRef = useRef(null);
   const [microExpressionIds, setMicroExpressionIds] = useState([
     "eye-contact-lock",
@@ -1602,7 +1603,9 @@ export default function Home() {
           videoMode,
           consistencyDirective,
           images: combinedImageUrls,
-          sandbox: isSandboxMode,
+          sandbox: isAdminUser ? false : isSandboxMode,
+          isAdmin: isAdminUser,
+          userEmail: session?.user?.email || null,
         }),
       });
 
@@ -3837,22 +3840,25 @@ export default function Home() {
                   type="button"
                   onClick={() => {
                     if (isSandboxMode) {
+                      if (isAdminUser) {
+                        setIsSandboxMode(false);
+                        toast.success("⚡ Modo Administrador Real activado (MuAPI habilitado)");
+                        return;
+                      }
                       const isPaying =
                         session?.user?.planId &&
                         session.user.planId !== "demo" &&
                         session.user.planId !== "free";
-                      if (!isAdminUser && !isPaying) {
-                        alert(
-                          "🔒 Modo Real Bloqueado para Cuentas Demo:\n\nTu cuenta actual está en Demo Gratuito. Puedes generar videos de prueba ilimitados en Modo Sandbox sin ningún costo.\n\nPara activar el renderizado real en la nube con MuAPI, adquiere uno de nuestros planes comerciales en /pricing o ingresa tu propia API Key en tu perfil."
+                      if (!isPaying) {
+                        toast.error(
+                          "🔒 Modo Real Bloqueado para Cuentas Demo. Para activar el renderizado real con MuAPI, adquiere un paquete o ingresa tu API Key."
                         );
                         return;
                       }
-                      const ok = window.confirm(
-                        "⚠️ ATENCIÓN: ¿Deseas activar el Modo Real de MuAPI?\n\nAl desactivar el Modo Pruebas, cada video que generes consumirá créditos reales de tu cuenta de MuAPI.\n\nPara pruebas, guiones, vestuarios y ritmos de voz SIN COSTO, te recomendamos mantener activado el Modo Pruebas (Gratis).\n\n¿Deseas activar el Modo Real?"
-                      );
-                      if (ok) setIsSandboxMode(false);
+                      setIsSandboxMode(false);
                     } else {
                       setIsSandboxMode(true);
+                      toast.info("🛡️ Modo Simulación de Pruebas activado (0 consumo de saldo)");
                     }
                   }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border shadow-sm ${
@@ -3863,7 +3869,9 @@ export default function Home() {
                   title={
                     isSandboxMode
                       ? "Modo Pruebas ACTIVO: Generación 100% gratuita sin costo ni consumo de MuAPI"
-                      : "Modo Real ACTIVO: Esta generación consumirá saldo real de tu cuenta MuAPI"
+                      : isAdminUser
+                      ? "Modo Admin Real: Renderizado en vivo con MuAPI sin costo de créditos"
+                      : "Modo Real ACTIVO: Esta generación consumirá saldo de tu cuenta"
                   }
                 >
                   <span
@@ -3873,7 +3881,9 @@ export default function Home() {
                   />
                   <span>
                     {isSandboxMode
-                      ? "🛡️ Modo Pruebas (GRATIS • 0 MuAPI)"
+                      ? "🛡️ Modo Pruebas (Simulado)"
+                      : isAdminUser
+                      ? "⚡ Modo Admin (MuAPI Real)"
                       : "⚡ Modo Real (Consume MuAPI)"}
                   </span>
                 </button>
@@ -3882,7 +3892,11 @@ export default function Home() {
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-glass-bg border border-glass-border rounded-full">
                   <FaCoins className="text-yellow-500 text-xs" />
                   <span className="text-[10px] font-bold text-secondary-text">
-                    {isSandboxMode ? "Costo: 0 CR (Prueba Gratis)" : `Costo: ${getRequiredCredits()} CR`}
+                    {isSandboxMode
+                      ? "Costo: 0 CR (Prueba)"
+                      : isAdminUser
+                      ? "Costo: 0 CR (Admin Ilimitado)"
+                      : `Costo: ${getRequiredCredits()} CR`}
                   </span>
                   <span className="text-muted">•</span>
                   <span className="text-[10px] font-black text-emerald-500">
@@ -3908,25 +3922,29 @@ export default function Home() {
                       ? "Seedance 2 requiere una imagen de referencia o avatar"
                       : isSandboxMode
                       ? "Generar Video de Prueba (100% Gratis sin gastar MuAPI)"
-                      : "Generar Video Real con MuAPI (Consume saldo)"
+                      : "Generar Video Real con MuAPI"
                   }
                 >
                   {isGenerating ? (
                     <>
                       <FiLoader className="text-sm animate-spin" />
-                      <span>{isSandboxMode ? "Simulando video gratis..." : "Generando..."}</span>
+                      <span>{isSandboxMode ? "Simulando video..." : "Generando con MuAPI..."}</span>
                     </>
                   ) : (
                     <>
                       <FiZap className="text-sm" />
                       <span className="hidden sm:inline">
                         {isSandboxMode
-                          ? "🎬 Generar Video de Prueba (0 Costo • Gratis)"
+                          ? "🎬 Generar Video (Prueba Simulada)"
+                          : isAdminUser
+                          ? "🚀 Generar Video Real con MuAPI (Admin)"
                           : "🎬 Generar Video Real (Consume MuAPI)"}
                       </span>
                       <span className="sm:hidden">
                         {isSandboxMode
-                          ? "⚡ Generar Video (Gratis)"
+                          ? "⚡ Generar Prueba"
+                          : isAdminUser
+                          ? "🚀 Generar con MuAPI"
                           : "⚡ Generar Video Real"}
                       </span>
                     </>
