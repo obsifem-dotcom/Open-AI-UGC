@@ -309,13 +309,12 @@ export async function POST(req) {
         activeUser.planId !== "free"
     );
 
-    // Protección estricta de saldo: Usuarios en Demo o visitantes NUNCA pueden gastar saldo MuAPI de la administradora.
-    const enforceSandbox = !isAdmin && !isUsingCustomKey && !isPayingCustomer;
-
-    // MODO PRUEBAS / SANDBOX:
-    // Si se envía sandbox (Modo Pruebas activado en la interfaz), se bloquea al 100% cualquier llamada a MuAPI.
-    // Cero consumo de créditos garantizado tanto para el administrador como para usuarios.
+    // PROTECCIÓN ABSOLUTA DE SALDO (WALLET LOCK):
+    // La cuenta y saldo de MuAPI de la administradora NUNCA se tocarán ni consumirán.
+    // Solo se realizarán llamadas reales a MuAPI si un usuario ingresa explícitamente su PROPIA API Key (BYOK).
+    // De lo contrario, el sistema opera en Modo Creativo Gratuito (Sandbox) garantizando $0.00 de gasto.
     const isSandbox = Boolean(
+      !isUsingCustomKey ||
       body.sandbox === true ||
       body.isSandbox === true ||
       body.testMode === true ||

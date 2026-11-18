@@ -4111,101 +4111,48 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (isSandboxMode) {
-                      const isPaying =
-                        session?.user?.planId &&
-                        session.user.planId !== "demo" &&
-                        session.user.planId !== "free";
-                      if (!isAdminUser && !isPaying) {
-                        toast.error(
-                          "🔒 Modo Real Bloqueado para Cuentas Demo. Para activar el renderizado real con MuAPI, adquiere un paquete o ingresa tu API Key."
-                        );
-                        return;
-                      }
-                      setIsSandboxMode(false);
-                      toast.warning("⚠️ MODO REAL ACTIVADO: Cada video generado consumirá créditos de tu cuenta MuAPI.");
-                    } else {
-                      setIsSandboxMode(true);
-                      toast.success("🛡️ MODO PRUEBAS ACTIVADO: Cero consumo de MuAPI garantizado. Tus créditos están 100% protegidos.");
-                    }
+                    toast.success("🛡️ Tu saldo de MuAPI está 100% protegido. Todas las opciones creativas se generan a costo $0.00.");
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border shadow-sm ${
-                    isSandboxMode
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-400 hover:bg-emerald-500/30"
-                      : "bg-amber-500/20 text-amber-300 border-amber-400 hover:bg-amber-500/30"
-                  }`}
-                  title={
-                    isSandboxMode
-                      ? "Modo Pruebas ACTIVO: Generación 100% gratuita sin costo ni consumo de MuAPI"
-                      : "Modo Real ACTIVO: Esta generación consumirá saldo de tu cuenta MuAPI"
-                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border shadow-sm bg-emerald-500/20 text-emerald-300 border-emerald-400 hover:bg-emerald-500/30"
+                  title="Modo Creativo Protegido: Cero consumo de saldo en tu cuenta MuAPI garantizado"
                 >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isSandboxMode ? "bg-emerald-400 animate-ping" : "bg-amber-400"
-                    }`}
-                  />
-                  <span>
-                    {isSandboxMode
-                      ? "🛡️ Modo Pruebas (GRATIS • 0 MuAPI)"
-                      : "⚡ Modo Real (Consume saldo MuAPI)"}
-                  </span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>🛡️ Saldo MuAPI Protegido (0 Costo)</span>
                 </button>
 
                 {/* Show credit balance & cost for both Admin and Buyers */}
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-glass-bg border border-glass-border rounded-full">
                   <FaCoins className="text-yellow-500 text-xs" />
                   <span className="text-[10px] font-bold text-secondary-text">
-                    {isSandboxMode
-                      ? "Costo: 0 CR (Prueba)"
-                      : isAdminUser
-                      ? "Costo: 0 CR (Admin)"
-                      : `Costo: ${getRequiredCredits()} CR`}
+                    Costo: 0 CR (Sin Gasto)
                   </span>
                   <span className="text-muted">•</span>
                   <span className="text-[10px] font-black text-emerald-500">
                     {isAdminUser
-                      ? `Saldo Admin: ${Number(availableCredits).toLocaleString()} CR (∞)`
-                      : `Saldo: ${Number(availableCredits).toLocaleString()} / ${Number(assignedCredits).toLocaleString()} CR`}
+                      ? "Saldo: Ilimitado (Protegido)"
+                      : `Saldo: ${Number(availableCredits).toLocaleString()} CR`}
                   </span>
                 </div>
 
                 <button
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className={`px-4 py-2.5 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
-                    isSandboxMode
-                      ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 shadow-emerald-500/25 ring-1 ring-emerald-400/40"
-                      : "bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-hover hover:to-indigo-500 shadow-primary/25"
-                  }`}
-                  title={
-                    !hasEffectiveInput()
-                      ? "Escribe un guion o selecciona un avatar / hook para generar"
-                      : !hasEffectiveReferenceImage() &&
-                        !selectedModel.supportsTextToVideo
-                      ? "Seedance 2 requiere una imagen de referencia o avatar"
-                      : isSandboxMode
-                      ? "Generar Video de Prueba (100% Gratis sin gastar MuAPI)"
-                      : "Generar Video Real con MuAPI (Consume saldo)"
-                  }
+                  className="px-4 py-2.5 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 shadow-emerald-500/25 ring-1 ring-emerald-400/40"
+                  title="Generar Video Creativo con 0 consumo de saldo en MuAPI"
                 >
                   {isGenerating ? (
                     <>
                       <FiLoader className="text-sm animate-spin" />
-                      <span>{isSandboxMode ? "Simulando video..." : "Generando con MuAPI..."}</span>
+                      <span>Creando video creativo...</span>
                     </>
                   ) : (
                     <>
                       <FiZap className="text-sm" />
                       <span className="hidden sm:inline">
-                        {isSandboxMode
-                          ? "🎬 Generar Video de Prueba (0 Costo MuAPI)"
-                          : "🚀 Generar Video Real (Consume MuAPI)"}
+                        🎬 Generar Video Creativo (0 Costo MuAPI)
                       </span>
                       <span className="sm:hidden">
-                        {isSandboxMode
-                          ? "⚡ Generar Prueba (0 Costo)"
-                          : "🚀 Generar Real"}
+                        ⚡ Generar Video (0 Costo)
                       </span>
                     </>
                   )}
