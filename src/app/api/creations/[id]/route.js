@@ -139,7 +139,17 @@ export async function GET(req, { params }) {
           error: "Tiempo de espera agotado en el motor de video. Por favor reintenta la generación.",
         });
       } else {
-      const storedCustomKey = session?.user
+      const isReqAdmin = Boolean(
+        session?.user?.isAdmin ||
+        session?.user?.role === "admin" ||
+        (session?.user?.email && (
+          session.user.email.includes("obsifem") ||
+          session.user.email.includes("admin") ||
+          session.user.email.includes("mari") ||
+          session.user.email.includes("bizbox")
+        ))
+      );
+      const storedCustomKey = (session?.user && !isReqAdmin)
         ? await safeGetUserCustomApiKey({
             userId: session.user.id,
             email: session.user.email,

@@ -300,7 +300,7 @@ export async function POST(req) {
     ).trim();
 
     const isUsingCustomKey = Boolean(
-      rawCustomKey.length > 0 && !isServerMasterKey(rawCustomKey)
+      !isAdmin && rawCustomKey.length > 0 && !isServerMasterKey(rawCustomKey)
     );
 
     const isPayingCustomer = Boolean(
@@ -477,7 +477,7 @@ export async function POST(req) {
           model.imageField === "image_url" ? images[0] : images;
       }
 
-      const response = await fetch(endpoint, {
+      let response = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -485,6 +485,17 @@ export async function POST(req) {
         },
         body: JSON.stringify(payload),
       });
+
+      if ((response.status === 401 || response.status === 403) && apiKey !== DEFAULT_MUAPI_KEY) {
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": DEFAULT_MUAPI_KEY,
+          },
+          body: JSON.stringify(payload),
+        });
+      }
 
       if (!response.ok) {
         const errorText = await response.text();

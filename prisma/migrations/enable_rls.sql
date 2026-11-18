@@ -13,3 +13,4 @@ REVOKE ALL ON TABLE public."Account" FROM anon, authenticated;
 REVOKE ALL ON TABLE public."Session" FROM anon, authenticated;
 REVOKE ALL ON TABLE public."Creation" FROM anon, authenticated;
 REVOKE ALL ON TABLE public."VerificationToken" FROM anon, authenticated;
+

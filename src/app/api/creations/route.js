@@ -200,7 +200,7 @@ export async function GET() {
         })
       : null;
     const customKey =
-      storedCustomKey && !isServerMasterKey(storedCustomKey)
+      storedCustomKey && !isServerMasterKey(storedCustomKey) && !isAdmin
         ? storedCustomKey
         : null;
     const apiKey = customKey || DEFAULT_MUAPI_KEY;
