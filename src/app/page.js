@@ -63,6 +63,12 @@ import {
   buildCharacterConsistencyLock,
   buildYouTubeLongFormBlueprint,
 } from "@/lib/ugcore-v3";
+import {
+  CINEMATIC_THEMES,
+  CINEMATIC_CAMERA_EFFECTS,
+  CINEMATIC_LIGHTING_STYLES,
+  buildCinematicPrompt,
+} from "@/lib/cinematic-environments";
 
 const MODELS = [
   {
@@ -343,6 +349,17 @@ export default function Home() {
 
   // AI Influencer & Promotion Studio state (15 Influencers with Minimal Config presets)
   const [isInfluencerMode, setIsInfluencerMode] = useState(true);
+  const [creationStyleMode, setCreationStyleMode] = useState("avatar"); // "avatar" | "cinematic"
+  const [selectedCinematicThemeId, setSelectedCinematicThemeId] = useState(
+    CINEMATIC_THEMES[0]?.id || "luxury-wellness-violet"
+  );
+  const [selectedCinematicCameraId, setSelectedCinematicCameraId] = useState(
+    CINEMATIC_CAMERA_EFFECTS[0]?.id || "dolly-in"
+  );
+  const [selectedCinematicLightingId, setSelectedCinematicLightingId] = useState(
+    CINEMATIC_LIGHTING_STYLES[0]?.id || "golden-hour"
+  );
+  const [cinematicUserIdea, setCinematicUserIdea] = useState("");
   const [isMinimalInfluencerConfig, setIsMinimalInfluencerConfig] =
     useState(true);
   const [selectedInfluencer, setSelectedInfluencer] = useState(
@@ -1379,6 +1396,7 @@ export default function Home() {
   };
 
   const hasEffectiveInput = () => {
+    if (creationStyleMode === "cinematic") return true;
     if (prompt && prompt.trim().length > 0) return true;
     if (Array.isArray(scenes) && scenes.some((s) => s?.prompt?.trim().length > 0)) return true;
     if (isInfluencerMode && selectedInfluencer) return true;
@@ -1387,11 +1405,13 @@ export default function Home() {
   };
 
   const hasEffectiveReferenceImage = () => {
+    if (creationStyleMode === "cinematic") return true;
     const readyUploads = uploadedImages.filter(
       (img) => img.status === "ready" || Boolean(img.url || img.preview)
     );
     if (readyUploads.length > 0) return true;
     if (
+      creationStyleMode === "avatar" &&
       isInfluencerMode &&
       useInfluencerReferenceImage &&
       getEffectiveInfluencerAvatar()
@@ -1454,11 +1474,13 @@ export default function Home() {
         useVirtualEnvImageRef &&
         Boolean(effectiveEnvUrl);
 
-      const combinedImageUrls = [
-        ...(hasAvatarRef ? [effectiveAvatar] : []),
-        ...readyUserUrls,
-        ...(hasEnvRef ? [effectiveEnvUrl] : []),
-      ].slice(0, 7);
+      const combinedImageUrls = (creationStyleMode === "cinematic")
+        ? readyUserUrls.slice(0, 7)
+        : [
+            ...(hasAvatarRef ? [effectiveAvatar] : []),
+            ...readyUserUrls,
+            ...(hasEnvRef ? [effectiveEnvUrl] : []),
+          ].slice(0, 7);
 
       const envImageTag = hasEnvRef
         ? `@image${
@@ -1542,7 +1564,16 @@ export default function Home() {
       let activeScenes = [];
       let finalPrompt = prompt.trim();
 
-      if (videoMode === "long" && longSubMode === "scenes") {
+      if (creationStyleMode === "cinematic") {
+        finalPrompt = buildCinematicPrompt({
+          themeId: selectedCinematicThemeId,
+          cameraEffectId: selectedCinematicCameraId,
+          lightingStyleId: selectedCinematicLightingId,
+          userIdea: cinematicUserIdea.trim() || prompt.trim(),
+          aspectRatio: requestSettings.aspect_ratio || "9:16",
+          resolution: requestSettings.resolution || "720p",
+        });
+      } else if (videoMode === "long" && longSubMode === "scenes") {
         const userScenes = scenes.filter((s) => s.prompt.trim().length > 0);
         if (userScenes.length > 0) {
           activeScenes = userScenes.map((s) => ({
@@ -2661,6 +2692,246 @@ export default function Home() {
                   exit={{ opacity: 0, height: 0 }}
                   className="border-b border-glass-border bg-bg-card/50 p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar"
                 >
+                  {/* Selector Principal de Estilo de Video: 🎭 Con Avatar / Rostro vs 🌌 Ambientes Cinemáticos (Estilo Gemini) */}
+                  <div className="p-3 rounded-2xl bg-gradient-to-r from-bg-card via-[#8B5CF6]/15 to-bg-card border border-glass-border shadow-sm mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#8B5CF6] animate-pulse" />
+                          <span className="text-xs font-black text-foreground uppercase tracking-wider">
+                            Estilo de Producción
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted mt-0.5">
+                          {creationStyleMode === "avatar"
+                            ? "Videos con influencers IA y presentadores hablando a cámara."
+                            : "Mundos, paisajes, tomas de producto B-Roll y escenas de película sin rostro (Estilo Gemini & Veo 3.1)."}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 bg-solid-bg/90 p-1 rounded-full border border-glass-border">
+                        <button
+                          type="button"
+                          onClick={() => setCreationStyleMode("avatar")}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+                            creationStyleMode === "avatar"
+                              ? "bg-emerald-500 text-white shadow-md ring-2 ring-emerald-400/30"
+                              : "text-muted hover:text-foreground"
+                          }`}
+                        >
+                          <span>🎭 Con Rostro (UGC)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreationStyleMode("cinematic");
+                            if (selectedModel.id === "seedance-2") {
+                              const veo = MODELS.find((m) => m.id === "veo-3-1") || MODELS[0];
+                              setSelectedModel(veo);
+                              toast.success("🌌 Modelo Veo 3.1 seleccionado para ambientes cinemáticos");
+                            }
+                          }}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer ${
+                            creationStyleMode === "cinematic"
+                              ? "bg-gradient-to-r from-[#8B5CF6] to-indigo-600 text-white shadow-md ring-2 ring-[#8B5CF6]/40 shadow-[#8B5CF6]/30"
+                              : "text-muted hover:text-foreground"
+                          }`}
+                        >
+                          <span>🌌 Ambientes (Estilo Gemini)</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/20 font-bold uppercase tracking-wider">Sin Rostro</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {creationStyleMode === "cinematic" ? (
+                    <div className="space-y-4 pt-1">
+                      {/* 1. Selector de Temática / Ambientación */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                            <span>🌌 1. Elige la Temática de Ambientación ({CINEMATIC_THEMES.length} Entornos):</span>
+                          </span>
+                          <span className="text-[10px] font-bold text-[#8B5CF6]">
+                            Sin Rostro • Fotorrealismo 4K
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {CINEMATIC_THEMES.map((theme) => {
+                            const isSelected = selectedCinematicThemeId === theme.id;
+                            return (
+                              <button
+                                key={theme.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCinematicThemeId(theme.id);
+                                  if (!cinematicUserIdea) {
+                                    setCinematicUserIdea(theme.recommendedIdeas[0]);
+                                  }
+                                }}
+                                className={`relative flex flex-col p-2.5 rounded-xl border text-left transition-all cursor-pointer overflow-hidden group ${
+                                  isSelected
+                                    ? "border-[#8B5CF6] bg-[#8B5CF6]/15 ring-2 ring-[#8B5CF6]/50 shadow-lg shadow-[#8B5CF6]/20"
+                                    : "border-glass-border bg-bg-card/70 hover:border-white/30 hover:bg-bg-card"
+                                }`}
+                              >
+                                {theme.previewImage && (
+                                  <div className="relative w-full h-16 rounded-lg overflow-hidden mb-2">
+                                    <img
+                                      src={theme.previewImage}
+                                      alt={theme.name}
+                                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                    <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[8px] font-black text-white">
+                                      {theme.badge}
+                                    </span>
+                                    <span className="absolute bottom-1 right-1 text-base">
+                                      {theme.emoji}
+                                    </span>
+                                  </div>
+                                )}
+                                <span className="text-xs font-bold text-foreground leading-snug line-clamp-1">
+                                  {theme.name}
+                                </span>
+                                <span className="text-[10px] text-muted line-clamp-2 mt-0.5 leading-tight">
+                                  {theme.description}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 2. Selector de Movimiento de Cámara Cinemática */}
+                      <div className="space-y-2 pt-2 border-t border-glass-border/60">
+                        <span className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                          <span>🎥 2. Efecto de Cámara Cinemática:</span>
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {CINEMATIC_CAMERA_EFFECTS.map((cam) => {
+                            const isSelected = selectedCinematicCameraId === cam.id;
+                            return (
+                              <button
+                                key={cam.id}
+                                type="button"
+                                onClick={() => setSelectedCinematicCameraId(cam.id)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-gradient-to-r from-[#8B5CF6] to-indigo-600 text-white shadow-sm ring-1 ring-white/40"
+                                    : "bg-glass-bg text-secondary-text hover:text-foreground border border-glass-border hover:bg-white/5"
+                                }`}
+                              >
+                                <span>{cam.icon}</span>
+                                <span>{cam.shortLabel}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 3. Selector de Iluminación & Atmósfera */}
+                      <div className="space-y-2 pt-2 border-t border-glass-border/60">
+                        <span className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                          <span>💡 3. Iluminación & Atmósfera Visual:</span>
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {CINEMATIC_LIGHTING_STYLES.map((light) => {
+                            const isSelected = selectedCinematicLightingId === light.id;
+                            return (
+                              <button
+                                key={light.id}
+                                type="button"
+                                onClick={() => setSelectedCinematicLightingId(light.id)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-amber-500/20 text-amber-300 border border-amber-400 ring-1 ring-amber-400/50"
+                                    : "bg-glass-bg text-secondary-text hover:text-foreground border border-glass-border hover:bg-white/5"
+                                }`}
+                              >
+                                <span>{light.shortLabel}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 4. Plantillas de Ideas de 1 Clic para esta temática */}
+                      {(() => {
+                        const currentTheme =
+                          CINEMATIC_THEMES.find((t) => t.id === selectedCinematicThemeId) ||
+                          CINEMATIC_THEMES[0];
+                        return (
+                          <div className="space-y-2 pt-2 border-t border-glass-border/60">
+                            <span className="text-[11px] font-bold text-muted flex items-center gap-1">
+                              <span>⚡ Ideas Rápidas para {currentTheme.name}:</span>
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {currentTheme.recommendedIdeas.map((idea, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => setCinematicUserIdea(idea)}
+                                  className="px-2.5 py-1 rounded-lg bg-glass-bg hover:bg-[#8B5CF6]/20 border border-glass-border text-left text-[11px] text-secondary-text hover:text-white transition-all cursor-pointer"
+                                >
+                                  💡 &quot;{idea}&quot;
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 5. Campo de Idea o Producto Personalizado */}
+                      <div className="space-y-1.5 pt-2 border-t border-glass-border/60">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-foreground">
+                            ✍️ Describe lo que quieres ver en la escena (o usa una idea rápida arriba):
+                          </label>
+                          {cinematicUserIdea && (
+                            <button
+                              type="button"
+                              onClick={() => setCinematicUserIdea("")}
+                              className="text-[10px] text-muted hover:text-rose-400 cursor-pointer"
+                            >
+                              Limpiar
+                            </button>
+                          )}
+                        </div>
+                        <textarea
+                          value={cinematicUserIdea}
+                          onChange={(e) => setCinematicUserIdea(e.target.value)}
+                          rows={2}
+                          placeholder="Ej: Un frasco de perfume de cristal sobre pedestal de piedra negra con agua ondulando suavemente al atardecer..."
+                          className="w-full px-3 py-2 rounded-xl bg-solid-bg/80 border border-glass-border text-xs text-foreground placeholder-muted outline-none focus:border-[#8B5CF6] transition-all resize-none"
+                        />
+                      </div>
+
+                      {/* 6. Vista Previa en Vivo del Prompt Cinemático Optimizado */}
+                      <div className="p-3 rounded-xl bg-solid-bg/90 border border-[#8B5CF6]/30 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase text-[#8B5CF6] tracking-wider flex items-center gap-1">
+                            <span>🎬 Prompt Cinemático Maestro (Optimizado para Veo 3.1 & Grok)</span>
+                          </span>
+                          <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">
+                            4K • 35mm • 0 Rostros
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-secondary-text font-mono leading-relaxed line-clamp-3">
+                          {buildCinematicPrompt({
+                            themeId: selectedCinematicThemeId,
+                            cameraEffectId: selectedCinematicCameraId,
+                            lightingStyleId: selectedCinematicLightingId,
+                            userIdea: cinematicUserIdea,
+                            aspectRatio: modelSettings?.aspect_ratio || "9:16",
+                            resolution: modelSettings?.resolution || "720p",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
                   {/* Selector Principal de Modo Avatar: (1) Stock/Estudio vs (2) Gemelo Digital */}
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-glass-border/60">
                     <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
@@ -3377,6 +3648,8 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                  </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
