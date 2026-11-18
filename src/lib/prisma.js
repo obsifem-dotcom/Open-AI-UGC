@@ -4,8 +4,15 @@ import { Pool } from "pg";
 
 const globalForPrisma = globalThis;
 
-const DATABASE_CONNECTION_URL =
-  process.env.DATABASE_URL || process.env.DIRECT_URL || "";
+const FALLBACK_DATABASE_URL =
+  "postgresql://postgres.xlandgxujchkfshybicy:K65FZuJ4bhCRaCwD@aws-0-ca-central-1.pooler.supabase.com:5432/postgres";
+
+const DATABASE_CONNECTION_URL = (
+  process.env.DATABASE_URL ||
+  process.env.DIRECT_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  FALLBACK_DATABASE_URL
+).trim();
 
 let prismaInstance = globalForPrisma.prisma;
 
