@@ -43,6 +43,51 @@ const MODEL_ENDPOINTS = {
     maxDuration: 15,
     defaultDuration: 5,
   },
+  "cogvideox-5b": {
+    imageToVideo: "/api/v1/cogvideox-5b-image-to-video",
+    textToVideo: "/api/v1/cogvideox-5b-text-to-video",
+    imageField: "images_list",
+    minDuration: 5,
+    maxDuration: 10,
+    defaultDuration: 6,
+    isOpenSource: true,
+  },
+  "ltx-video": {
+    imageToVideo: "/api/v1/ltx-video-image-to-video",
+    textToVideo: "/api/v1/ltx-video-text-to-video",
+    imageField: "images_list",
+    minDuration: 5,
+    maxDuration: 10,
+    defaultDuration: 5,
+    isOpenSource: true,
+  },
+  "animatediff-v3": {
+    imageToVideo: "/api/v1/animatediff-v3-image-to-video",
+    textToVideo: "/api/v1/animatediff-v3-text-to-video",
+    imageField: "images_list",
+    minDuration: 4,
+    maxDuration: 16,
+    defaultDuration: 5,
+    isOpenSource: true,
+  },
+  "hunyuan-video": {
+    imageToVideo: "/api/v1/hunyuan-video-image-to-video",
+    textToVideo: "/api/v1/hunyuan-video-text-to-video",
+    imageField: "images_list",
+    minDuration: 5,
+    maxDuration: 10,
+    defaultDuration: 5,
+    isOpenSource: true,
+  },
+  "stable-video-diffusion": {
+    imageToVideo: "/api/v1/svd-xt-image-to-video",
+    textToVideo: null,
+    imageField: "images_list",
+    minDuration: 4,
+    maxDuration: 5,
+    defaultDuration: 4,
+    isOpenSource: true,
+  },
 };
 
 function clamp(val, min, max) {
@@ -200,6 +245,15 @@ function buildSegments({
 }
 
 function calculateCreditsForDuration(modelId, duration, resolution) {
+  if (
+    modelId === "cogvideox-5b" ||
+    modelId === "ltx-video" ||
+    modelId === "animatediff-v3" ||
+    modelId === "hunyuan-video" ||
+    modelId === "stable-video-diffusion"
+  ) {
+    return 0; // Modelos Open Source Gratuitos (0 Costo)
+  }
   if (modelId === "grok-video") {
     const rate = resolution === "720p" ? 10 : 5;
     return duration * rate;

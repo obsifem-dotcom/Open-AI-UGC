@@ -268,3 +268,4 @@ export function buildCinematicPrompt({
 
   return promptParts.join(" ");
 }
+

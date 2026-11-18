@@ -142,6 +142,86 @@ const MODELS = [
       duration: { min: 4, max: 15, default: 5 },
     },
   },
+  {
+    id: "cogvideox-5b",
+    name: "CogVideoX-5B (Open Source)",
+    type: "OPEN SOURCE",
+    badge: "0 Costo",
+    icon: FiZap,
+    description: "Modelo open source líder de Zhipu AI para generación cinematográfica de alta fidelidad.",
+    supportsTextToVideo: true,
+    isOpenSource: true,
+    maxClipDuration: 10,
+    minClipDuration: 5,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1", "4:3"], default: "9:16" },
+      duration: { min: 5, max: 10, default: 6 },
+    },
+  },
+  {
+    id: "ltx-video",
+    name: "LTX-Video (Lightricks)",
+    type: "OPEN SOURCE",
+    badge: "Ultra-Fast",
+    icon: FiVideo,
+    description: "Arquitectura DiT abierta de Lightricks para ambientes realistas a tiempo récord.",
+    supportsTextToVideo: true,
+    isOpenSource: true,
+    maxClipDuration: 10,
+    minClipDuration: 5,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
+      duration: { min: 5, max: 10, default: 5 },
+    },
+  },
+  {
+    id: "hunyuan-video",
+    name: "HunyuanVideo 13B (Tencent)",
+    type: "OPEN SOURCE",
+    badge: "13B DiT",
+    icon: FiVideo,
+    description: "Modelo open-weights de 13 mil millones de parámetros con calidad cinematográfica extrema.",
+    supportsTextToVideo: true,
+    isOpenSource: true,
+    maxClipDuration: 10,
+    minClipDuration: 5,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
+      duration: { min: 5, max: 10, default: 5 },
+    },
+  },
+  {
+    id: "animatediff-v3",
+    name: "AnimateDiff v3 (SDXL)",
+    type: "OPEN SOURCE",
+    badge: "Animación",
+    icon: FiZap,
+    description: "Framework comunitario abierto por excelencia para animación fluida y control de cámara.",
+    supportsTextToVideo: true,
+    isOpenSource: true,
+    maxClipDuration: 16,
+    minClipDuration: 4,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
+      duration: { min: 4, max: 16, default: 5 },
+    },
+  },
+  {
+    id: "stable-video-diffusion",
+    name: "Stable Video Diffusion (SVD)",
+    type: "OPEN SOURCE",
+    badge: "Stability AI",
+    icon: FiVideo,
+    description: "Modelo abierto de Stability AI para animar imágenes fijas, productos y ambientes con 25 fps.",
+    supportsTextToVideo: false,
+    isOpenSource: true,
+    maxClipDuration: 5,
+    minClipDuration: 4,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
+      duration: { min: 4, max: 5, default: 4 },
+    },
+  },
 ];
 
 const LONG_VIDEO_PRESETS = [30, 45, 60, 90, 120, 180];
@@ -4222,14 +4302,16 @@ export default function Home() {
                           </div>
                           <span
                             className={`px-2 py-0.5 rounded text-xs font-medium ${
-                              model.type === "MODEL"
-                                ? "bg-amber-100 text-amber-600"
-                                : model.type === "TOOL"
-                                  ? "bg-purple-100 text-purple-600"
-                                  : "bg-emerald-100 text-emerald-600"
+                              model.type === "OPEN SOURCE"
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-black"
+                                : model.type === "MODEL"
+                                  ? "bg-amber-100 text-amber-600"
+                                  : model.type === "TOOL"
+                                    ? "bg-purple-100 text-purple-600"
+                                    : "bg-emerald-100 text-emerald-600"
                             }`}
                           >
-                            {model.type}
+                            {model.badge ? `⚡ ${model.badge}` : model.type}
                           </span>
                         </div>
                         <div className="space-y-2">
