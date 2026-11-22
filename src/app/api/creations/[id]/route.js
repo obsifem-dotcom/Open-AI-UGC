@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
+import { authOptions, DEFAULT_FAL_KEY, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray, formatCreationResponse } from "@/lib/creations";
 import {
@@ -12,8 +12,14 @@ import {
 
 function extractVideoUrl(checkData) {
   if (!checkData) return null;
+  if (checkData.video && typeof checkData.video.url === "string") {
+    return checkData.video.url;
+  }
   if (Array.isArray(checkData.outputs) && checkData.outputs.length > 0 && typeof checkData.outputs[0] === "string") {
     return checkData.outputs[0];
+  }
+  if (Array.isArray(checkData.outputs) && checkData.outputs[0]?.url) {
+    return checkData.outputs[0].url;
   }
   if (Array.isArray(checkData.output) && checkData.output.length > 0 && typeof checkData.output[0] === "string") {
     return checkData.output[0];
@@ -33,6 +39,41 @@ function extractVideoUrl(checkData) {
     if (Array.isArray(checkData.result.outputs) && checkData.result.outputs[0]) return checkData.result.outputs[0];
   }
   return null;
+}
+
+async function checkFalRequestStatus({ falModel, falReqId, falApiKey }) {
+  try {
+    const statusRes = await fetch(
+      `https://queue.fal.run/${falModel}/requests/${falReqId}/status`,
+      {
+        headers: { Authorization: `Key ${falApiKey}` },
+      }
+    );
+    if (!statusRes.ok) return { status: "processing" };
+    const statusData = await statusRes.json();
+    if (statusData.status === "COMPLETED") {
+      const resultRes = await fetch(
+        `https://queue.fal.run/${falModel}/requests/${falReqId}`,
+        {
+          headers: { Authorization: `Key ${falApiKey}` },
+        }
+      );
+      if (resultRes.ok) {
+        const resultData = await resultRes.json();
+        return {
+          status: "completed",
+          url: extractVideoUrl(resultData),
+        };
+      }
+    }
+    if (statusData.status === "FAILED") {
+      return { status: "failed", error: statusData.error || "Error en Fal.ai" };
+    }
+    return { status: statusData.status || "processing" };
+  } catch (err) {
+    console.error("[FAL_CHECK_STATUS_ERROR]", err);
+    return { status: "processing" };
+  }
 }
 
 async function safeUpdateCreationRecord(id, isDbRecord, data) {
@@ -159,9 +200,10 @@ export async function GET(req, { params }) {
         storedCustomKey && !isServerMasterKey(storedCustomKey)
           ? storedCustomKey
           : null;
+      const falApiKey = customKey || DEFAULT_FAL_KEY;
       const apiKey = customKey || DEFAULT_MUAPI_KEY;
 
-      if (apiKey) {
+      if (falApiKey || apiKey) {
         const multiRequestIds = parseJsonArray(creation.requestId);
 
         if (multiRequestIds && multiRequestIds.length > 0) {
@@ -175,6 +217,25 @@ export async function GET(req, { params }) {
           await Promise.all(
             multiRequestIds.map(async (reqId, idx) => {
               if (updatedUrls[idx]) return;
+
+              if (typeof reqId === "string" && reqId.startsWith("fal:")) {
+                const parts = reqId.split(":");
+                const falModel = parts[1] || "fal-ai/ltx-video";
+                const falReqId = parts[2];
+                const res = await checkFalRequestStatus({
+                  falModel,
+                  falReqId,
+                  falApiKey,
+                });
+                if (res.status === "failed") {
+                  failedError = res.error || `Scene ${idx + 1} generation failed`;
+                } else if (res.status === "completed" && res.url) {
+                  updatedUrls[idx] = res.url;
+                  hasChanges = true;
+                }
+                return;
+              }
+
               try {
                 const checkRes = await fetch(
                   `https://api.muapi.ai/api/v1/predictions/${reqId}/result`,
@@ -223,6 +284,26 @@ export async function GET(req, { params }) {
           } else if (hasChanges) {
             creation = await safeUpdateCreationRecord(id, isDbRecord, {
               url: JSON.stringify(updatedUrls),
+            });
+          }
+        } else if (typeof creation.requestId === "string" && creation.requestId.startsWith("fal:")) {
+          const parts = creation.requestId.split(":");
+          const falModel = parts[1] || "fal-ai/ltx-video";
+          const falReqId = parts[2];
+          const res = await checkFalRequestStatus({
+            falModel,
+            falReqId,
+            falApiKey,
+          });
+          if (res.status === "failed") {
+            creation = await safeUpdateCreationRecord(id, isDbRecord, {
+              status: "failed",
+              error: res.error || "Generation failed",
+            });
+          } else if (res.status === "completed" && res.url) {
+            creation = await safeUpdateCreationRecord(id, isDbRecord, {
+              status: "completed",
+              url: res.url,
             });
           }
         } else {

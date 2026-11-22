@@ -61,7 +61,14 @@ export const DEFAULT_MUAPI_KEY = (
   process.env.UGC_API_KEY ||
   process.env.API_KEY ||
   process.env.MUAPIAPP_API_KEY ||
-  "88e6133af38f606478109f6a80320815d7b7b742812b908ec2c8e23da4adfe42"
+  ""
+).trim();
+
+export const DEFAULT_FAL_KEY = (
+  process.env.FAL_KEY ||
+  process.env.FAL_API_KEY ||
+  process.env.NEXT_PUBLIC_FAL_KEY ||
+  ""
 ).trim();
 
 export function isServerMasterKey(key) {
@@ -69,7 +76,9 @@ export function isServerMasterKey(key) {
   const trimmed = key.trim();
   if (!trimmed) return false;
   return (
-    trimmed === DEFAULT_MUAPI_KEY || SERVER_ADMIN_KEYS.includes(trimmed)
+    Boolean(DEFAULT_MUAPI_KEY && trimmed === DEFAULT_MUAPI_KEY) ||
+    Boolean(DEFAULT_FAL_KEY && trimmed === DEFAULT_FAL_KEY) ||
+    SERVER_ADMIN_KEYS.includes(trimmed)
   );
 }
 

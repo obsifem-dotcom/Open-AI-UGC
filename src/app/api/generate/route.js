@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_MUAPI_KEY, isServerMasterKey, isAdminEmail } from "@/lib/auth";
+import { authOptions, DEFAULT_FAL_KEY, DEFAULT_MUAPI_KEY, isServerMasterKey, isAdminEmail } from "@/lib/auth";
 import { TIMELINE_TRANSITIONS } from "@/lib/ugcore-v3";
 import { formatCreationResponse } from "@/lib/creations";
 import {
@@ -9,6 +9,19 @@ import {
   safeCreateCreation,
   safeDeductCredits,
 } from "@/lib/runtime-store";
+
+const FAL_MODEL_MAP = {
+  "ltx-video": "fal-ai/ltx-video",
+  "cogvideox-5b": "fal-ai/cogvideox-5b",
+  "hunyuan-video": "fal-ai/hunyuan-video",
+  "animatediff-v3": "fal-ai/ltx-video",
+  "stable-video-diffusion": "fal-ai/fast-svd",
+  "fast-svd": "fal-ai/fast-svd",
+  "seedance-2": "fal-ai/ltx-video",
+  "grok-video": "fal-ai/cogvideox-5b",
+  "veo-3-1": "fal-ai/hunyuan-video",
+  "happy-horse": "fal-ai/ltx-video",
+};
 
 const MODEL_ENDPOINTS = {
   "grok-video": {
@@ -363,24 +376,30 @@ export async function POST(req) {
         activeUser.planId !== "free"
     );
 
-    // PROTECCIÓN ABSOLUTA DE SALDO (WALLET LOCK):
-    // La cuenta y saldo de MuAPI de la administradora NUNCA se tocarán ni consumirán.
-    // Solo se realizarán llamadas reales a MuAPI si un usuario ingresa explícitamente su PROPIA API Key (BYOK).
-    // De lo contrario, el sistema opera en Modo Creativo Gratuito (Sandbox) garantizando $0.00 de gasto.
+    // Motor Oficial: Fal.ai
+    // Clave de Fal.ai: Se toma la llave personalizada del usuario o la del servidor (FAL_KEY)
+    const falApiKey = (
+      rawCustomKey ||
+      DEFAULT_FAL_KEY ||
+      ""
+    ).trim();
+
+    // Modo Sandbox / Demo: Solo se activa si el usuario lo solicita explícitamente
     const isSandbox = Boolean(
-      !isUsingCustomKey ||
       body.sandbox === true ||
       body.isSandbox === true ||
       body.testMode === true ||
-      req.headers.get("x-sandbox-mode") === "true" ||
-      enforceSandbox
+      req.headers.get("x-sandbox-mode") === "true"
     );
 
-    const apiKey = isUsingCustomKey ? rawCustomKey : DEFAULT_MUAPI_KEY;
-    if (!apiKey && !isSandbox) {
+    if (!isSandbox && !falApiKey) {
       return NextResponse.json(
-        { error: "API Key del motor de video no configurada en el servidor." },
-        { status: 500 }
+        {
+          error:
+            "FAL_KEY no configurada. Agrega tu clave de Fal.ai en la configuración de tu cuenta o en el archivo .env.local del servidor (FAL_KEY=...). Si solo deseas probar la interfaz sin IA, activa el Modo Demostración.",
+          needsFalKey: true,
+        },
+        { status: 400 }
       );
     }
 
@@ -507,62 +526,48 @@ export async function POST(req) {
       }
     }
 
-    const webhookBase =
-      process.env.WEBHOOK_URL ||
-      process.env.NEXTAUTH_URL ||
-      new URL(req.url).origin;
-    const webhookUrl = new URL("/api/webhook/muapi", webhookBase).toString();
-    const endpoint = new URL(endpointPath, "https://api.muapi.ai");
-    if (new URL(webhookUrl).protocol === "https:") {
-      endpoint.searchParams.set("webhook", webhookUrl);
-    }
-
-    // Submit each segment to MuAPI
+    // Enviar cada escena al motor oficial Fal.ai
+    const falEndpoint = FAL_MODEL_MAP[modelId] || "fal-ai/ltx-video";
     const requestIds = [];
+
     for (const segment of segments) {
-      const payload = {
-        ...settings,
+      const falQueueUrl = `https://queue.fal.run/${falEndpoint}`;
+      const falPayload = {
         prompt: segment.prompt,
-        duration: segment.duration,
+        aspect_ratio:
+          settings.aspect_ratio === "16:9" ||
+          settings.aspect_ratio === "9:16" ||
+          settings.aspect_ratio === "1:1"
+            ? settings.aspect_ratio
+            : "9:16",
       };
+
       if (images.length) {
-        payload[model.imageField] =
-          model.imageField === "image_url" ? images[0] : images;
+        falPayload.image_url = images[0];
       }
 
-      let response = await fetch(endpoint, {
+      const falResponse = await fetch(falQueueUrl, {
         method: "POST",
         headers: {
+          Authorization: `Key ${falApiKey}`,
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(falPayload),
       });
 
-      if ((response.status === 401 || response.status === 403) && apiKey !== DEFAULT_MUAPI_KEY) {
-        response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": DEFAULT_MUAPI_KEY,
-          },
-          body: JSON.stringify(payload),
-        });
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (!falResponse.ok) {
+        const errorText = await falResponse.text();
         throw new Error(
-          `Error del motor de video (${response.status}): ${errorText}`
+          `Error de Fal.ai (${falResponse.status}): ${errorText}`
         );
       }
 
-      const data = await response.json();
-      const requestId = data.request_id || data.id;
-      if (!requestId) {
-        throw new Error("El motor de video no devolvió un ID de tarea válido");
+      const falData = await falResponse.json();
+      const falReqId = falData.request_id || falData.id;
+      if (!falReqId) {
+        throw new Error("Fal.ai no devolvió un ID de tarea válido");
       }
-      requestIds.push(requestId);
+      requestIds.push(`fal:${falEndpoint}:${falReqId}`);
     }
 
     const combinedPrompt =

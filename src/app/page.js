@@ -72,6 +72,54 @@ import {
 
 const MODELS = [
   {
+    id: "ltx-video",
+    name: "LTX-Video (Fal.ai)",
+    type: "PREMIER",
+    badge: "Ultra-Fast (4s)",
+    icon: FiZap,
+    description: "Modelo oficial de Lightricks en Fal.ai: el más rápido y económico (~$0.03/video).",
+    supportsTextToVideo: true,
+    isOpenSource: true,
+    maxClipDuration: 10,
+    minClipDuration: 5,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
+      duration: { min: 5, max: 10, default: 5 },
+    },
+  },
+  {
+    id: "cogvideox-5b",
+    name: "CogVideoX-5B (Fal.ai)",
+    type: "CINEMATIC",
+    badge: "Alta Calidad",
+    icon: FiVideo,
+    description: "Modelo cinematográfico de Zhipu AI en Fal.ai de alta fidelidad.",
+    supportsTextToVideo: true,
+    isOpenSource: true,
+    maxClipDuration: 10,
+    minClipDuration: 5,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1", "4:3"], default: "9:16" },
+      duration: { min: 5, max: 10, default: 6 },
+    },
+  },
+  {
+    id: "hunyuan-video",
+    name: "HunyuanVideo 13B (Fal.ai)",
+    type: "PRO",
+    badge: "Tencent 13B",
+    icon: FiZap,
+    description: "Modelo de 13 mil millones de parámetros de Tencent en Fal.ai para renderizado fotorrealista.",
+    supportsTextToVideo: true,
+    isOpenSource: true,
+    maxClipDuration: 10,
+    minClipDuration: 5,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
+      duration: { min: 5, max: 10, default: 5 },
+    },
+  },
+  {
     id: "grok-video",
     name: "Grok Video",
     type: "MODEL",
@@ -140,54 +188,6 @@ const MODELS = [
         default: "9:16",
       },
       duration: { min: 4, max: 15, default: 5 },
-    },
-  },
-  {
-    id: "cogvideox-5b",
-    name: "CogVideoX-5B (Open Source)",
-    type: "OPEN SOURCE",
-    badge: "0 Costo",
-    icon: FiZap,
-    description: "Modelo open source líder de Zhipu AI para generación cinematográfica de alta fidelidad.",
-    supportsTextToVideo: true,
-    isOpenSource: true,
-    maxClipDuration: 10,
-    minClipDuration: 5,
-    params: {
-      aspect_ratio: { options: ["9:16", "16:9", "1:1", "4:3"], default: "9:16" },
-      duration: { min: 5, max: 10, default: 6 },
-    },
-  },
-  {
-    id: "ltx-video",
-    name: "LTX-Video (Lightricks)",
-    type: "OPEN SOURCE",
-    badge: "Ultra-Fast",
-    icon: FiVideo,
-    description: "Arquitectura DiT abierta de Lightricks para ambientes realistas a tiempo récord.",
-    supportsTextToVideo: true,
-    isOpenSource: true,
-    maxClipDuration: 10,
-    minClipDuration: 5,
-    params: {
-      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
-      duration: { min: 5, max: 10, default: 5 },
-    },
-  },
-  {
-    id: "hunyuan-video",
-    name: "HunyuanVideo 13B (Tencent)",
-    type: "OPEN SOURCE",
-    badge: "13B DiT",
-    icon: FiVideo,
-    description: "Modelo open-weights de 13 mil millones de parámetros con calidad cinematográfica extrema.",
-    supportsTextToVideo: true,
-    isOpenSource: true,
-    maxClipDuration: 10,
-    minClipDuration: 5,
-    params: {
-      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
-      duration: { min: 5, max: 10, default: 5 },
     },
   },
   {
@@ -531,7 +531,7 @@ export default function Home() {
   const [isUploadingCustomVoice, setIsUploadingCustomVoice] = useState(false);
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
   const [samplePhraseType, setSamplePhraseType] = useState("preview"); // "preview" | "commercial"
-  const [isSandboxMode, setIsSandboxMode] = useState(true); // Inicia en Modo Pruebas por defecto (0 consumo de MuAPI garantizado)
+  const [isSandboxMode, setIsSandboxMode] = useState(false); // Modo Real Fal.ai activado por defecto
   const voiceAudioInputRef = useRef(null);
   const [microExpressionIds, setMicroExpressionIds] = useState([
     "eye-contact-lock",
@@ -1504,7 +1504,7 @@ export default function Home() {
     if (isGenerating) return;
 
     if (status !== "authenticated" && !isAdminUser && !isSandboxMode) {
-      toast.error("Para generar en Modo Real (MuAPI) inicia sesión como Administrador o activa tu Demo.");
+      toast.error("Para generar en Modo Real (Fal.ai) inicia sesión o activa tu cuenta.");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("ugcore:open-demo-modal"));
       }
@@ -1726,10 +1726,10 @@ export default function Home() {
 
       if (data.sandbox) {
         toast.success(
-          "🎬 Video de prueba generado con éxito (0 Créditos MuAPI gastados)"
+          "🎬 Video de demostración generado con éxito (Modo Demo)"
         );
       } else {
-        toast.success("🚀 Generando video... Míralo en tiempo real en el reproductor.");
+        toast.success("🚀 Generando video real con Fal.ai... Míralo en tiempo real en el reproductor.");
       }
 
       if (
@@ -4187,29 +4187,54 @@ export default function Home() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {/* Selector Modo Pruebas (0 Costo MuAPI) vs Modo Real */}
+                {/* Selector Modo Real Fal.ai vs Modo Demo */}
                 <button
                   type="button"
                   onClick={() => {
-                    toast.success("🛡️ Tu saldo de MuAPI está 100% protegido. Todas las opciones creativas se generan a costo $0.00.");
+                    setIsSandboxMode((prev) => {
+                      const next = !prev;
+                      toast(
+                        next
+                          ? "⚪ Modo Demostración activado: Genera vistas de prueba sin consumir Fal.ai."
+                          : "🚀 Modo Real activado: Genera videos reales con Inteligencia Artificial en Fal.ai.",
+                        { icon: next ? "⚪" : "🚀" }
+                      );
+                      return next;
+                    });
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border shadow-sm bg-emerald-500/20 text-emerald-300 border-emerald-400 hover:bg-emerald-500/30"
-                  title="Modo Creativo Protegido: Cero consumo de saldo en tu cuenta MuAPI garantizado"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all cursor-pointer border shadow-sm ${
+                    isSandboxMode
+                      ? "bg-amber-500/20 text-amber-300 border-amber-400 hover:bg-amber-500/30"
+                      : "bg-purple-500/20 text-purple-300 border-purple-400 hover:bg-purple-500/30"
+                  }`}
+                  title={
+                    isSandboxMode
+                      ? "Modo Demo: Haz clic para cambiar a Modo Real (Fal.ai)"
+                      : "Modo Real Fal.ai: Haz clic para cambiar a Modo Demo"
+                  }
                 >
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>🛡️ Saldo MuAPI Protegido (0 Costo)</span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isSandboxMode ? "bg-amber-400" : "bg-purple-400 animate-ping"
+                    }`}
+                  />
+                  <span>
+                    {isSandboxMode
+                      ? "⚪ Modo Demo (Prueba)"
+                      : "🚀 Motor Real: Fal.ai"}
+                  </span>
                 </button>
 
-                {/* Show credit balance & cost for both Admin and Buyers */}
+                {/* Show credit balance & cost */}
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-glass-bg border border-glass-border rounded-full">
                   <FaCoins className="text-yellow-500 text-xs" />
                   <span className="text-[10px] font-bold text-secondary-text">
-                    Costo: 0 CR (Sin Gasto)
+                    Motor: Fal.ai
                   </span>
                   <span className="text-muted">•</span>
-                  <span className="text-[10px] font-black text-emerald-500">
+                  <span className="text-[10px] font-black text-purple-400">
                     {isAdminUser
-                      ? "Saldo: Ilimitado (Protegido)"
+                      ? "Acceso Maestro Admin"
                       : `Saldo: ${Number(availableCredits).toLocaleString()} CR`}
                   </span>
                 </div>
@@ -4217,22 +4242,22 @@ export default function Home() {
                 <button
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className="px-4 py-2.5 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 shadow-emerald-500/25 ring-1 ring-emerald-400/40"
-                  title="Generar Video Creativo con 0 consumo de saldo en MuAPI"
+                  className="px-4 py-2.5 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-purple-500/25 ring-1 ring-purple-400/40"
+                  title="Generar Video con Fal.ai"
                 >
                   {isGenerating ? (
                     <>
                       <FiLoader className="text-sm animate-spin" />
-                      <span>Creando video creativo...</span>
+                      <span>Generando con Fal.ai...</span>
                     </>
                   ) : (
                     <>
                       <FiZap className="text-sm" />
                       <span className="hidden sm:inline">
-                        🎬 Generar Video Creativo (0 Costo MuAPI)
+                        🎬 Generar Video Real (Fal.ai)
                       </span>
                       <span className="sm:hidden">
-                        ⚡ Generar Video (0 Costo)
+                        ⚡ Generar Video
                       </span>
                     </>
                   )}
