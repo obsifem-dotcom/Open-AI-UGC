@@ -483,7 +483,7 @@ export async function POST(req) {
       );
     }
 
-    const model = MODEL_ENDPOINTS[modelId];
+    const model = MODEL_ENDPOINTS[modelId] || MODEL_ENDPOINTS["ltx-video"];
     if (!model) {
       return NextResponse.json(
         { error: "Modelo seleccionado no válido" },
