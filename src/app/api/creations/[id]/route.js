@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_FAL_KEY, DEFAULT_MUAPI_KEY, isServerMasterKey } from "@/lib/auth";
+import { authOptions, DEFAULT_FAL_KEY, DEFAULT_MUAPI_KEY, DEFAULT_REPLICATE_TOKEN, isServerMasterKey } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseJsonArray, formatCreationResponse } from "@/lib/creations";
 import {
@@ -72,6 +72,35 @@ async function checkFalRequestStatus({ falModel, falReqId, falApiKey }) {
     return { status: statusData.status || "processing" };
   } catch (err) {
     console.error("[FAL_CHECK_STATUS_ERROR]", err);
+    return { status: "processing" };
+  }
+}
+
+async function checkReplicateRequestStatus({ predictionId, replicateToken }) {
+  try {
+    const res = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+      headers: {
+        Authorization: `Bearer ${replicateToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+    if (!res.ok) return { status: "processing" };
+    const data = await res.json();
+    if (data.status === "succeeded") {
+      let videoUrl = null;
+      if (typeof data.output === "string" && data.output.startsWith("http")) {
+        videoUrl = data.output;
+      } else if (Array.isArray(data.output) && data.output.length > 0 && typeof data.output[0] === "string") {
+        videoUrl = data.output[0];
+      }
+      return { status: "completed", url: videoUrl };
+    }
+    if (data.status === "failed" || data.status === "canceled") {
+      return { status: "failed", error: data.error || "Error al procesar en Replicate" };
+    }
+    return { status: "processing" };
+  } catch (err) {
+    console.error("[REPLICATE_CHECK_STATUS_ERROR]", err);
     return { status: "processing" };
   }
 }
@@ -202,8 +231,9 @@ export async function GET(req, { params }) {
           : null;
       const falApiKey = customKey || DEFAULT_FAL_KEY;
       const apiKey = customKey || DEFAULT_MUAPI_KEY;
+      const replicateToken = customKey || DEFAULT_REPLICATE_TOKEN;
 
-      if (falApiKey || apiKey) {
+      if (replicateToken || falApiKey || apiKey) {
         const multiRequestIds = parseJsonArray(creation.requestId);
 
         if (multiRequestIds && multiRequestIds.length > 0) {
@@ -217,6 +247,22 @@ export async function GET(req, { params }) {
           await Promise.all(
             multiRequestIds.map(async (reqId, idx) => {
               if (updatedUrls[idx]) return;
+
+              if (typeof reqId === "string" && reqId.startsWith("rep:")) {
+                const parts = reqId.split(":");
+                const predictionId = parts[parts.length - 1];
+                const res = await checkReplicateRequestStatus({
+                  predictionId,
+                  replicateToken,
+                });
+                if (res.status === "failed") {
+                  failedError = res.error || `Scene ${idx + 1} generation failed`;
+                } else if (res.status === "completed" && res.url) {
+                  updatedUrls[idx] = res.url;
+                  hasChanges = true;
+                }
+                return;
+              }
 
               if (typeof reqId === "string" && reqId.startsWith("fal:")) {
                 const parts = reqId.split(":");
@@ -284,6 +330,24 @@ export async function GET(req, { params }) {
           } else if (hasChanges) {
             creation = await safeUpdateCreationRecord(id, isDbRecord, {
               url: JSON.stringify(updatedUrls),
+            });
+          }
+        } else if (typeof creation.requestId === "string" && creation.requestId.startsWith("rep:")) {
+          const parts = creation.requestId.split(":");
+          const predictionId = parts[parts.length - 1];
+          const res = await checkReplicateRequestStatus({
+            predictionId,
+            replicateToken,
+          });
+          if (res.status === "failed") {
+            creation = await safeUpdateCreationRecord(id, isDbRecord, {
+              status: "failed",
+              error: res.error || "Generation failed",
+            });
+          } else if (res.status === "completed" && res.url) {
+            creation = await safeUpdateCreationRecord(id, isDbRecord, {
+              status: "completed",
+              url: res.url,
             });
           }
         } else if (typeof creation.requestId === "string" && creation.requestId.startsWith("fal:")) {

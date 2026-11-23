@@ -73,11 +73,11 @@ import {
 const MODELS = [
   {
     id: "sync-lipsync",
-    name: "Sync-3 LipSync (Avatar con Voz)",
+    name: "Sync LipSync (Avatar con Voz)",
     type: "AVATAR & VOZ",
     badge: "Boca Sincronizada + Audio",
     icon: FiZap,
-    description: "Tecnología de Sync Labs en Fal.ai: sincroniza la boca del avatar con audio real en español.",
+    description: "Sincroniza la boca y expresiones del avatar con audio real en español.",
     supportsTextToVideo: true,
     isOpenSource: false,
     maxClipDuration: 15,
@@ -89,11 +89,11 @@ const MODELS = [
   },
   {
     id: "ltx-video",
-    name: "LTX-Video (Fal.ai)",
+    name: "LTX-Video (Replicate / NVIDIA)",
     type: "PREMIER",
-    badge: "Ultra-Fast (4s)",
+    badge: "NVIDIA Ultra-Fast (~$0.02)",
     icon: FiZap,
-    description: "Modelo oficial de Lightricks en Fal.ai: el más rápido y económico (~$0.03/video). Ideal para B-Roll de producto.",
+    description: "Acelerado con GPUs NVIDIA en Replicate: el más rápido y económico (~$0.025/video). Ideal para B-Roll y anuncios UGC.",
     supportsTextToVideo: true,
     isOpenSource: true,
     maxClipDuration: 10,
@@ -105,11 +105,11 @@ const MODELS = [
   },
   {
     id: "cogvideox-5b",
-    name: "CogVideoX-5B (Fal.ai)",
+    name: "CogVideoX-5B (Replicate / NVIDIA)",
     type: "CINEMATIC",
     badge: "Alta Calidad",
     icon: FiVideo,
-    description: "Modelo cinematográfico de Zhipu AI en Fal.ai de alta fidelidad.",
+    description: "Modelo cinematográfico de alta fidelidad acelerado con infraestructura NVIDIA.",
     supportsTextToVideo: true,
     isOpenSource: true,
     maxClipDuration: 10,
@@ -121,11 +121,11 @@ const MODELS = [
   },
   {
     id: "hunyuan-video",
-    name: "HunyuanVideo 13B (Fal.ai)",
+    name: "HunyuanVideo 13B (NVIDIA)",
     type: "PRO",
     badge: "Tencent 13B",
     icon: FiZap,
-    description: "Modelo de 13 mil millones de parámetros de Tencent en Fal.ai para renderizado fotorrealista.",
+    description: "Modelo de alta resolución para renderizado fotorrealista.",
     supportsTextToVideo: true,
     isOpenSource: true,
     maxClipDuration: 10,
@@ -547,7 +547,7 @@ export default function Home() {
   const [isUploadingCustomVoice, setIsUploadingCustomVoice] = useState(false);
   const [isPlayingVoiceSample, setIsPlayingVoiceSample] = useState(false);
   const [samplePhraseType, setSamplePhraseType] = useState("preview"); // "preview" | "commercial"
-  const [isSandboxMode, setIsSandboxMode] = useState(false); // Modo Real Fal.ai activado por defecto
+  const [isSandboxMode, setIsSandboxMode] = useState(false); // Modo Real activado por defecto
   const voiceAudioInputRef = useRef(null);
   const [microExpressionIds, setMicroExpressionIds] = useState([
     "eye-contact-lock",
@@ -1520,7 +1520,7 @@ export default function Home() {
     if (isGenerating) return;
 
     if (status !== "authenticated" && !isAdminUser && !isSandboxMode) {
-      toast.error("Para generar en Modo Real (Fal.ai) inicia sesión o activa tu cuenta.");
+      toast.error("Para generar en Modo Real (Replicate) inicia sesión o activa tu cuenta.");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("ugcore:open-demo-modal"));
       }
@@ -1748,7 +1748,7 @@ export default function Home() {
           "🎬 Video de demostración generado con éxito (Modo Demo)"
         );
       } else {
-        toast.success("🚀 Generando video real con Fal.ai... Míralo en tiempo real en el reproductor.");
+        toast.success("🚀 Generando video real con Replicate (NVIDIA)... Míralo en tiempo real en el reproductor.");
       }
 
       if (
@@ -4214,8 +4214,8 @@ export default function Home() {
                       const next = !prev;
                       toast(
                         next
-                          ? "⚪ Modo Demostración activado: Genera vistas de prueba sin consumir Fal.ai."
-                          : "🚀 Modo Real activado: Genera videos reales con Inteligencia Artificial en Fal.ai.",
+                          ? "⚪ Modo Demostración activado: Genera vistas de prueba sin consumir Replicate."
+                          : "🚀 Modo Real activado: Genera videos reales con Inteligencia Artificial en Replicate (NVIDIA).",
                         { icon: next ? "⚪" : "🚀" }
                       );
                       return next;
@@ -4228,8 +4228,8 @@ export default function Home() {
                   }`}
                   title={
                     isSandboxMode
-                      ? "Modo Demo: Haz clic para cambiar a Modo Real (Fal.ai)"
-                      : "Modo Real Fal.ai: Haz clic para cambiar a Modo Demo"
+                      ? "Modo Demo: Haz clic para cambiar a Modo Real (Replicate)"
+                      : "Modo Real Replicate (NVIDIA): Haz clic para cambiar a Modo Demo"
                   }
                 >
                   <span
@@ -4240,7 +4240,7 @@ export default function Home() {
                   <span>
                     {isSandboxMode
                       ? "⚪ Modo Demo (Prueba)"
-                      : "🚀 Motor Real: Fal.ai"}
+                      : "🚀 Motor Real: Replicate (NVIDIA)"}
                   </span>
                 </button>
 
@@ -4248,7 +4248,7 @@ export default function Home() {
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-glass-bg border border-glass-border rounded-full">
                   <FaCoins className="text-yellow-500 text-xs" />
                   <span className="text-[10px] font-bold text-secondary-text">
-                    Motor: Fal.ai
+                    Motor: Replicate (NVIDIA)
                   </span>
                   <span className="text-muted">•</span>
                   <span className="text-[10px] font-black text-purple-400">
@@ -4262,18 +4262,18 @@ export default function Home() {
                   onClick={handleGenerate}
                   disabled={isGenerating}
                   className="px-4 py-2.5 rounded-xl text-white font-black text-xs shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-purple-500/25 ring-1 ring-purple-400/40"
-                  title="Generar Video con Fal.ai"
+                  title="Generar Video con Replicate (NVIDIA)"
                 >
                   {isGenerating ? (
                     <>
                       <FiLoader className="text-sm animate-spin" />
-                      <span>Generando con Fal.ai...</span>
+                      <span>Generando con Replicate...</span>
                     </>
                   ) : (
                     <>
                       <FiZap className="text-sm" />
                       <span className="hidden sm:inline">
-                        🎬 Generar Video Real (Fal.ai)
+                        🎬 Generar Video Real (Replicate)
                       </span>
                       <span className="sm:hidden">
                         ⚡ Generar Video

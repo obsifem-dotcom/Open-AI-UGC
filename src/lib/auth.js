@@ -70,6 +70,12 @@ export const DEFAULT_FAL_KEY = (
   ""
 ).trim();
 
+export const DEFAULT_REPLICATE_TOKEN = (
+  process.env.REPLICATE_API_TOKEN ||
+  process.env.REPLICATE_TOKEN ||
+  ""
+).trim();
+
 export function isServerMasterKey(key) {
   if (!key || typeof key !== "string") return false;
   const trimmed = key.trim();
@@ -77,6 +83,7 @@ export function isServerMasterKey(key) {
   return (
     Boolean(DEFAULT_MUAPI_KEY && trimmed === DEFAULT_MUAPI_KEY) ||
     Boolean(DEFAULT_FAL_KEY && trimmed === DEFAULT_FAL_KEY) ||
+    Boolean(DEFAULT_REPLICATE_TOKEN && trimmed === DEFAULT_REPLICATE_TOKEN) ||
     SERVER_ADMIN_KEYS.includes(trimmed)
   );
 }

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions, DEFAULT_FAL_KEY, DEFAULT_MUAPI_KEY, isServerMasterKey, isAdminEmail } from "@/lib/auth";
+import {
+  authOptions,
+  DEFAULT_FAL_KEY,
+  DEFAULT_MUAPI_KEY,
+  DEFAULT_REPLICATE_TOKEN,
+  isServerMasterKey,
+  isAdminEmail,
+} from "@/lib/auth";
 import { TIMELINE_TRANSITIONS } from "@/lib/ugcore-v3";
 import { formatCreationResponse } from "@/lib/creations";
 import {
@@ -9,6 +16,20 @@ import {
   safeCreateCreation,
   safeDeductCredits,
 } from "@/lib/runtime-store";
+
+const REPLICATE_MODEL_MAP = {
+  "ltx-video": "lightricks/ltx-video",
+  "sync-lipsync": "cjwbw/sadtalker",
+  "cogvideox-5b": "lucataco/cogvideox-5b",
+  "hunyuan-video": "lightricks/ltx-video",
+  "animatediff-v3": "lightricks/ltx-video",
+  "stable-video-diffusion": "stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd449cb99edfe01c21a16664c3e69f183f",
+  "fast-svd": "lightricks/ltx-video",
+  "seedance-2": "lightricks/ltx-video",
+  "grok-video": "lightricks/ltx-video",
+  "veo-3-1": "lightricks/ltx-video",
+  "happy-horse": "lightricks/ltx-video",
+};
 
 const FAL_MODEL_MAP = {
   "sync-lipsync": "fal-ai/sync-lipsync",
@@ -427,13 +448,21 @@ export async function POST(req) {
         activeUser.planId !== "free"
     );
 
-    // Motor Oficial: Fal.ai
-    // Clave de Fal.ai: Se toma la llave personalizada del usuario o la del servidor (FAL_KEY)
-    const falApiKey = (
-      rawCustomKey ||
-      DEFAULT_FAL_KEY ||
-      ""
+    // Motor Oficial: Replicate (Acelerado con NVIDIA) / Fal.ai
+    const replicateToken = (
+      (rawCustomKey && (rawCustomKey.startsWith("r8_") || !rawCustomKey.startsWith("fal_")))
+        ? rawCustomKey
+        : DEFAULT_REPLICATE_TOKEN
     ).trim();
+
+    const falApiKey = (
+      (rawCustomKey && rawCustomKey.startsWith("fal_"))
+        ? rawCustomKey
+        : DEFAULT_FAL_KEY
+    ).trim();
+
+    // Preferir Replicate por su velocidad de GPUs NVIDIA y Spend Limits estrictos
+    const activeEngine = replicateToken ? "replicate" : (falApiKey ? "fal" : null);
 
     // Modo Sandbox / Demo: Solo se activa si el usuario lo solicita explícitamente
     const isSandbox = Boolean(
@@ -443,12 +472,12 @@ export async function POST(req) {
       req.headers.get("x-sandbox-mode") === "true"
     );
 
-    if (!isSandbox && !falApiKey) {
+    if (!isSandbox && !activeEngine) {
       return NextResponse.json(
         {
           error:
-            "FAL_KEY no configurada. Agrega tu clave de Fal.ai en la configuración de tu cuenta o en el archivo .env.local del servidor (FAL_KEY=...). Si solo deseas probar la interfaz sin IA, activa el Modo Demostración.",
-          needsFalKey: true,
+            "No se ha configurado la clave de IA (REPLICATE_API_TOKEN o FAL_KEY). Agrega tu token de Replicate en las Variables de Entorno de Vercel. Si solo deseas probar la interfaz sin consumir saldo, activa el Modo Demostración.",
+          needsApiKey: true,
         },
         { status: 400 }
       );
@@ -577,7 +606,7 @@ export async function POST(req) {
       }
     }
 
-    // Enviar cada escena al motor oficial Fal.ai
+    // Enviar cada escena al motor activo (Replicate acelerado por NVIDIA o Fal.ai)
     const falEndpoint = FAL_MODEL_MAP[modelId] || "fal-ai/ltx-video";
     const requestIds = [];
 
@@ -586,6 +615,65 @@ export async function POST(req) {
     const activeImages = images && images.length > 0 ? images : [DEFAULT_SPIRITUAL_AVATAR];
 
     for (const segment of segments) {
+      if (activeEngine === "replicate") {
+        const repModel = REPLICATE_MODEL_MAP[modelId] || "lightricks/ltx-video";
+        const repInput = {
+          prompt: segment.prompt,
+          aspect_ratio:
+            settings.aspect_ratio === "16:9" ||
+            settings.aspect_ratio === "9:16" ||
+            settings.aspect_ratio === "1:1"
+              ? settings.aspect_ratio
+              : "9:16",
+        };
+
+        if (activeImages.length) {
+          repInput.image = activeImages[0];
+          repInput.input_image = activeImages[0];
+        }
+
+        const repUrl = repModel.includes(":")
+          ? "https://api.replicate.com/v1/predictions"
+          : `https://api.replicate.com/v1/models/${repModel}/predictions`;
+
+        const repBody = repModel.includes(":")
+          ? { version: repModel.split(":")[1], input: repInput }
+          : { input: repInput };
+
+        const repResponse = await fetch(repUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${replicateToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(repBody),
+        });
+
+        if (!repResponse.ok) {
+          const errText = await repResponse.text();
+          let parsedMsg = errText;
+          try {
+            const errObj = JSON.parse(errText);
+            parsedMsg = errObj.detail || errObj.error || errText;
+          } catch (_) {}
+
+          if (repResponse.status === 401) {
+            throw new Error("Token de Replicate inválido o expirado. Verifica tu REPLICATE_API_TOKEN en Vercel.");
+          }
+          if (repResponse.status === 402) {
+            throw new Error("Saldo agotado o límite de gasto alcanzado en Replicate. Revisa tu panel en replicate.com/billing.");
+          }
+          throw new Error(`Error en Replicate (${repResponse.status}): ${parsedMsg}`);
+        }
+
+        const repData = await repResponse.json();
+        const repId = repData.id;
+        if (!repId) {
+          throw new Error("Replicate no devolvió un ID de predicción válido.");
+        }
+        requestIds.push(`rep:${repModel}:${repId}`);
+        continue;
+      }
       // Si el modelo es LipSync, o hay avatar, o se solicitó modo avatar/influencer: generar con audio y labios sincronizados
       const hasAvatarImage = Boolean(activeImages && activeImages.length > 0 && typeof activeImages[0] === "string" && activeImages[0].startsWith("http"));
       const isLipSyncRequested = modelId === "sync-lipsync" || body.creationStyleMode === "avatar" || (hasAvatarImage && body.creationStyleMode !== "cinematic");
