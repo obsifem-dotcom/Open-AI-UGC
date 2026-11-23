@@ -375,6 +375,7 @@ export default function GalleryPage() {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.email, session?.user?.id]);
 
   // Poll any creation currently in processing state
