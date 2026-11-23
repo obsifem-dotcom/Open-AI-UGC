@@ -80,25 +80,50 @@ export function getPlayableUrl(item) {
 
 function getCanonicalCreationKey(item) {
   if (!item) return null;
+
+  // 1. If user creation (not showcase), deduplicate strictly by normalized prompt:
+  // Guarantees one single card per video request even if IDs or storage layers differ!
+  if (!item.isShowcase && typeof item.prompt === "string") {
+    const cleanPrompt = item.prompt
+      .replace(/\[.*?\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+      .slice(0, 120);
+    if (cleanPrompt.length >= 10) {
+      return `prompt:${cleanPrompt}`;
+    }
+  }
+
+  // 2. By real playable video URL (excluding generic demo placeholders)
   const playableUrl = getPlayableUrl(item);
-  if (playableUrl) {
+  if (playableUrl && !playableUrl.includes("sample/ForBigger")) {
     return `url:${playableUrl.toLowerCase().trim()}`;
   }
+
+  // 3. By cleaned Request ID
   if (item.requestId) {
     const rawReq = String(item.requestId).trim();
     if (rawReq.startsWith("[")) {
       try {
         const parsed = JSON.parse(rawReq);
         if (Array.isArray(parsed) && parsed[0]) {
-          return `req:${String(parsed[0]).trim()}`;
+          const clean = String(parsed[0]).replace(/["'\[\]\\]/g, "").trim();
+          if (clean.length > 0) return `req:${clean}`;
         }
       } catch {}
     }
-    return `req:${rawReq}`;
+    const cleanReq = rawReq.replace(/["'\[\]\\]/g, "").trim();
+    if (cleanReq.length > 0 && !cleanReq.startsWith("sandbox_req_")) {
+      return `req:${cleanReq}`;
+    }
   }
+
+  // 4. By ID
   if (item.id) {
-    return `id:${String(item.id).replace(/^mu_/, "")}`;
+    return `id:${String(item.id).replace(/^mu_|^stateless_/, "")}`;
   }
+
   return null;
 }
 
@@ -136,19 +161,9 @@ function writeLocalArchive(items, userEmail = null) {
 function mergeCreationsList(localItems, serverItems, sessionUser = null) {
   const dismissed = readDismissedArchive();
   const byKey = new Map();
-  const isAdmin = Boolean(
-    sessionUser?.isAdmin ||
-    sessionUser?.role === "admin" ||
-    (sessionUser?.email && (
-      sessionUser.email.includes("obsifem") ||
-      sessionUser.email.includes("admin") ||
-      sessionUser.email.includes("mari") ||
-      sessionUser.email.includes("bizbox")
-    ))
-  );
 
-  const allItems = [...(localItems || []), ...(serverItems || [])];
-  for (const rawItem of allItems) {
+  // 1. Process server items FIRST (Server/Vercel is the authoritative source of truth)
+  for (const rawItem of (serverItems || [])) {
     if (!rawItem || !rawItem.id || dismissed.has(rawItem.id)) continue;
     if (rawItem.requestId && dismissed.has(rawItem.requestId)) continue;
 
@@ -167,12 +182,54 @@ function mergeCreationsList(localItems, serverItems, sessionUser = null) {
       const existing = byKey.get(key);
       const isBetter =
         (item.url && !existing.url) ||
-        (item.status === "completed" && existing.status !== "completed") ||
-        (!String(item.id).startsWith("mu_") && String(existing.id).startsWith("mu_"));
+        (item.status === "completed" && existing.status !== "completed");
       byKey.set(
         key,
         isBetter ? { ...existing, ...item } : { ...item, ...existing }
       );
+    }
+  }
+
+  // 2. Only add local items if they do NOT match any existing server creation
+  for (const rawItem of (localItems || [])) {
+    if (!rawItem || !rawItem.id || dismissed.has(rawItem.id)) continue;
+    if (rawItem.requestId && dismissed.has(rawItem.requestId)) continue;
+
+    const playableUrl = getPlayableUrl(rawItem);
+    const item = {
+      ...rawItem,
+      url: playableUrl || rawItem.url,
+    };
+
+    const key = getCanonicalCreationKey(item) || item.id;
+    if (dismissed.has(key)) continue;
+
+    // If already in byKey, DO NOT DUPLICATE!
+    if (byKey.has(key)) {
+      const existing = byKey.get(key);
+      byKey.set(key, { ...item, ...existing });
+    } else {
+      // Check if any existing item has matching normalized prompt
+      const cleanPrompt = (item.prompt || "")
+        .replace(/\[.*?\]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase()
+        .slice(0, 80);
+      const isDuplicate = Array.from(byKey.values()).some((ex) => {
+        if (!ex.prompt) return false;
+        const exClean = ex.prompt
+          .replace(/\[.*?\]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase()
+          .slice(0, 80);
+        return exClean.length >= 10 && exClean === cleanPrompt;
+      });
+
+      if (!isDuplicate) {
+        byKey.set(key, item);
+      }
     }
   }
 
@@ -679,6 +736,7 @@ export default function GalleryPage() {
                     className="h-full w-full object-contain max-h-[75vh]"
                     showSceneBar={true}
                     showDownloadButton={true}
+                    muted={false}
                     title={`ugcore-${selectedCreation.id}`}
                   />
                 ) : selectedCreation.status === "failed" ? (

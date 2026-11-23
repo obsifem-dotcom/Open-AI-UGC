@@ -1560,10 +1560,13 @@ export default function Home() {
 
       const effectiveAvatar = getEffectiveInfluencerAvatar();
       const effectiveEnvUrl = getEffectiveVirtualEnvUrl();
+      const spiritualFallbackAvatar = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80";
+      const resolvedAvatar = effectiveAvatar || selectedInfluencer?.avatar || spiritualFallbackAvatar;
+
       const hasAvatarRef =
-        isInfluencerMode &&
-        useInfluencerReferenceImage &&
-        Boolean(effectiveAvatar);
+        (isInfluencerMode && useInfluencerReferenceImage && Boolean(effectiveAvatar)) ||
+        selectedModel.id === "sync-lipsync" ||
+        (isInfluencerMode && Boolean(resolvedAvatar));
       const hasEnvRef =
         isInfluencerMode &&
         useVirtualEnvImageRef &&
@@ -1572,7 +1575,7 @@ export default function Home() {
       const combinedImageUrls = (creationStyleMode === "cinematic")
         ? readyUserUrls.slice(0, 7)
         : [
-            ...(hasAvatarRef ? [effectiveAvatar] : []),
+            ...(hasAvatarRef ? [resolvedAvatar] : []),
             ...readyUserUrls,
             ...(hasEnvRef ? [effectiveEnvUrl] : []),
           ].slice(0, 7);

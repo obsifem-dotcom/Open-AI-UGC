@@ -205,37 +205,63 @@ export async function GET() {
         : null;
     const apiKey = customKey || DEFAULT_MUAPI_KEY;
 
-    // Robust deduplication by URL, canonical requestId, and clean ID
+    // Robust deduplication by Normalized Prompt, URL, canonical requestId, and clean ID
     function getCleanKey(item) {
       if (!item) return null;
+
+      // 1. User creations: deduplicate by normalized prompt text
+      if (!item.isShowcase && typeof item.prompt === "string") {
+        const cleanPrompt = item.prompt
+          .replace(/\[.*?\]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase()
+          .slice(0, 120);
+        if (cleanPrompt.length >= 10) {
+          return `prompt:${cleanPrompt}`;
+        }
+      }
+
+      // 2. Playable URL (excluding generic demo placeholders)
       const u = item.url;
       if (typeof u === "string") {
         const trimmed = u.trim();
-        if (trimmed.startsWith("http")) return `url:${trimmed}`;
+        if (trimmed.startsWith("http") && !trimmed.includes("sample/ForBigger")) {
+          return `url:${trimmed.toLowerCase()}`;
+        }
         if (trimmed.startsWith("[")) {
           try {
             const parsed = JSON.parse(trimmed);
             if (Array.isArray(parsed) && parsed[0] && typeof parsed[0] === "string" && parsed[0].startsWith("http")) {
-              return `url:${parsed[0].trim()}`;
+              return `url:${parsed[0].trim().toLowerCase()}`;
             }
           } catch {}
         }
       }
       if (Array.isArray(item.urls) && item.urls[0] && typeof item.urls[0] === "string" && item.urls[0].startsWith("http")) {
-        return `url:${item.urls[0].trim()}`;
+        return `url:${item.urls[0].trim().toLowerCase()}`;
       }
+
+      // 3. Request ID
       if (item.requestId) {
         const reqStr = String(item.requestId).trim();
         if (reqStr.startsWith("[")) {
           try {
             const parsed = JSON.parse(reqStr);
-            if (Array.isArray(parsed) && parsed[0]) return `req:${String(parsed[0]).trim()}`;
+            if (Array.isArray(parsed) && parsed[0]) {
+              const clean = String(parsed[0]).replace(/["'\[\]\\]/g, "").trim();
+              if (clean.length > 0) return `req:${clean}`;
+            }
           } catch {}
         }
-        return `req:${reqStr}`;
+        const cleanReq = reqStr.replace(/["'\[\]\\]/g, "").trim();
+        if (cleanReq.length > 0 && !cleanReq.startsWith("sandbox_req_")) {
+          return `req:${cleanReq}`;
+        }
       }
+
       if (item.id) {
-        return `id:${String(item.id).replace(/^mu_/, "")}`;
+        return `id:${String(item.id).replace(/^mu_|^stateless_/, "")}`;
       }
       return null;
     }

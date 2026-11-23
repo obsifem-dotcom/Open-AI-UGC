@@ -11,6 +11,7 @@ import {
 } from "@/lib/runtime-store";
 
 const FAL_MODEL_MAP = {
+  "sync-lipsync": "fal-ai/sync-lipsync",
   "ltx-video": "fal-ai/ltx-video",
   "cogvideox-5b": "fal-ai/cogvideox-5b",
   "hunyuan-video": "fal-ai/hunyuan-video",
@@ -24,6 +25,15 @@ const FAL_MODEL_MAP = {
 };
 
 const MODEL_ENDPOINTS = {
+  "sync-lipsync": {
+    imageToVideo: "/api/v1/sync-lipsync-image-to-video",
+    textToVideo: "/api/v1/sync-lipsync-text-to-video",
+    imageField: "image_url",
+    minDuration: 3,
+    maxDuration: 15,
+    defaultDuration: 5,
+    isOpenSource: false,
+  },
   "grok-video": {
     imageToVideo: "/api/v1/grok-imagine-image-to-video",
     textToVideo: "/api/v1/grok-imagine-text-to-video",
@@ -257,15 +267,56 @@ function buildSegments({
   });
 }
 
+function extractSpeechDialogue(promptText) {
+  if (!promptText || typeof promptText !== "string") {
+    return "Hola, te doy la bienvenida. Hoy quiero compartir contigo una recomendación especial para transformar tu bienestar.";
+  }
+
+  // 1. Extraer si hay texto entre comillas (el guion hablado explícito)
+  const quoteMatches = promptText.match(/"([^"]{4,})"/g);
+  if (quoteMatches && quoteMatches.length > 0) {
+    const combinedQuotes = quoteMatches
+      .map((q) => q.replace(/"/g, "").trim())
+      .filter((q) => q.length > 0)
+      .join(" ");
+    if (combinedQuotes.length >= 5) {
+      return combinedQuotes.slice(0, 450);
+    }
+  }
+
+  // 2. Limpieza de directivas técnicas de cámara, estudio y renderizado
+  let cleaned = promptText
+    .replace(/\[.*?\]/g, "")
+    .replace(/@image\d+[^,.]*[,.]?/gi, "")
+    .replace(/Photorealistic Digital Twin[^.]*\./gi, "")
+    .replace(/Audio Synthesizer:[^.]*\./gi, "")
+    .replace(/Virtual Studio:[^.]*\./gi, "")
+    .replace(/Compositing:[^.]*\./gi, "")
+    .replace(/Voice pacing:[^.]*\./gi, "")
+    .replace(/Voice:[^.]*\./gi, "")
+    .replace(/Lip-sync:[^.]*\./gi, "")
+    .replace(/Speaking in.*?deliberate pauses:?/gi, "")
+    .replace(/The influencer[^.]*\./gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (cleaned.length >= 6) {
+    return cleaned.slice(0, 450);
+  }
+
+  return "Hola, te doy la bienvenida. Hoy quiero compartir contigo un mensaje especial para inspirarte y conectar con tu paz interior.";
+}
+
 function calculateCreditsForDuration(modelId, duration, resolution) {
   if (
+    modelId === "sync-lipsync" ||
     modelId === "cogvideox-5b" ||
     modelId === "ltx-video" ||
     modelId === "animatediff-v3" ||
     modelId === "hunyuan-video" ||
     modelId === "stable-video-diffusion"
   ) {
-    return 0; // Modelos Open Source Gratuitos (0 Costo)
+    return 0; // Modelos Gratuitos con clave Fal.ai del usuario
   }
   if (modelId === "grok-video") {
     const rate = resolution === "720p" ? 10 : 5;
@@ -530,61 +581,70 @@ export async function POST(req) {
     const falEndpoint = FAL_MODEL_MAP[modelId] || "fal-ai/ltx-video";
     const requestIds = [];
 
+    // Fallback de avatar espiritual (Maya Shanti) si no se proporcionó una imagen
+    const DEFAULT_SPIRITUAL_AVATAR = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80";
+    const activeImages = images && images.length > 0 ? images : [DEFAULT_SPIRITUAL_AVATAR];
+
     for (const segment of segments) {
-      // Si hay una imagen de avatar y texto hablado, usar LipSync con voz y audio sincronizado
-      const hasAvatarImage = Boolean(images && images.length > 0 && typeof images[0] === "string" && images[0].startsWith("http"));
+      // Si el modelo es LipSync, o hay avatar, o se solicitó modo avatar/influencer: generar con audio y labios sincronizados
+      const hasAvatarImage = Boolean(activeImages && activeImages.length > 0 && typeof activeImages[0] === "string" && activeImages[0].startsWith("http"));
       const isLipSyncRequested = modelId === "sync-lipsync" || body.creationStyleMode === "avatar" || (hasAvatarImage && body.creationStyleMode !== "cinematic");
 
       if (hasAvatarImage && isLipSyncRequested) {
         try {
-          // 1. Sintetizar la voz en español HD con Fal.ai
-          const cleanSpeechText = (segment.prompt || "")
-            .replace(/\[.*?\]/g, "")
-            .replace(/Lip-sync.*?deliberate pauses/gi, "")
-            .replace(/Voice:.*$/gi, "")
-            .trim();
+          // 1. Extraer el diálogo limpio en español (sin comandos de renderizado)
+          const spokenText = extractSpeechDialogue(segment.prompt);
 
-          const ttsPayloadPrompt = cleanSpeechText.length > 3 ? cleanSpeechText : segment.prompt;
-
+          // 2. Sintetizar la voz en español HD con Fal.ai (Minimax Speech-02-HD)
           const ttsRes = await fetch("https://fal.run/fal-ai/minimax/speech-02-hd", {
             method: "POST",
             headers: {
               Authorization: `Key ${falApiKey}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ prompt: ttsPayloadPrompt }),
+            body: JSON.stringify({ prompt: spokenText }),
           });
 
-          if (ttsRes.ok) {
-            const ttsData = await ttsRes.json();
-            const audioUrl = ttsData?.audio?.url;
+          if (!ttsRes.ok) {
+            const ttsErr = await ttsRes.text();
+            throw new Error(`Error en síntesis de voz Fal.ai (${ttsRes.status}): ${ttsErr}`);
+          }
 
-            if (audioUrl) {
-              // 2. Animar los labios del avatar con definición y sonido sincronizado
-              const lipsyncRes = await fetch("https://queue.fal.run/fal-ai/sync-lipsync/v3/image-to-video", {
-                method: "POST",
-                headers: {
-                  Authorization: `Key ${falApiKey}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  image_url: images[0],
-                  audio_url: audioUrl,
-                }),
-              });
+          const ttsData = await ttsRes.json();
+          const audioUrl = ttsData?.audio?.url;
+          if (!audioUrl) {
+            throw new Error("Fal.ai no devolvió la URL del audio sintetizado.");
+          }
 
-              if (lipsyncRes.ok) {
-                const lipsyncData = await lipsyncRes.json();
-                const reqId = lipsyncData.request_id || lipsyncData.id;
-                if (reqId) {
-                  requestIds.push(`fal:fal-ai/sync-lipsync:${reqId}`);
-                  continue;
-                }
-              }
-            }
+          // 3. Animar los labios del avatar con definición y sonido sincronizado (Sync Labs v3)
+          const lipsyncRes = await fetch("https://queue.fal.run/fal-ai/sync-lipsync/v3/image-to-video", {
+            method: "POST",
+            headers: {
+              Authorization: `Key ${falApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              image_url: activeImages[0],
+              audio_url: audioUrl,
+            }),
+          });
+
+          if (!lipsyncRes.ok) {
+            const lipErr = await lipsyncRes.text();
+            throw new Error(`Error en sincronización labial Fal.ai (${lipsyncRes.status}): ${lipErr}`);
+          }
+
+          const lipsyncData = await lipsyncRes.json();
+          const reqId = lipsyncData.request_id || lipsyncData.id;
+          if (reqId) {
+            requestIds.push(`fal:fal-ai/sync-lipsync:${reqId}`);
+            continue;
           }
         } catch (lipsyncErr) {
-          console.warn("[LIPSYNC_AUTO_FALLBACK]", lipsyncErr?.message || lipsyncErr);
+          console.error("[LIPSYNC_ERROR]", lipsyncErr?.message || lipsyncErr);
+          if (modelId === "sync-lipsync") {
+            throw lipsyncErr;
+          }
         }
       }
 
@@ -600,8 +660,8 @@ export async function POST(req) {
             : "9:16",
       };
 
-      if (images.length) {
-        falPayload.image_url = images[0];
+      if (activeImages.length) {
+        falPayload.image_url = activeImages[0];
       }
 
       const falResponse = await fetch(falQueueUrl, {

@@ -200,8 +200,27 @@ export default function SeamlessVideoPlayer({
     }
   };
 
+  const toggleAudio = (e) => {
+    if (e) e.stopPropagation();
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (videoRef.current) {
+        videoRef.current.muted = next;
+        if (!next) {
+          videoRef.current.play().catch(() => {});
+        }
+      }
+      return next;
+    });
+  };
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+    <div
+      className="relative w-full h-full flex items-center justify-center overflow-hidden cursor-pointer"
+      onClick={() => {
+        if (isMuted) toggleAudio();
+      }}
+    >
       <video
         ref={videoRef}
         key={activeUrl}
@@ -215,21 +234,22 @@ export default function SeamlessVideoPlayer({
         onEnded={handleEnded}
       />
 
+      {/* Floating sound notification banner when muted */}
+      {isMuted && (
+        <div
+          onClick={toggleAudio}
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-black/80 hover:bg-black text-amber-300 border border-amber-400/60 shadow-xl backdrop-blur-md text-[11px] font-extrabold flex items-center gap-2 cursor-pointer animate-bounce transition-transform"
+        >
+          <span>🔇 Audio silenciado — Toca para activar el sonido</span>
+        </div>
+      )}
+
       {/* Mute/Unmute audio button */}
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsMuted((prev) => {
-            const next = !prev;
-            if (videoRef.current) {
-              videoRef.current.muted = next;
-            }
-            return next;
-          });
-        }}
+        onClick={toggleAudio}
         className={`absolute bottom-3 right-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white backdrop-blur-md transition-all cursor-pointer shadow text-xs font-bold ${
-          isMuted ? "bg-amber-600/85 hover:bg-amber-600 animate-pulse" : "bg-emerald-600/85 hover:bg-emerald-600"
+          isMuted ? "bg-amber-600/90 hover:bg-amber-600 animate-pulse ring-2 ring-amber-400/50" : "bg-emerald-600/90 hover:bg-emerald-600"
         }`}
         title={isMuted ? "Toca para activar audio" : "Silenciar"}
       >
