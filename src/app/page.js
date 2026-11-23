@@ -72,12 +72,28 @@ import {
 
 const MODELS = [
   {
+    id: "sync-lipsync",
+    name: "Sync-3 LipSync (Avatar con Voz)",
+    type: "AVATAR & VOZ",
+    badge: "Boca Sincronizada + Audio",
+    icon: FiZap,
+    description: "Tecnología de Sync Labs en Fal.ai: sincroniza la boca del avatar con audio real en español.",
+    supportsTextToVideo: true,
+    isOpenSource: false,
+    maxClipDuration: 15,
+    minClipDuration: 3,
+    params: {
+      aspect_ratio: { options: ["9:16", "16:9", "1:1"], default: "9:16" },
+      duration: { min: 3, max: 15, default: 5 },
+    },
+  },
+  {
     id: "ltx-video",
     name: "LTX-Video (Fal.ai)",
     type: "PREMIER",
     badge: "Ultra-Fast (4s)",
     icon: FiZap,
-    description: "Modelo oficial de Lightricks en Fal.ai: el más rápido y económico (~$0.03/video).",
+    description: "Modelo oficial de Lightricks en Fal.ai: el más rápido y económico (~$0.03/video). Ideal para B-Roll de producto.",
     supportsTextToVideo: true,
     isOpenSource: true,
     maxClipDuration: 10,

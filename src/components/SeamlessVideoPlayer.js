@@ -220,15 +220,20 @@ export default function SeamlessVideoPlayer({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          setIsMuted((prev) => !prev);
-          if (videoRef.current) {
-            videoRef.current.muted = !videoRef.current.muted;
-          }
+          setIsMuted((prev) => {
+            const next = !prev;
+            if (videoRef.current) {
+              videoRef.current.muted = next;
+            }
+            return next;
+          });
         }}
-        className="absolute bottom-3 right-3 z-30 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md transition-all cursor-pointer shadow text-xs"
-        title={isMuted ? "Activar Sonido" : "Silenciar"}
+        className={`absolute bottom-3 right-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white backdrop-blur-md transition-all cursor-pointer shadow text-xs font-bold ${
+          isMuted ? "bg-amber-600/85 hover:bg-amber-600 animate-pulse" : "bg-emerald-600/85 hover:bg-emerald-600"
+        }`}
+        title={isMuted ? "Toca para activar audio" : "Silenciar"}
       >
-        {isMuted ? "🔇" : "🔊"}
+        <span>{isMuted ? "🔇 Activar Audio" : "🔊 Audio Activo"}</span>
       </button>
 
       {/* Module 3: Multilayer Graphic Overlays */}

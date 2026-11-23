@@ -531,6 +531,64 @@ export async function POST(req) {
     const requestIds = [];
 
     for (const segment of segments) {
+      // Si hay una imagen de avatar y texto hablado, usar LipSync con voz y audio sincronizado
+      const hasAvatarImage = Boolean(images && images.length > 0 && typeof images[0] === "string" && images[0].startsWith("http"));
+      const isLipSyncRequested = modelId === "sync-lipsync" || body.creationStyleMode === "avatar" || (hasAvatarImage && body.creationStyleMode !== "cinematic");
+
+      if (hasAvatarImage && isLipSyncRequested) {
+        try {
+          // 1. Sintetizar la voz en español HD con Fal.ai
+          const cleanSpeechText = (segment.prompt || "")
+            .replace(/\[.*?\]/g, "")
+            .replace(/Lip-sync.*?deliberate pauses/gi, "")
+            .replace(/Voice:.*$/gi, "")
+            .trim();
+
+          const ttsPayloadPrompt = cleanSpeechText.length > 3 ? cleanSpeechText : segment.prompt;
+
+          const ttsRes = await fetch("https://fal.run/fal-ai/minimax/speech-02-hd", {
+            method: "POST",
+            headers: {
+              Authorization: `Key ${falApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ prompt: ttsPayloadPrompt }),
+          });
+
+          if (ttsRes.ok) {
+            const ttsData = await ttsRes.json();
+            const audioUrl = ttsData?.audio?.url;
+
+            if (audioUrl) {
+              // 2. Animar los labios del avatar con definición y sonido sincronizado
+              const lipsyncRes = await fetch("https://queue.fal.run/fal-ai/sync-lipsync/v3/image-to-video", {
+                method: "POST",
+                headers: {
+                  Authorization: `Key ${falApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  image_url: images[0],
+                  audio_url: audioUrl,
+                }),
+              });
+
+              if (lipsyncRes.ok) {
+                const lipsyncData = await lipsyncRes.json();
+                const reqId = lipsyncData.request_id || lipsyncData.id;
+                if (reqId) {
+                  requestIds.push(`fal:fal-ai/sync-lipsync:${reqId}`);
+                  continue;
+                }
+              }
+            }
+          }
+        } catch (lipsyncErr) {
+          console.warn("[LIPSYNC_AUTO_FALLBACK]", lipsyncErr?.message || lipsyncErr);
+        }
+      }
+
+      // Modo Cinemático / B-Roll estándar (LTX-Video / CogVideoX / Hunyuan)
       const falQueueUrl = `https://queue.fal.run/${falEndpoint}`;
       const falPayload = {
         prompt: segment.prompt,
