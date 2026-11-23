@@ -67,7 +67,6 @@ export const DEFAULT_MUAPI_KEY = (
 export const DEFAULT_FAL_KEY = (
   process.env.FAL_KEY ||
   process.env.FAL_API_KEY ||
-  process.env.NEXT_PUBLIC_FAL_KEY ||
   ""
 ).trim();
 
