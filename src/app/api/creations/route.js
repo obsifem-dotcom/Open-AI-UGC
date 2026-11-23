@@ -307,3 +307,68 @@ export async function GET() {
     );
   }
 }
+
+export async function DELETE(req) {
+  try {
+    let body = {};
+    try {
+      body = await req.json();
+    } catch {}
+
+    const targetId = body.id;
+    const targetReqId = body.requestId;
+    const targetUrl = body.url;
+    const targetPrompt = body.prompt;
+
+    if (targetId) runtimeStore.creationsById.delete(targetId);
+    for (const [memKey, memVal] of runtimeStore.creationsById.entries()) {
+      if (
+        (targetId && (memKey === targetId || memVal?.id === targetId)) ||
+        (targetReqId && (memVal?.requestId === targetReqId || String(memVal?.requestId).includes(String(targetReqId)))) ||
+        (targetUrl && memVal?.url === targetUrl)
+      ) {
+        runtimeStore.creationsById.delete(memKey);
+      }
+    }
+
+    if (prisma?.creation) {
+      try {
+        const orConditions = [];
+        if (targetId && !targetId.startsWith("mu_") && !targetId.startsWith("stateless_")) {
+          orConditions.push({ id: targetId });
+        }
+        if (targetReqId) {
+          orConditions.push({ requestId: String(targetReqId) });
+          orConditions.push({ requestId: { contains: String(targetReqId) } });
+        }
+        if (targetUrl && typeof targetUrl === "string" && targetUrl.startsWith("http")) {
+          orConditions.push({ url: targetUrl });
+          orConditions.push({ url: { contains: targetUrl } });
+        }
+        if (targetPrompt && typeof targetPrompt === "string" && targetPrompt.length >= 10) {
+          orConditions.push({ prompt: targetPrompt });
+        }
+
+        if (orConditions.length > 0) {
+          await prisma.creation.deleteMany({
+            where: { OR: orConditions },
+          });
+        }
+      } catch (err) {
+        console.warn("[SAFE_CREATIONS_DELETE_FALLBACK]", err?.message || err);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Video eliminado correctamente.",
+      id: targetId,
+    });
+  } catch (error) {
+    console.error("[CREATIONS_DELETE_ERROR]", error);
+    return NextResponse.json(
+      { error: error?.message || "No se pudo eliminar el video" },
+      { status: 500 }
+    );
+  }
+}

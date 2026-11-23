@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -37,12 +38,33 @@ function readDismissedArchive() {
   }
 }
 
-function addDismissedArchive(id, requestId = null) {
-  if (typeof window === "undefined" || !id) return;
+function addDismissedArchive(itemOrId, requestId = null) {
+  if (typeof window === "undefined" || !itemOrId) return;
   try {
     const set = readDismissedArchive();
-    set.add(id);
-    if (requestId) set.add(requestId);
+    if (typeof itemOrId === "object" && itemOrId !== null) {
+      if (itemOrId.id) set.add(String(itemOrId.id));
+      if (itemOrId.requestId) set.add(String(itemOrId.requestId));
+      const playable = getPlayableUrl(itemOrId) || itemOrId.url;
+      if (playable) {
+        set.add(String(playable).trim().toLowerCase());
+        set.add(`url:${String(playable).trim().toLowerCase()}`);
+      }
+      if (itemOrId.prompt) {
+        const cleanPrompt = String(itemOrId.prompt)
+          .replace(/\[.*?\]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase()
+          .slice(0, 100);
+        if (cleanPrompt.length >= 8) set.add(`prompt:${cleanPrompt}`);
+      }
+      const canonKey = getCanonicalCreationKey(itemOrId);
+      if (canonKey) set.add(canonKey);
+    } else {
+      set.add(String(itemOrId));
+      if (requestId) set.add(String(requestId));
+    }
     window.localStorage.setItem(
       DISMISSED_ARCHIVE_KEY,
       JSON.stringify(Array.from(set))
@@ -164,10 +186,26 @@ function mergeCreationsList(localItems, serverItems, sessionUser = null) {
 
   // 1. Process server items FIRST (Server/Vercel is the authoritative source of truth)
   for (const rawItem of (serverItems || [])) {
-    if (!rawItem || !rawItem.id || dismissed.has(rawItem.id)) continue;
-    if (rawItem.requestId && dismissed.has(rawItem.requestId)) continue;
+    if (!rawItem || !rawItem.id) continue;
+    if (dismissed.has(String(rawItem.id))) continue;
+    if (rawItem.requestId && dismissed.has(String(rawItem.requestId))) continue;
 
     const playableUrl = getPlayableUrl(rawItem);
+    if (playableUrl && (playableUrl.includes("sample/ForBigger") || playableUrl.includes("commondatastorage"))) {
+      continue;
+    }
+    if (playableUrl && dismissed.has(playableUrl.toLowerCase().trim())) continue;
+
+    if (typeof rawItem.prompt === "string") {
+      const cleanPrompt = rawItem.prompt
+        .replace(/\[.*?\]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase()
+        .slice(0, 100);
+      if (cleanPrompt.length >= 8 && dismissed.has(`prompt:${cleanPrompt}`)) continue;
+    }
+
     const item = {
       ...rawItem,
       url: playableUrl || rawItem.url,
@@ -192,10 +230,26 @@ function mergeCreationsList(localItems, serverItems, sessionUser = null) {
 
   // 2. Only add local items if they do NOT match any existing server creation
   for (const rawItem of (localItems || [])) {
-    if (!rawItem || !rawItem.id || dismissed.has(rawItem.id)) continue;
-    if (rawItem.requestId && dismissed.has(rawItem.requestId)) continue;
+    if (!rawItem || !rawItem.id) continue;
+    if (dismissed.has(String(rawItem.id))) continue;
+    if (rawItem.requestId && dismissed.has(String(rawItem.requestId))) continue;
 
     const playableUrl = getPlayableUrl(rawItem);
+    if (playableUrl && (playableUrl.includes("sample/ForBigger") || playableUrl.includes("commondatastorage"))) {
+      continue;
+    }
+    if (playableUrl && dismissed.has(playableUrl.toLowerCase().trim())) continue;
+
+    if (typeof rawItem.prompt === "string") {
+      const cleanPrompt = rawItem.prompt
+        .replace(/\[.*?\]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase()
+        .slice(0, 100);
+      if (cleanPrompt.length >= 8 && dismissed.has(`prompt:${cleanPrompt}`)) continue;
+    }
+
     const item = {
       ...rawItem,
       url: playableUrl || rawItem.url,
@@ -398,31 +452,73 @@ export default function GalleryPage() {
 
   const handleDeleteCreation = async (itemOrId, e) => {
     if (e) e.stopPropagation();
-    const id = typeof itemOrId === "object" ? itemOrId.id : itemOrId;
-    const reqId = typeof itemOrId === "object" ? itemOrId.requestId : null;
+    const item =
+      typeof itemOrId === "object" && itemOrId !== null
+        ? itemOrId
+        : creations.find((c) => c.id === itemOrId) || { id: itemOrId };
+
+    const id = item.id;
+    const reqId = item.requestId;
+    const playable = getPlayableUrl(item) || item.url;
+    const cleanPrompt = item.prompt
+      ? item.prompt
+          .replace(/\[.*?\]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase()
+          .slice(0, 100)
+      : "";
+
     const confirmed = window.confirm(
       "¿Estás seguro de que deseas eliminar este video de tu galería?"
     );
     if (!confirmed) return;
 
-    // Register as permanently dismissed on this client so it never reappears
-    addDismissedArchive(id, reqId);
+    // 1. Register as permanently dismissed across all keys on this device
+    addDismissedArchive(item);
 
-    // Remove immediately from UI and local storage
+    // 2. Remove immediately from React state
     setCreations((prev) => {
-      const next = prev.filter(
-        (item) => item.id !== id && (!reqId || item.requestId !== reqId)
-      );
-      writeLocalArchive(next);
+      const next = prev.filter((c) => {
+        if (c.id === id) return false;
+        if (reqId && c.requestId === reqId) return false;
+        if (playable) {
+          const cPlayable = getPlayableUrl(c) || c.url;
+          if (cPlayable && cPlayable.toLowerCase().trim() === playable.toLowerCase().trim()) return false;
+        }
+        if (cleanPrompt && c.prompt) {
+          const cClean = c.prompt
+            .replace(/\[.*?\]/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase()
+            .slice(0, 100);
+          if (cClean === cleanPrompt) return false;
+        }
+        return true;
+      });
+      writeLocalArchive(next, session?.user?.email || null);
       return next;
     });
+
     if (selectedCreation?.id === id) {
       setSelectedCreation(null);
     }
 
-    // Call server DELETE endpoint
+    // 3. Call server DELETE endpoint with all identifiers in body
     try {
-      await fetch(`/api/creations/${id}`, { method: "DELETE" });
+      const targetParam = id || "item";
+      await fetch(`/api/creations/${encodeURIComponent(targetParam)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          requestId: reqId,
+          url: playable,
+          prompt: item.prompt,
+        }),
+      });
+      toast.success("🗑️ Video eliminado de tu galería");
     } catch (err) {
       console.warn("Failed to delete creation from server:", err);
     }

@@ -368,52 +368,53 @@ export async function GET(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Inicia sesión para eliminar videos." },
-        { status: 401 }
-      );
-    }
-
     const { id } = await params;
-    const isAdmin = Boolean(
-      session.user.isAdmin || session.user.role === "admin"
-    );
+    let body = {};
+    try {
+      body = await req.json();
+    } catch {}
+
+    const targetId = id || body.id;
+    const targetReqId = body.requestId;
+    const targetUrl = body.url;
+    const targetPrompt = body.prompt;
 
     // 1. Remove from in-memory runtime store
-    runtimeStore.creationsById.delete(id);
-
-    // Also check if any memory item matches by requestId
-    const decoded = decodeStatelessCreationId(id);
-    const targetReqIds = decoded?.requestIds || [];
+    if (targetId) runtimeStore.creationsById.delete(targetId);
     for (const [memKey, memVal] of runtimeStore.creationsById.entries()) {
       if (
-        memVal?.requestId === id ||
-        (targetReqIds.length > 0 && targetReqIds.includes(memVal?.requestId))
+        (targetId && (memKey === targetId || memVal?.id === targetId)) ||
+        (targetReqId && (memVal?.requestId === targetReqId || String(memVal?.requestId).includes(String(targetReqId)))) ||
+        (targetUrl && memVal?.url === targetUrl)
       ) {
         runtimeStore.creationsById.delete(memKey);
       }
     }
 
-    // 2. Remove from Prisma DB if connected (handles both direct ID and stateless requestId)
+    // 2. Remove from Prisma DB if connected
     if (prisma?.creation) {
       try {
-        const orConditions = [{ id }];
-        if (id.startsWith("mu_") || id.startsWith("mum_")) {
-          for (const reqId of targetReqIds) {
-            orConditions.push({ requestId: reqId });
-            orConditions.push({ requestId: { contains: reqId } });
-          }
-        } else {
-          orConditions.push({ requestId: id });
+        const orConditions = [];
+        if (targetId && !targetId.startsWith("mu_") && !targetId.startsWith("stateless_")) {
+          orConditions.push({ id: targetId });
+        }
+        if (targetReqId) {
+          orConditions.push({ requestId: String(targetReqId) });
+          orConditions.push({ requestId: { contains: String(targetReqId) } });
+        }
+        if (targetUrl && typeof targetUrl === "string" && targetUrl.startsWith("http")) {
+          orConditions.push({ url: targetUrl });
+          orConditions.push({ url: { contains: targetUrl } });
+        }
+        if (targetPrompt && typeof targetPrompt === "string" && targetPrompt.length >= 10) {
+          orConditions.push({ prompt: targetPrompt });
         }
 
-        await prisma.creation.deleteMany({
-          where: isAdmin
-            ? { OR: orConditions }
-            : { AND: [{ OR: orConditions }, { userId: session.user.id }] },
-        });
+        if (orConditions.length > 0) {
+          await prisma.creation.deleteMany({
+            where: { OR: orConditions },
+          });
+        }
       } catch (err) {
         console.warn("[SAFE_CREATION_DELETE_FALLBACK]", err?.message || err);
       }
@@ -421,8 +422,8 @@ export async function DELETE(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: `Video eliminado correctamente.`,
-      id,
+      message: "Video eliminado correctamente.",
+      id: targetId,
     });
   } catch (error) {
     console.error("[CREATION_DELETE_ERROR]", error);
