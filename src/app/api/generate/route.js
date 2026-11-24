@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import sharp from "sharp";
 import {
   authOptions,
   DEFAULT_FAL_KEY,
@@ -288,12 +289,17 @@ function buildSegments({
   });
 }
 
-function extractSpeechDialogue(promptText) {
-  if (!promptText || typeof promptText !== "string") {
-    return "Hola, te doy la bienvenida. Hoy quiero compartir contigo una recomendación especial para transformar tu bienestar.";
+function extractSpeechDialogue(promptText, userScript = "") {
+  // 1. Si el usuario proporcionó un guion directo en la UI, usarlo prioritariamente
+  if (userScript && typeof userScript === "string" && userScript.trim().length > 3) {
+    return userScript.trim().slice(0, 500);
   }
 
-  // 1. Extraer si hay texto entre comillas (el guion hablado explícito)
+  if (!promptText || typeof promptText !== "string") {
+    return "Hola, te doy la bienvenida. Hoy quiero compartir contigo este producto increíble.";
+  }
+
+  // 2. Extraer si hay texto entre comillas (el guion hablado explícito)
   const quoteMatches = promptText.match(/"([^"]{4,})"/g);
   if (quoteMatches && quoteMatches.length > 0) {
     const combinedQuotes = quoteMatches
@@ -301,11 +307,18 @@ function extractSpeechDialogue(promptText) {
       .filter((q) => q.length > 0)
       .join(" ");
     if (combinedQuotes.length >= 5) {
-      return combinedQuotes.slice(0, 450);
+      return combinedQuotes.slice(0, 500);
     }
   }
 
-  // 2. Limpieza de directivas técnicas de cámara, estudio y renderizado
+  // 3. Extraer después de "Guion:", "Script:", "Voz:", "Diálogo:", o frases habladas
+  const scriptRegex = /(?:guion|script|di[aá]logo|voz|texto|mensaje|speech)\s*:\s*([^\n\r]+)/i;
+  const scriptMatch = promptText.match(scriptRegex);
+  if (scriptMatch && scriptMatch[1] && scriptMatch[1].trim().length >= 5) {
+    return scriptMatch[1].trim().slice(0, 500);
+  }
+
+  // 4. Limpieza de directivas técnicas de cámara, estudio y renderizado
   let cleaned = promptText
     .replace(/\[.*?\]/g, "")
     .replace(/@image\d+[^,.]*[,.]?/gi, "")
@@ -318,14 +331,135 @@ function extractSpeechDialogue(promptText) {
     .replace(/Lip-sync:[^.]*\./gi, "")
     .replace(/Speaking in.*?deliberate pauses:?/gi, "")
     .replace(/The influencer[^.]*\./gi, "")
+    .replace(/Shot style:[^.]*\./gi, "")
+    .replace(/Lighting:[^.]*\./gi, "")
+    .replace(/Camera:[^.]*\./gi, "")
     .replace(/\s+/g, " ")
     .trim();
 
   if (cleaned.length >= 6) {
-    return cleaned.slice(0, 450);
+    return cleaned.slice(0, 500);
   }
 
-  return "Hola, te doy la bienvenida. Hoy quiero compartir contigo un mensaje especial para inspirarte y conectar con tu paz interior.";
+  return promptText.slice(0, 300);
+}
+
+/**
+ * Combina la foto de fondo, el avatar (creador) y opcionalmente una tarjeta de producto
+ * para producir una sola imagen vertical 9:16 (720x1280) que servirá como source_image para SadTalker / LTX-Video.
+ */
+async function compositeAvatarWithBackground({
+  avatarUrl,
+  backgroundUrl,
+  productUrl = null,
+  width = 720,
+  height = 1280,
+}) {
+  if (!backgroundUrl && !productUrl) {
+    return avatarUrl;
+  }
+
+  try {
+    async function fetchBuffer(url) {
+      if (!url || typeof url !== "string") return null;
+      if (url.startsWith("data:")) {
+        const base64Data = url.split(",")[1];
+        return Buffer.from(base64Data, "base64");
+      }
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    }
+
+    const [backgroundBuffer, avatarBuffer, productBuffer] = await Promise.all([
+      fetchBuffer(backgroundUrl),
+      fetchBuffer(avatarUrl),
+      fetchBuffer(productUrl),
+    ]);
+
+    if (!avatarBuffer) {
+      return avatarUrl || backgroundUrl;
+    }
+
+    // Lienzo base: si hay fondo, redimensionar a 720x1280
+    let baseCanvas;
+    if (backgroundBuffer) {
+      baseCanvas = sharp(backgroundBuffer)
+        .resize(width, height, { fit: "cover", position: "center" })
+        .toFormat("png");
+    } else {
+      baseCanvas = sharp({
+        create: {
+          width,
+          height,
+          channels: 4,
+          background: { r: 20, g: 20, b: 25, alpha: 1 },
+        },
+      }).toFormat("png");
+    }
+
+    const composites = [];
+
+    // Avatar redimensionado para plano medio natural (waist-up portrait UGC)
+    const avatarWidth = Math.round(width * 0.85); // ~610px
+    const avatarHeight = Math.round(height * 0.75); // ~960px
+
+    const resizedAvatar = await sharp(avatarBuffer)
+      .resize(avatarWidth, avatarHeight, {
+        fit: "contain",
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .toFormat("png")
+      .toBuffer();
+
+    const avatarMeta = await sharp(resizedAvatar).metadata();
+    const finalAvWidth = avatarMeta.width || avatarWidth;
+    const finalAvHeight = avatarMeta.height || avatarHeight;
+    const avatarLeft = Math.round((width - finalAvWidth) / 2);
+    const avatarTop = Math.round(height - finalAvHeight);
+
+    composites.push({
+      input: resizedAvatar,
+      left: Math.max(0, avatarLeft),
+      top: Math.max(0, avatarTop),
+    });
+
+    // Tarjeta de producto opcional en esquina
+    if (productBuffer) {
+      const badgeSize = Math.round(width * 0.28); // ~200px
+      const resizedProduct = await sharp(productBuffer)
+        .resize(badgeSize, badgeSize, {
+          fit: "cover",
+          position: "center",
+        })
+        .composite([
+          {
+            input: Buffer.from(
+              `<svg><rect x="0" y="0" width="${badgeSize}" height="${badgeSize}" rx="20" ry="20"/></svg>`
+            ),
+            blend: "dest-in",
+          },
+        ])
+        .toFormat("png")
+        .toBuffer();
+
+      composites.push({
+        input: resizedProduct,
+        left: width - badgeSize - 24,
+        top: 36,
+      });
+    }
+
+    const finalBuffer = await baseCanvas
+      .composite(composites)
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    return `data:image/jpeg;base64,${finalBuffer.toString("base64")}`;
+  } catch (err) {
+    console.error("[COMPOSITE_AVATAR_ERROR]", err?.message || err);
+    return avatarUrl;
+  }
 }
 
 async function synthesizeSpeechReplicate({ text, replicateToken, voice = "ef_dora" }) {
@@ -467,6 +601,19 @@ export async function POST(req) {
     const { modelId } = body;
     const rawPrompt =
       typeof body.prompt === "string" ? body.prompt.trim() : "";
+    const userScript =
+      typeof body.userScript === "string" ? body.userScript.trim() : "";
+    const avatarUrl =
+      typeof body.avatarUrl === "string" && body.avatarUrl.trim().startsWith("http")
+        ? body.avatarUrl.trim()
+        : null;
+    const backgroundUrl =
+      typeof body.backgroundUrl === "string" && body.backgroundUrl.trim().startsWith("http")
+        ? body.backgroundUrl.trim()
+        : null;
+    const productUrls = Array.isArray(body.productUrls)
+      ? body.productUrls.filter((u) => typeof u === "string" && u.trim().startsWith("http"))
+      : [];
     const settings =
       body.settings && typeof body.settings === "object" ? body.settings : {};
     const scenes = Array.isArray(body.scenes) ? body.scenes : [];
@@ -662,19 +809,29 @@ export async function POST(req) {
     const falEndpoint = FAL_MODEL_MAP[modelId] || "fal-ai/ltx-video";
     const requestIds = [];
 
-    // Fallback de avatar espiritual (Maya Shanti) si no se proporcionó una imagen
+    // Fallback de avatar si no se proporcionó una imagen
     const DEFAULT_SPIRITUAL_AVATAR = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80";
-    const activeImages = images && images.length > 0 ? images : [DEFAULT_SPIRITUAL_AVATAR];
+    const effectiveAvatarUrl = avatarUrl || (images && images.length > 0 ? images[0] : DEFAULT_SPIRITUAL_AVATAR);
+    const activeImages = images && images.length > 0 ? images : [effectiveAvatarUrl];
 
     for (const segment of segments) {
       // Si el modelo es LipSync, o hay avatar, o se solicitó modo avatar/influencer: generar con audio y labios sincronizados
-      const hasAvatarImage = Boolean(activeImages && activeImages.length > 0 && typeof activeImages[0] === "string" && activeImages[0].startsWith("http"));
+      const hasAvatarImage = Boolean(effectiveAvatarUrl);
       const isLipSyncRequested = modelId === "sync-lipsync" || body.creationStyleMode === "avatar" || (hasAvatarImage && body.creationStyleMode !== "cinematic");
 
       if (hasAvatarImage && isLipSyncRequested) {
         try {
-          // 1. Extraer el diálogo limpio en español (sin comandos de renderizado)
-          const spokenText = extractSpeechDialogue(segment.prompt);
+          // 1. Extraer el diálogo limpio en español dando prioridad al guion directo del usuario
+          const spokenText = extractSpeechDialogue(segment.prompt, userScript);
+
+          // 2. Componer la imagen 9:16 integrando fondo + avatar + producto si hay fondo o producto
+          const finalSourceImage = await compositeAvatarWithBackground({
+            avatarUrl: effectiveAvatarUrl,
+            backgroundUrl,
+            productUrl: productUrls[0] || null,
+            width: 720,
+            height: 1280,
+          });
 
           if (activeEngine === "replicate") {
             // A. Sintetizar la voz en español HD con Kokoro en Replicate
@@ -692,7 +849,7 @@ export async function POST(req) {
             }
 
             // B. Animar los labios del avatar con definición y sonido sincronizado (SadTalker)
-            const sadTalkerVersion = "a519cc0cfebaaeade068b23899165a11ec76aaa1d2b313d40d214f204ec957a3";
+            const sadTalkerVersion = "3aa3dac9353cc4d6bd62a871be495160c7096b739f829cc6581e62381e136a3f";
             const sadTalkerRes = await fetch("https://api.replicate.com/v1/predictions", {
               method: "POST",
               headers: {
@@ -702,7 +859,7 @@ export async function POST(req) {
               body: JSON.stringify({
                 version: sadTalkerVersion,
                 input: {
-                  source_image: activeImages[0],
+                  source_image: finalSourceImage,
                   driven_audio: audioUrl,
                   still_mode: true,
                   use_enhancer: true,
@@ -756,7 +913,7 @@ export async function POST(req) {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                image_url: activeImages[0],
+                image_url: finalSourceImage,
                 audio_url: audioUrl,
               }),
             });
@@ -809,9 +966,10 @@ export async function POST(req) {
               : "9:16",
         };
 
-        if (activeImages.length) {
-          repInput.image = activeImages[0];
-          repInput.input_image = activeImages[0];
+        const bRollImage = productUrls[0] || backgroundUrl || activeImages[0];
+        if (bRollImage) {
+          repInput.image = bRollImage;
+          repInput.input_image = bRollImage;
         }
 
         const repResponse = await fetch("https://api.replicate.com/v1/predictions", {

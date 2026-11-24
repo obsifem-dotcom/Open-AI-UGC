@@ -1595,11 +1595,18 @@ export default function Home() {
         body: JSON.stringify({
           modelId: selectedModel.id,
           prompt: finalPrompt,
+          userScript: prompt.trim(),
           settings: requestSettings,
           scenes: activeScenes,
           videoMode,
           consistencyDirective,
           images: combinedImageUrls,
+          avatarUrl: resolvedAvatar,
+          backgroundUrl: customEnvImageUrl || (hasEnvRef ? effectiveEnvUrl : null) || effectiveEnvUrl || null,
+          productUrls: readyUserUrls,
+          customVoiceAudioUrl:
+            voiceProfileId === "custom-voice" ? customVoiceAudioUrl : null,
+          creationStyleMode,
           sandbox: Boolean(isSandboxMode),
           isAdmin: isAdminUser,
           userEmail: session?.user?.email || null,
