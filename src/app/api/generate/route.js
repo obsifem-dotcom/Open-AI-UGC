@@ -328,6 +328,58 @@ function extractSpeechDialogue(promptText) {
   return "Hola, te doy la bienvenida. Hoy quiero compartir contigo un mensaje especial para inspirarte y conectar con tu paz interior.";
 }
 
+async function synthesizeSpeechReplicate({ text, replicateToken, voice = "ef_dora" }) {
+  const cleanText = (text || "").trim();
+  if (!cleanText) {
+    throw new Error("No hay texto o diálogo para sintetizar la voz.");
+  }
+
+  const postRes = await fetch("https://api.replicate.com/v1/predictions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${replicateToken}`,
+      "Content-Type": "application/json",
+      Prefer: "wait=60",
+    },
+    body: JSON.stringify({
+      version: "f559560eb822dc509045f3921a1921234918b91739db4bf3daab2169b71c7a13",
+      input: {
+        text: cleanText,
+        voice,
+        speed: 1.0,
+      },
+    }),
+  });
+
+  if (!postRes.ok) {
+    const errText = await postRes.text();
+    throw new Error(`Error en síntesis de voz Replicate (${postRes.status}): ${errText}`);
+  }
+
+  let data = await postRes.json();
+  if (data.status === "succeeded" && data.output) {
+    return typeof data.output === "string" ? data.output : data.output[0];
+  }
+
+  const pollUrl = data.urls?.get || `https://api.replicate.com/v1/predictions/${data.id}`;
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const check = await fetch(pollUrl, {
+      headers: { Authorization: `Bearer ${replicateToken}` },
+    });
+    if (check.ok) {
+      data = await check.json();
+      if (data.status === "succeeded" && data.output) {
+        return typeof data.output === "string" ? data.output : data.output[0];
+      }
+      if (data.status === "failed" || data.status === "canceled") {
+        throw new Error(data.error || "Falló la síntesis de voz en Replicate.");
+      }
+    }
+  }
+  throw new Error("Tiempo de espera agotado al sintetizar la voz en Replicate.");
+}
+
 function calculateCreditsForDuration(modelId, duration, resolution) {
   if (
     modelId === "sync-lipsync" ||
@@ -615,14 +667,140 @@ export async function POST(req) {
     const activeImages = images && images.length > 0 ? images : [DEFAULT_SPIRITUAL_AVATAR];
 
     for (const segment of segments) {
+      // Si el modelo es LipSync, o hay avatar, o se solicitó modo avatar/influencer: generar con audio y labios sincronizados
+      const hasAvatarImage = Boolean(activeImages && activeImages.length > 0 && typeof activeImages[0] === "string" && activeImages[0].startsWith("http"));
+      const isLipSyncRequested = modelId === "sync-lipsync" || body.creationStyleMode === "avatar" || (hasAvatarImage && body.creationStyleMode !== "cinematic");
+
+      if (hasAvatarImage && isLipSyncRequested) {
+        try {
+          // 1. Extraer el diálogo limpio en español (sin comandos de renderizado)
+          const spokenText = extractSpeechDialogue(segment.prompt);
+
+          if (activeEngine === "replicate") {
+            // A. Sintetizar la voz en español HD con Kokoro en Replicate
+            const isMale = /male|hombre|masculin|alex|carlos|pedro/i.test(segment.prompt) || body.voiceGender === "male";
+            const chosenVoice = isMale ? "em_alex" : "ef_dora";
+
+            const audioUrl = body.customVoiceAudioUrl || await synthesizeSpeechReplicate({
+              text: spokenText,
+              replicateToken,
+              voice: chosenVoice,
+            });
+
+            if (!audioUrl) {
+              throw new Error("Replicate no devolvió la URL del audio sintetizado.");
+            }
+
+            // B. Animar los labios del avatar con definición y sonido sincronizado (SadTalker)
+            const sadTalkerVersion = "a519cc0cfebaaeade068b23899165a11ec76aaa1d2b313d40d214f204ec957a3";
+            const sadTalkerRes = await fetch("https://api.replicate.com/v1/predictions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${replicateToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                version: sadTalkerVersion,
+                input: {
+                  source_image: activeImages[0],
+                  driven_audio: audioUrl,
+                  still_mode: true,
+                  use_enhancer: true,
+                  use_eyeblink: true,
+                  preprocess: "crop",
+                },
+              }),
+            });
+
+            if (!sadTalkerRes.ok) {
+              const errText = await sadTalkerRes.text();
+              throw new Error(`Error en animación labial Replicate (${sadTalkerRes.status}): ${errText}`);
+            }
+
+            const sadData = await sadTalkerRes.json();
+            const repId = sadData.id;
+            if (!repId) {
+              throw new Error("Replicate no devolvió un ID de predicción para el avatar.");
+            }
+            requestIds.push(`rep:cjwbw/sadtalker:${repId}`);
+            continue;
+          }
+
+          if (activeEngine === "fal") {
+            // 2. Sintetizar la voz en español HD con Fal.ai (Minimax Speech-02-HD)
+            const ttsRes = await fetch("https://fal.run/fal-ai/minimax/speech-02-hd", {
+              method: "POST",
+              headers: {
+                Authorization: `Key ${falApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ prompt: spokenText }),
+            });
+
+            if (!ttsRes.ok) {
+              const ttsErr = await ttsRes.text();
+              throw new Error(`Error en síntesis de voz Fal.ai (${ttsRes.status}): ${ttsErr}`);
+            }
+
+            const ttsData = await ttsRes.json();
+            const audioUrl = ttsData?.audio?.url;
+            if (!audioUrl) {
+              throw new Error("Fal.ai no devolvió la URL del audio sintetizado.");
+            }
+
+            // 3. Animar los labios del avatar con definición y sonido sincronizado (Sync Labs v3)
+            const lipsyncRes = await fetch("https://queue.fal.run/fal-ai/sync-lipsync/v3/image-to-video", {
+              method: "POST",
+              headers: {
+                Authorization: `Key ${falApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                image_url: activeImages[0],
+                audio_url: audioUrl,
+              }),
+            });
+
+            if (!lipsyncRes.ok) {
+              const lipErr = await lipsyncRes.text();
+              throw new Error(`Error en sincronización labial Fal.ai (${lipsyncRes.status}): ${lipErr}`);
+            }
+
+            const lipsyncData = await lipsyncRes.json();
+            const reqId = lipsyncData.request_id || lipsyncData.id;
+            if (reqId) {
+              requestIds.push(`fal:fal-ai/sync-lipsync:${reqId}`);
+              continue;
+            }
+          }
+        } catch (lipsyncErr) {
+          console.error("[LIPSYNC_ERROR]", lipsyncErr?.message || lipsyncErr);
+          if (modelId === "sync-lipsync") {
+            throw lipsyncErr;
+          }
+        }
+      }
+
+      // 2. MODO CINEMÁTICO / B-ROLL DE PRODUCTO (LTX-Video en Replicate o Fal.ai)
       if (activeEngine === "replicate") {
         const repModel = REPLICATE_MODEL_MAP[modelId] || REPLICATE_MODEL_MAP["ltx-video"];
         const versionId = repModel.includes(":")
           ? repModel.split(":")[1]
           : "8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4";
 
+        let cleanVisualPrompt = segment.prompt
+          .replace(/\[Lip-sync.*?\]/gi, "")
+          .replace(/Audio Synthesizer:[^.]*\./gi, "")
+          .replace(/"[^"]*"/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        if (!cleanVisualPrompt || cleanVisualPrompt.length < 5) {
+          cleanVisualPrompt = "Cinematic product commercial B-roll shot, commercial studio lighting, smooth camera movement, 4k high definition";
+        }
+
         const repInput = {
-          prompt: segment.prompt,
+          prompt: cleanVisualPrompt,
           aspect_ratio:
             settings.aspect_ratio === "16:9" ||
             settings.aspect_ratio === "9:16" ||
@@ -636,19 +814,16 @@ export async function POST(req) {
           repInput.input_image = activeImages[0];
         }
 
-        const repUrl = "https://api.replicate.com/v1/predictions";
-        const repBody = {
-          version: versionId,
-          input: repInput,
-        };
-
-        const repResponse = await fetch(repUrl, {
+        const repResponse = await fetch("https://api.replicate.com/v1/predictions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${replicateToken}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(repBody),
+          body: JSON.stringify({
+            version: versionId,
+            input: repInput,
+          }),
         });
 
         if (!repResponse.ok) {
@@ -676,69 +851,8 @@ export async function POST(req) {
         requestIds.push(`rep:${repModel}:${repId}`);
         continue;
       }
-      // Si el modelo es LipSync, o hay avatar, o se solicitó modo avatar/influencer: generar con audio y labios sincronizados
-      const hasAvatarImage = Boolean(activeImages && activeImages.length > 0 && typeof activeImages[0] === "string" && activeImages[0].startsWith("http"));
-      const isLipSyncRequested = modelId === "sync-lipsync" || body.creationStyleMode === "avatar" || (hasAvatarImage && body.creationStyleMode !== "cinematic");
 
-      if (hasAvatarImage && isLipSyncRequested) {
-        try {
-          // 1. Extraer el diálogo limpio en español (sin comandos de renderizado)
-          const spokenText = extractSpeechDialogue(segment.prompt);
-
-          // 2. Sintetizar la voz en español HD con Fal.ai (Minimax Speech-02-HD)
-          const ttsRes = await fetch("https://fal.run/fal-ai/minimax/speech-02-hd", {
-            method: "POST",
-            headers: {
-              Authorization: `Key ${falApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ prompt: spokenText }),
-          });
-
-          if (!ttsRes.ok) {
-            const ttsErr = await ttsRes.text();
-            throw new Error(`Error en síntesis de voz Fal.ai (${ttsRes.status}): ${ttsErr}`);
-          }
-
-          const ttsData = await ttsRes.json();
-          const audioUrl = ttsData?.audio?.url;
-          if (!audioUrl) {
-            throw new Error("Fal.ai no devolvió la URL del audio sintetizado.");
-          }
-
-          // 3. Animar los labios del avatar con definición y sonido sincronizado (Sync Labs v3)
-          const lipsyncRes = await fetch("https://queue.fal.run/fal-ai/sync-lipsync/v3/image-to-video", {
-            method: "POST",
-            headers: {
-              Authorization: `Key ${falApiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              image_url: activeImages[0],
-              audio_url: audioUrl,
-            }),
-          });
-
-          if (!lipsyncRes.ok) {
-            const lipErr = await lipsyncRes.text();
-            throw new Error(`Error en sincronización labial Fal.ai (${lipsyncRes.status}): ${lipErr}`);
-          }
-
-          const lipsyncData = await lipsyncRes.json();
-          const reqId = lipsyncData.request_id || lipsyncData.id;
-          if (reqId) {
-            requestIds.push(`fal:fal-ai/sync-lipsync:${reqId}`);
-            continue;
-          }
-        } catch (lipsyncErr) {
-          console.error("[LIPSYNC_ERROR]", lipsyncErr?.message || lipsyncErr);
-          if (modelId === "sync-lipsync") {
-            throw lipsyncErr;
-          }
-        }
-      }
-
-      // Modo Cinemático / B-Roll estándar (LTX-Video / CogVideoX / Hunyuan)
+      // Si el motor activo es Fal.ai para B-Roll:
       const falQueueUrl = `https://queue.fal.run/${falEndpoint}`;
       const falPayload = {
         prompt: segment.prompt,
