@@ -18,17 +18,17 @@ import {
 } from "@/lib/runtime-store";
 
 const REPLICATE_MODEL_MAP = {
-  "ltx-video": "lightricks/ltx-video",
-  "sync-lipsync": "cjwbw/sadtalker",
-  "cogvideox-5b": "lucataco/cogvideox-5b",
-  "hunyuan-video": "lightricks/ltx-video",
-  "animatediff-v3": "lightricks/ltx-video",
+  "ltx-video": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
+  "sync-lipsync": "cjwbw/sadtalker:3aa3dac9353cc4d6bd62a871be495160c7096b739f829cc6581e62381e136a3f",
+  "cogvideox-5b": "lucataco/cogvideox-5b:04e6378e99b0c202517865768cf3d5f9923838421b1933ec09c3143c72b8c566",
+  "hunyuan-video": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
+  "animatediff-v3": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
   "stable-video-diffusion": "stability-ai/stable-video-diffusion:3f0457e4619daac51203dedb472816fd449cb99edfe01c21a16664c3e69f183f",
-  "fast-svd": "lightricks/ltx-video",
-  "seedance-2": "lightricks/ltx-video",
-  "grok-video": "lightricks/ltx-video",
-  "veo-3-1": "lightricks/ltx-video",
-  "happy-horse": "lightricks/ltx-video",
+  "fast-svd": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
+  "seedance-2": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
+  "grok-video": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
+  "veo-3-1": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
+  "happy-horse": "lightricks/ltx-video:8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4",
 };
 
 const FAL_MODEL_MAP = {
@@ -616,7 +616,11 @@ export async function POST(req) {
 
     for (const segment of segments) {
       if (activeEngine === "replicate") {
-        const repModel = REPLICATE_MODEL_MAP[modelId] || "lightricks/ltx-video";
+        const repModel = REPLICATE_MODEL_MAP[modelId] || REPLICATE_MODEL_MAP["ltx-video"];
+        const versionId = repModel.includes(":")
+          ? repModel.split(":")[1]
+          : "8c47da666861d081eeb4d1261853087de23923a268a69b63febdf5dc1dee08e4";
+
         const repInput = {
           prompt: segment.prompt,
           aspect_ratio:
@@ -632,13 +636,11 @@ export async function POST(req) {
           repInput.input_image = activeImages[0];
         }
 
-        const repUrl = repModel.includes(":")
-          ? "https://api.replicate.com/v1/predictions"
-          : `https://api.replicate.com/v1/models/${repModel}/predictions`;
-
-        const repBody = repModel.includes(":")
-          ? { version: repModel.split(":")[1], input: repInput }
-          : { input: repInput };
+        const repUrl = "https://api.replicate.com/v1/predictions";
+        const repBody = {
+          version: versionId,
+          input: repInput,
+        };
 
         const repResponse = await fetch(repUrl, {
           method: "POST",
@@ -661,7 +663,7 @@ export async function POST(req) {
             throw new Error("Token de Replicate inválido o expirado. Verifica tu REPLICATE_API_TOKEN en Vercel.");
           }
           if (repResponse.status === 402) {
-            throw new Error("Saldo agotado o límite de gasto alcanzado en Replicate. Revisa tu panel en replicate.com/billing.");
+            throw new Error("Saldo agotado o límite de gasto alcanzado en Replicate. Revisa tu panel en replicate.com/account/billing.");
           }
           throw new Error(`Error en Replicate (${repResponse.status}): ${parsedMsg}`);
         }
